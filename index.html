@@ -77,15 +77,18 @@
       <button id="repair" class="roll" type="button" aria-label="Reparar la nave">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
         <span id="repairWord">Reparar</span>
+        <kbd class="kb" id="kbRepair"></kbd>
       </button>
       <button id="missile" class="roll" type="button" aria-label="Misil: mantené apretado para fijar el blanco y soltá para disparar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5c2.8 2.7 4 6 4 10l2.5 5H14l-2 3.5-2-3.5H5.500l2.500-5c0-4 1.200-7.300 4-10Z"/></svg>
         <span>Misil <b id="missileN">4</b></span>
+        <kbd class="kb" id="kbMissile"></kbd>
         <i id="missileBar"></i>
       </button>
       <button id="tgtBtn" class="roll" type="button" aria-label="Blanco: tocá para elegir o cambiar de enemigo, mantené para soltarlo">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="6"/><path d="M12 2.5v5M12 16.5v5M2.5 12h5M16.5 12h5"/></svg>
         <span id="tgtWord">Blanco</span>
+        <kbd class="kb" id="kbTarget"></kbd>
       </button>
       <button id="fire" type="button" aria-label="Disparar">Fuego</button>
 
@@ -96,13 +99,19 @@
       <div id="crashMsg" hidden></div>
     </div>
 
-    <div id="sheet" role="dialog" aria-label="Ajustes de vuelo" hidden>
+    <div id="sheet" role="dialog" aria-label="Ajustes" hidden>
       <div id="sheetBody">
         <div id="sheetHead">
-          <h2>Ajustes de vuelo</h2>
+          <h2>Ajustes</h2>
           <button id="resume" type="button">Seguir volando</button>
         </div>
-        <div id="sheetGrid">
+        <div id="tabs" role="tablist" aria-label="Secciones de ajustes">
+          <button class="tab" type="button" role="tab" data-tab="vuelo" aria-selected="true">Vuelo</button>
+          <button class="tab" type="button" role="tab" data-tab="kb" aria-selected="false">Teclado y mouse</button>
+          <button class="tab" type="button" role="tab" data-tab="pad" aria-selected="false">Mando</button>
+          <button class="tab" type="button" role="tab" data-tab="touch" aria-selected="false">Pantalla táctil</button>
+        </div>
+        <div id="sheetGrid" data-panel="vuelo">
           <section class="opt">
             <h3>Modo de vuelo</h3>
             <div class="seg" data-key="mode"><button id="optModeA" type="button" data-val="asistido">Asistido</button><button id="optModeM" type="button" data-val="manual">Manual</button></div>
@@ -135,6 +144,31 @@
             <div class="seg" data-key="tgtCam"><button id="optTgtCam" type="button" data-val="camara">La cámara lo sigue</button><button id="optTgtMark" type="button" data-val="marca">Solo lo marca</button></div>
             <p>Tocá Blanco para elegir un enemigo y volvé a tocar para pasar al siguiente. Mantenelo apretado para soltarlo.</p>
           </section>
+        </div>
+        <div class="panel" data-panel="kb" hidden>
+          <p class="panelNote">Elegí un casillero y apretá la tecla o el botón del mouse que quieras. Para el clic izquierdo, hacé clic sobre el mismo casillero. Esc cancela y Borrar lo deja vacío.</p>
+          <div class="binds" id="bindsKb"></div>
+          <button type="button" class="resetBinds" data-dev="kb">Volver a las teclas de fábrica</button>
+        </div>
+        <div class="panel" data-panel="pad" hidden>
+          <p class="panelNote" id="padStatus"></p>
+          <div class="binds" id="bindsPad"></div>
+          <p class="panelNote">Stick I y Stick D son el stick izquierdo y el derecho. En los mandos de PlayStation, A es ✕, B es ○, X es □, Y es △, LB y RB son L1 y R1, y LT y RT son L2 y R2. Start pausa el juego.</p>
+          <button type="button" class="resetBinds" data-dev="pad">Volver a los botones de fábrica</button>
+        </div>
+        <div class="panel" data-panel="touch" hidden>
+          <div id="touchGrid">
+            <section class="opt">
+              <h3>Botones en pantalla</h3>
+              <div class="seg" data-key="touchUI"><button type="button" data-val="auto">Automático</button><button type="button" data-val="siempre">Siempre</button><button type="button" data-val="nunca">Nunca</button></div>
+              <p>En automático se ven en el teléfono y cuando tocás la pantalla, y se esconden si jugás con teclado, mouse o mando.</p>
+            </section>
+            <section class="opt">
+              <h3>Vibrar al recibir daño</h3>
+              <div class="seg" data-key="vibrate"><button type="button" data-val="true">Sí</button><button type="button" data-val="false">No</button></div>
+              <p>Solo en los teléfonos que lo permiten, como la mayoría de los Android.</p>
+            </section>
+          </div>
         </div>
         <div id="sheetFoot">
           <button id="straighten" type="button">Enderezar la nave</button>

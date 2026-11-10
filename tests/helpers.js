@@ -26,12 +26,14 @@ const check = (name, ok, extra = '') => console.log(`${ok ? 'OK  ' : 'FAIL'} ${n
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const launch = () => chromium.launch({ args: ['--use-angle=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] });
 
-async function open(browser, viewport) {
-  const ctx = await browser.newContext({ viewport, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
+// opts.pc: abre como computadora (mouse y teclado, sin pantalla táctil)
+async function open(browser, viewport, opts = {}) {
+  const ctx = await browser.newContext(opts.pc ? { viewport, deviceScaleFactor: 1 } : { viewport, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   const errs = [];
   page.on('pageerror', e => errs.push('pageerror: ' + e.message + ' ' + (e.stack || '').split('\n').slice(1, 3).join(' ')));
   page.on('console', m => { if ((m.type() === 'error' || /THREE\.WebGL|GLSL|shader/i.test(m.text())) && !/fonts\.g|ERR_|Failed to load resource/.test(m.text())) errs.push('console: ' + m.text().slice(0, 500)); });
+  if (opts.init) await page.addInitScript(opts.init);
   const html = pageHtml();
   await page.route('**/fonts.g*/**', r => r.abort());
   await page.route('http://game.test/', r => r.fulfill({ body: html, contentType: 'text/html' }));

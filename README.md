@@ -36,6 +36,22 @@ La primera vez que vayas a correr las pruebas, instalá el navegador que usan:
 npx playwright install chromium
 ```
 
+## Cómo se juega en PC
+
+- **W / S:** trompa.
+- **Q / E:** doblar.
+- **A / D:** rotar; dos toques esquivan.
+- **Clic izquierdo:** disparar.
+- **Clic derecho:** misil.
+- **Espacio:** Blanco.
+- **Shift:** turbo.
+- **Rueda del mouse:** empuje.
+- **R:** reparar.
+- **C:** cámara.
+- **Esc:** pausa.
+
+Todo se puede cambiar en **Ajustes → Teclado y mouse**. Con un mando de Xbox o PlayStation conectado, los botones se cambian en **Ajustes → Mando**.
+
 ## Cómo está organizado
 
 ```
@@ -79,6 +95,7 @@ Las pruebas abren el juego en un Chromium con pantalla táctil simulada (horizon
 | `06-camara-blanco` | Cámara de Blanco |
 | `07-combate` | Patrullas, ataques, daño, vida, puntos, despejar zonas, botones sin encimarse |
 | `08-modos-y-enemigos` | Menú de inicio, ajustes que se deslizan, los cuatro modos, torretas, nodriza, drones |
+| `09-teclado-mouse-mando` | Controles de PC, mando simulado, asignar teclas y botones, botones en pantalla |
 
 **Pendiente:** la prueba del planeta (biomas, vuelta completa, choques con el suelo) es de una versión vieja y hay que actualizarla.
 

@@ -72,7 +72,7 @@ const ZONE_ORDER=['dispersa','normal','densa','dispersa','normal','densa'];
 
 const STORE='delta-uno-ajustes-v3';
 // v3: "lateral" cambió de significado, así que de los ajustes viejos se conserva todo menos eso
-const settings=Object.assign({mode:'asistido',invert:true,invertX:false,lateral:'dobla',sens:'media',sound:true,flip:false,tgtCam:'camara',diff:'medio',lastMode:'conquista'},(()=>{
+const settings=Object.assign({mode:'asistido',invert:true,invertX:false,lateral:'dobla',sens:'media',sound:true,flip:false,tgtCam:'camara',diff:'medio',lastMode:'conquista',touchUI:'auto',vibrate:true},(()=>{
   try{
     const cur=localStorage.getItem(STORE);if(cur)return JSON.parse(cur)||{};
     const old=JSON.parse(localStorage.getItem('delta-uno-ajustes-v2'))||{};delete old.lateral;return old;
@@ -1118,7 +1118,7 @@ function resetVitals(){
   dodge.t=0;dodge.cool=0;
   missiles=MISSILE_MAX;missileT=0;repairT=0;repairCool=0;lockCancel();
   rockets.forEach(m=>{m.on=false;m.mesh.visible=false;});
-  ship.throttle=CRUISE;showThrust();
+  ship.throttle=CRUISE;turbo.on=false;showThrust();
   bolts.forEach(b=>{b.on=false;});eBolts.forEach(b=>{b.on=false;});
 }
 // Pone la nave nivelada sobre la dirección u, mirando hacia f, a "extra" metros sobre lo más alto del terreno
@@ -1379,35 +1379,302 @@ releases.push(()=>{thrustId=null;});
 document.addEventListener('touchmove',e=>{if(!e.target.closest||!e.target.closest('#sheetBody,#menuBody,#endBody'))e.preventDefault();},{passive:false});
 ['gesturestart','gesturechange','contextmenu','selectstart','dblclick'].forEach(t=>document.addEventListener(t,e=>e.preventDefault()));
 
-/* Teclado, para probar en la compu */
-const keys=new Set();
-const kbMap={Space:1,ArrowUp:1,ArrowDown:1,ArrowLeft:1,ArrowRight:1};
+/* ---------- Teclado, mouse y mando: cada acción tiene hasta dos teclas o botones, y se cambian en Ajustes ---------- */
+const ACTIONS=[
+  {id:'up',name:'Palanca arriba'},{id:'down',name:'Palanca abajo'},
+  {id:'left',name:'Palanca a la izquierda'},{id:'right',name:'Palanca a la derecha'},
+  {id:'btnL',name:'Botón izquierdo'},{id:'btnR',name:'Botón derecho'},
+  {id:'fire',name:'Disparar'},
+  {id:'missile',name:'Misil',hint:'mantené para fijar, soltá para disparar'},
+  {id:'target',name:'Blanco',hint:'tocá para elegir, mantené para soltar'},
+  {id:'turbo',name:'Turbo',hint:'mientras lo mantenés'},
+  {id:'faster',name:'Más empuje'},{id:'slower',name:'Menos empuje'},
+  {id:'repair',name:'Reparar'},
+  {id:'camera',name:'Cámara',hint:'sigue al blanco o normal'}
+];
+// Esquema de fábrica. Teclado: el que definió Santiago; las flechas, F y T quedan de alternativa.
+const DEFAULT_BINDS={
+  kb:{up:['KeyW','ArrowUp'],down:['KeyS','ArrowDown'],left:['KeyQ','ArrowLeft'],right:['KeyE','ArrowRight'],btnL:['KeyA',''],btnR:['KeyD',''],
+    fire:['Mouse0',''],missile:['Mouse2','KeyF'],target:['Space','KeyT'],turbo:['ShiftLeft','ShiftRight'],
+    faster:['WheelUp',''],slower:['WheelDown',''],repair:['KeyR',''],camera:['KeyC','']},
+  // Mando con distribución estándar (Xbox; en PlayStation, A=✕ B=○ X=□ Y=△)
+  pad:{up:['a1-',''],down:['a1+',''],left:['a0-',''],right:['a0+',''],btnL:['b4',''],btnR:['b5',''],
+    fire:['b7',''],missile:['b6',''],target:['b3',''],turbo:['b0',''],
+    faster:['a3-','b12'],slower:['a3+','b13'],repair:['b2',''],camera:['b1','']}
+};
+const PAD_PAUSE=9; // Start: pausa, fijo
+function loadBinds(dev){
+  const d=DEFAULT_BINDS[dev],sv=settings[dev+'Binds']||{},o={};
+  for(const a of ACTIONS){const v=sv[a.id];o[a.id]=Array.isArray(v)&&v.length===2?v.slice():d[a.id].slice();}
+  return o;
+}
+const binds={kb:loadBinds('kb'),pad:loadBinds('pad')};
+function saveBinds(){settings.kbBinds=binds.kb;settings.padBinds=binds.pad;saveSettings();}
+const KEY_NAMES={Space:'Espacio',ShiftLeft:'Shift',ShiftRight:'Shift der.',ControlLeft:'Ctrl',ControlRight:'Ctrl der.',AltLeft:'Alt',AltRight:'Alt der.',
+  Enter:'Enter',Tab:'Tab',CapsLock:'Mayús',ArrowUp:'↑',ArrowDown:'↓',ArrowLeft:'←',ArrowRight:'→',
+  Mouse0:'Clic izq.',Mouse1:'Clic medio',Mouse2:'Clic der.',Mouse3:'Botón 4',Mouse4:'Botón 5',WheelUp:'Rueda ↑',WheelDown:'Rueda ↓'};
+function keyName(c){
+  if(!c)return '';if(KEY_NAMES[c])return KEY_NAMES[c];
+  if(/^Key[A-Z]$/.test(c))return c.slice(3);if(/^Digit\d$/.test(c))return c.slice(5);
+  if(/^Numpad/.test(c))return 'Num '+c.slice(6);return c;
+}
+const PAD_NAMES=['A','B','X','Y','LB','RB','LT','RT','Back','Start','Clic stick I','Clic stick D','Cruz ↑','Cruz ↓','Cruz ←','Cruz →','Guía'];
+const AXIS_NAMES=[['Stick I ←','Stick I →'],['Stick I ↑','Stick I ↓'],['Stick D ←','Stick D →'],['Stick D ↑','Stick D ↓']]; // I: izquierdo, D: derecho
+function padName(c){
+  if(!c)return '';
+  if(c[0]==='b')return PAD_NAMES[+c.slice(1)]||('Botón '+c.slice(1));
+  const i=+c.slice(1,-1),pos=c.slice(-1)==='+'?1:0;
+  return (AXIS_NAMES[i]||['Eje '+i+' −','Eje '+i+' +'])[pos];
+}
+const bindName=(dev,c)=>dev==='kb'?keyName(c):padName(c);
+
+/* Con qué está jugando: en PC se esconden los botones táctiles. En teléfonos el teclado no los esconde; el mando sí. */
+let inputDev=coarse?'touch':'kbd',lastTouch=-9e9;
+function useDev(d){if(inputDev===d)return;inputDev=d;applyTouchUI();}
+function applyTouchUI(){
+  const m=settings.touchUI||'auto';
+  const show=m==='siempre'||(m==='auto'&&inputDev==='touch');
+  hud.classList.toggle('kbd',!show);
+  const dev=inputDev==='pad'?'pad':'kb';
+  [['#kbMissile','missile'],['#kbRepair','repair'],['#kbTarget','target']].forEach(([sel,id])=>{const el=$(sel);if(el)el.textContent=bindName(dev,binds[dev][id][0]||binds[dev][id][1]);});
+}
+
+/* Acciones */
+const keys=new Set(); // teclas y botones del mouse apretados ahora
+const kbHeld=id=>{const b=binds.kb[id];return !!((b[0]&&keys.has(b[0]))||(b[1]&&keys.has(b[1])));};
+const turbo={on:false,prev:CRUISE};
+function turboStart(){if(turbo.on)return;turbo.on=true;turbo.prev=ship.throttle;ship.throttle=1;showThrust();}
+function turboEnd(){if(!turbo.on)return;turbo.on=false;ship.throttle=Math.min(ship.throttle,turbo.prev);showThrust();}
+function toggleCam(){
+  settings.tgtCam=settings.tgtCam==='camara'?'marca':'camara';saveSettings();syncSheet();
+  toast(settings.tgtCam==='camara'?'Cámara: sigue al blanco':'Cámara normal: el blanco solo se marca',1.8);
+}
+function actPress(id){
+  if(id==='btnL')tapRoll(1);else if(id==='btnR')tapRoll(-1);
+  else if(id==='missile')lockStart();else if(id==='target')tgtPress();
+  else if(id==='repair')tryRepair();else if(id==='camera')toggleCam();
+  else if(id==='turbo')turboStart();
+}
+function actRelease(id){
+  if(id==='missile')lockRelease();else if(id==='target')tgtRelease();else if(id==='turbo')turboEnd();
+}
+function codeDown(code){
+  if(keys.has(code))return;
+  const before=ACTIONS.map(a=>kbHeld(a.id));
+  keys.add(code);
+  ACTIONS.forEach((a,i)=>{if(!before[i]&&kbHeld(a.id))actPress(a.id);});
+}
+function codeUp(code){
+  if(!keys.has(code))return;
+  const before=ACTIONS.map(a=>kbHeld(a.id));
+  keys.delete(code);
+  ACTIONS.forEach((a,i)=>{if(before[i]&&!kbHeld(a.id))actRelease(a.id);});
+}
+// Al abrir un menú o perder el foco: se sueltan todas sin disparar el misil a medio fijar
+function dropKeys(){
+  const was=ACTIONS.filter(a=>kbHeld(a.id)).map(a=>a.id);
+  keys.clear();
+  was.forEach(id=>{if(id==='missile')lockCancel();else if(id==='target')tgtCancel();else if(id==='turbo')turboEnd();});
+}
+const isAction=(dev,code)=>!!code&&ACTIONS.some(a=>binds[dev][a.id].includes(code));
+
 window.addEventListener('keydown',e=>{
   if(overlayOpen()&&!sheetOpen())return;
   if(e.code==='Escape'){sheetOpen()?closeSheet():openSheet();return;}
   if(sheetOpen())return;
-  if(!e.repeat){
-    if(e.code==='KeyA')tapRoll(1);else if(e.code==='KeyD')tapRoll(-1);
-    else if(e.code==='KeyF')lockStart();else if(e.code==='KeyR')tryRepair();else if(e.code==='KeyT')tgtPress();
-  }
-  keys.add(e.code);if(kbMap[e.code])e.preventDefault();unlock();
+  if(!coarse)useDev('kbd');
+  if(isAction('kb',e.code)||e.code==='Space')e.preventDefault();
+  if(!e.repeat)codeDown(e.code);
+  unlock();
 });
-window.addEventListener('keyup',e=>{keys.delete(e.code);if(e.code==='KeyF')lockRelease();else if(e.code==='KeyT')tgtRelease();});
-window.addEventListener('blur',()=>{keys.clear();releaseAll();});
+window.addEventListener('keyup',e=>codeUp(e.code));
+window.addEventListener('blur',()=>{dropKeys();releaseAll();});
+// Mouse: clics sobre el juego (no sobre botones ni paneles) y la rueda
+const MOUSE_SKIP='button,#sheet,#menu,#end,#thrust,#gear,#fatal';
+window.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'){lastTouch=performance.now();useDev('touch');}},true);
+window.addEventListener('mousedown',e=>{
+  if(performance.now()-lastTouch<900)return; // el navegador repite los toques como clics
+  if(overlayOpen()||sheetOpen())return;
+  if(e.target.closest&&e.target.closest(MOUSE_SKIP))return;
+  useDev('kbd');unlock();
+  codeDown('Mouse'+e.button);
+});
+window.addEventListener('mouseup',e=>codeUp('Mouse'+e.button));
+window.addEventListener('wheel',e=>{
+  if(overlayOpen()||sheetOpen())return; // en los paneles la rueda desplaza
+  e.preventDefault();
+  const code=e.deltaY<0?'WheelUp':'WheelDown';
+  for(const a of ACTIONS){
+    if(!binds.kb[a.id].includes(code))continue;
+    if(a.id==='faster'||a.id==='slower'){if(!turbo.on){ship.throttle=clamp(ship.throttle+(a.id==='faster'?.1:-.1),THROTTLE_MIN,1);showThrust();}}
+    else{actPress(a.id);actRelease(a.id);}
+  }
+  if(!coarse)useDev('kbd');
+},{passive:false});
+
+/* Mando: se lee en cada cuadro. Los sticks dan valores intermedios, así se puede apuntar fino. */
+const pad={on:false,id:'',val:{},start:false};
+function padGet(){
+  const list=navigator.getGamepads?navigator.getGamepads():[];
+  for(const g of list)if(g&&g.connected)return g;
+  return null;
+}
+function padCodeValue(gp,code){
+  if(!code)return 0;
+  if(code[0]==='b'){const b=gp.buttons[+code.slice(1)];if(!b)return 0;return typeof b==='object'?(b.value||(b.pressed?1:0)):+b;}
+  const i=+code.slice(1,-1),x=(gp.axes[i]||0)*(code.slice(-1)==='+'?1:-1);
+  return x<=.15?0:Math.min(1,(x-.15)/.85); // zona muerta del stick
+}
+function stepPad(){
+  const gp=padGet();
+  pad.on=!!gp;pad.id=gp?gp.id:'';
+  if(!gp){for(const a of ACTIONS)pad.val[a.id]=0;return;}
+  const paused=sheetOpen()||overlayOpen();
+  let any=false;
+  for(const a of ACTIONS){
+    const b=binds.pad[a.id],v=Math.max(padCodeValue(gp,b[0]),padCodeValue(gp,b[1]));
+    const was=(pad.val[a.id]||0)>.5,is=v>.5;
+    pad.val[a.id]=paused?0:v;
+    if(v>.25)any=true;
+    if(paused||capture.on)continue;
+    if(is&&!was)actPress(a.id);else if(!is&&was)actRelease(a.id);
+  }
+  const st9=gp.buttons[PAD_PAUSE],start=!!(st9&&st9.pressed);
+  if(start&&!pad.start&&!capture.on&&(!overlayOpen()||sheetOpen()))sheetOpen()?closeSheet():openSheet();
+  pad.start=start;
+  if(any&&!paused){useDev('pad');unlock();}
+}
+window.addEventListener('gamepadconnected',()=>{renderBinds();toast('Mando conectado',1.6);});
+window.addEventListener('gamepaddisconnected',()=>{renderBinds();toast('Se desconectó el mando',1.6);});
+
+/* Elegir teclas y botones (Ajustes → Teclado y mouse / Mando) */
+const capture={on:false,dev:'',act:'',i:0,el:null,armed:false,raf:0,base:null,mouseAt:-9e9};
+function bindHint(id){
+  const manual=settings.mode==='manual',rolls=settings.lateral==='rota';
+  if(id==='up')return (settings.invert?'baja':'sube')+' la trompa';
+  if(id==='down')return (settings.invert?'sube':'baja')+' la trompa';
+  if(id==='left'||id==='right')return rolls?'gira sobre su eje':manual?'timón':'dobla';
+  if(id==='btnL'||id==='btnR')return (!rolls?'rota':manual?'timón':'dobla')+'; dos toques esquivan';
+  const a=ACTIONS.find(x=>x.id===id);return a&&a.hint||'';
+}
+function renderBinds(){
+  for(const [dev,box] of [['kb','#bindsKb'],['pad','#bindsPad']]){
+    const el=$(box);if(!el)continue;
+    el.textContent='';
+    for(const a of ACTIONS){
+      const row=document.createElement('div');row.className='bind';
+      const n=document.createElement('span');n.className='bName';n.textContent=a.name;
+      const h=bindHint(a.id);if(h){const sm=document.createElement('small');sm.textContent=h;n.appendChild(sm);}
+      row.appendChild(n);
+      for(let i=0;i<2;i++){
+        const b=document.createElement('button');b.type='button';b.className='slot';
+        b.dataset.dev=dev;b.dataset.act=a.id;b.dataset.i=i;
+        const code=binds[dev][a.id][i];
+        b.textContent=code?bindName(dev,code):'—';b.classList.toggle('empty',!code);
+        b.setAttribute('aria-label',a.name+', '+(i?'alternativa':'principal')+': '+(code?bindName(dev,code):'vacío'));
+        if(capture.on&&capture.dev===dev&&capture.act===a.id&&capture.i===i){b.classList.add('wait');b.textContent=dev==='kb'?'Apretá…':'Mové o apretá…';capture.el=b;}
+        row.appendChild(b);
+      }
+      el.appendChild(row);
+    }
+  }
+  const ps=$('#padStatus');
+  if(ps){const gp=padGet();ps.textContent=gp?'Mando conectado: '+gp.id.replace(/\s*\(.*$/,'').slice(0,60)+'.':'No hay ningún mando conectado. Conectalo por cable o Bluetooth y apretá cualquier botón.';}
+}
+function padSnapshot(){const gp=padGet();return gp?{b:gp.buttons.map(x=>x.value||(x.pressed?1:0)),a:gp.axes.slice()}:null;}
+function startCapture(el){
+  stopCapture(true);
+  Object.assign(capture,{on:true,dev:el.dataset.dev,act:el.dataset.act,i:+el.dataset.i,el,armed:false,base:padSnapshot()});
+  setTimeout(()=>{capture.armed=true;},120); // el clic que abrió la espera no cuenta
+  renderBinds();
+  if(capture.dev==='pad')capture.raf=requestAnimationFrame(padCaptureLoop);
+}
+function stopCapture(silent){
+  if(!capture.on)return;
+  capture.on=false;cancelAnimationFrame(capture.raf);
+  if(!silent)renderBinds();
+}
+function assign(code){
+  const {dev,act,i}=capture,b=binds[dev];
+  if(code){ // una tecla hace una sola cosa: se saca de donde estaba
+    for(const a of ACTIONS)for(let j=0;j<2;j++)if(b[a.id][j]===code&&!(a.id===act&&j===i)){b[a.id][j]='';toast(bindName(dev,code)+' estaba en «'+a.name+'»: la saqué de ahí',2.4);}
+  }
+  b[act][i]=code;
+  saveBinds();stopCapture();syncSheet();
+}
+function padCaptureLoop(){
+  if(!capture.on)return;
+  const gp=padGet();
+  if(gp){
+    if(!capture.base)capture.base=padSnapshot();
+    for(let i=0;i<gp.buttons.length;i++){
+      if(i===PAD_PAUSE)continue;
+      const v=gp.buttons[i].value||(gp.buttons[i].pressed?1:0);
+      if(v>.6&&(capture.base.b[i]||0)<.3){assign('b'+i);return;}
+    }
+    for(let i=0;i<gp.axes.length;i++){
+      const v=gp.axes[i],b0=capture.base.a[i]||0;
+      if(Math.abs(v)>.6&&Math.abs(b0)<.3){assign('a'+i+(v>0?'+':'-'));return;}
+    }
+  }
+  capture.raf=requestAnimationFrame(padCaptureLoop);
+}
+window.addEventListener('keydown',e=>{
+  if(!capture.on)return;
+  e.preventDefault();e.stopImmediatePropagation();
+  if(e.code==='Escape'){stopCapture();return;}
+  if(capture.dev!=='kb')return;
+  if(e.code==='Backspace'||e.code==='Delete'){assign('');return;}
+  assign(e.code);
+},true);
+window.addEventListener('mousedown',e=>{
+  if(!capture.on||capture.dev!=='kb'||!capture.armed)return;
+  const onSlot=e.target.closest&&e.target.closest('.slot')===capture.el;
+  if(e.button===0&&!onSlot){stopCapture();return;} // clic izquierdo afuera: cancela
+  e.preventDefault();e.stopImmediatePropagation();
+  if(e.button===0)capture.mouseAt=performance.now(); // el clic que sigue al botón izquierdo no tiene que abrir otra espera
+  assign('Mouse'+e.button);
+},true);
+window.addEventListener('wheel',e=>{
+  if(!capture.on||capture.dev!=='kb')return;
+  e.preventDefault();e.stopImmediatePropagation();
+  assign(e.deltaY<0?'WheelUp':'WheelDown');
+},{capture:true,passive:false});
+$('#sheetBody').addEventListener('click',e=>{
+  const slot=e.target.closest&&e.target.closest('.slot');
+  if(slot){if(performance.now()-capture.mouseAt<600){capture.mouseAt=-9e9;return;}startCapture(slot);return;}
+  const tab=e.target.closest&&e.target.closest('.tab');
+  if(tab){showTab(tab.dataset.tab);return;}
+  const rs=e.target.closest&&e.target.closest('.resetBinds');
+  if(rs){
+    const dev=rs.dataset.dev;
+    for(const a of ACTIONS)binds[dev][a.id]=DEFAULT_BINDS[dev][a.id].slice();
+    saveBinds();syncSheet();toast(dev==='kb'?'Teclas de fábrica':'Botones de fábrica',1.6);
+  }
+});
+function showTab(name){
+  stopCapture(true);
+  document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected',t.dataset.tab===name?'true':'false'));
+  document.querySelectorAll('#sheetBody [data-panel]').forEach(p=>{p.hidden=p.dataset.panel!==name;});
+  renderBinds();
+  $('#sheetBody').scrollTop=0;scrollHints();
+}
+
 function readInput(dt){
-  let kx=(keys.has('ArrowRight')?1:0)-(keys.has('ArrowLeft')?1:0);
-  let ky=(keys.has('ArrowUp')?1:0)-(keys.has('ArrowDown')?1:0);
+  const v=id=>Math.max(kbHeld(id)?1:0,pad.val[id]||0);
+  const kx=v('right')-v('left'),ky=v('up')-v('down');
   if(st.id!==null){input.x=st.x;input.y=st.y;}
   else{
     const a=1-Math.exp(-11*dt);
     input.x+=(kx-input.x)*a;input.y+=(ky-input.y)*a;
     if(Math.abs(input.x)<.003)input.x=0;if(Math.abs(input.y)<.003)input.y=0;
   }
-  input.rollL=!!input.rollLT||keys.has('KeyA');
-  input.rollR=!!input.rollRT||keys.has('KeyD');
-  input.fire=touchFire.on||keys.has('Space');
-  const dT=(keys.has('KeyW')?1:0)-(keys.has('KeyS')?1:0);
-  if(dT){ship.throttle=clamp(ship.throttle+dT*.55*dt,THROTTLE_MIN,1);showThrust();}
+  input.rollL=!!input.rollLT||v('btnL')>.5;
+  input.rollR=!!input.rollRT||v('btnR')>.5;
+  input.fire=touchFire.on||v('fire')>.5;
+  const dT=v('faster')-v('slower');
+  if(dT&&!turbo.on){ship.throttle=clamp(ship.throttle+dT*.55*dt,THROTTLE_MIN,1);showThrust();}
+  if(turbo.on&&ship.throttle<1){ship.throttle=1;showThrust();}
 }
 
 /* ---------- Ajustes ---------- */
@@ -1437,11 +1704,19 @@ function syncSheet(){
   document.querySelectorAll('.rollWord').forEach(w=>{w.textContent=word;});
   $('#rollL').setAttribute('aria-label',word+' a la izquierda');
   $('#rollR').setAttribute('aria-label',word+' a la derecha');
-  $('#keys').textContent='Flechas: '+stickWord.toLowerCase()+' y trompa · A D: '+word.toLowerCase()+', doble toque esquiva · W S: empuje · Espacio: disparar · F: misil · R: reparar · T: blanco · Esc: ajustes';
+  $('#keys').textContent=keysLine(stickWord,word);
+  applyTouchUI();renderBinds();
   applySound();
 }
-function openSheet(){releaseAll();keys.clear();sheet.hidden=false;syncSheet();$('#sheetBody').scrollTop=0;scrollHints();if(sfx.ctx&&sfx.ctx.state==='running')sfx.ctx.suspend();}
-function closeSheet(){sheet.hidden=true;if(!overlayOpen()&&sfx.ctx&&sfx.ctx.state==='suspended')sfx.ctx.resume();}
+function keysLine(stickWord,word){
+  const k=id=>binds.kb[id][0]||binds.kb[id][1],pair=(a,b)=>{const x=keyName(k(a)),y=keyName(k(b));return /^Rueda/.test(x)&&/^Rueda/.test(y)?'Rueda':x+' '+y;};
+  const sw=stickWord.toLowerCase().replace('girar sobre el eje','girar');
+  return pair('up','down')+': trompa · '+pair('left','right')+': '+sw+' · '+pair('btnL','btnR')+': '+word.toLowerCase()+', dos toques esquivan · '+
+    keyName(k('fire'))+': disparar · '+keyName(k('missile'))+': misil · '+keyName(k('target'))+': blanco · '+keyName(k('turbo'))+': turbo · '+
+    pair('faster','slower')+': empuje · '+keyName(k('repair'))+': reparar · '+keyName(k('camera'))+': cámara · Esc: pausa';
+}
+function openSheet(){releaseAll();dropKeys();sheet.hidden=false;syncSheet();$('#sheetBody').scrollTop=0;scrollHints();if(sfx.ctx&&sfx.ctx.state==='running')sfx.ctx.suspend();}
+function closeSheet(){stopCapture(true);sheet.hidden=true;if(!overlayOpen()&&sfx.ctx&&sfx.ctx.state==='suspended')sfx.ctx.resume();}
 $('#gear').addEventListener('click',()=>{unlock();openSheet();});
 $('#resume').addEventListener('click',closeSheet);
 document.querySelectorAll('.seg').forEach(seg=>{
@@ -1475,7 +1750,8 @@ fsBtn.addEventListener('click',()=>{
     if(r&&r.then)r.then(()=>{if(screen.orientation&&screen.orientation.lock)return screen.orientation.lock('landscape');}).catch(()=>{});
   }catch(e){}
 });
-$('#keys').hidden=coarse;
+$('#keys').hidden=false; // lo muestra o esconde el estilo, según con qué se juegue
+applyTouchUI();
 
 /* ---------- Instrumentos ---------- */
 const cellAlt=$('#cellAlt'),elAlt=$('#vAlt'),elZone=$('#zone');
@@ -2028,6 +2304,7 @@ function damage(n,dir){
   const onShield=Math.min(shield,n);
   shield-=onShield;hull-=n-onShield;
   if(repairT>0)endRepair(true); // cualquier golpe corta la reparación
+  if(settings.vibrate&&navigator.vibrate)try{navigator.vibrate(n>=20?60:30);}catch(e){}
   elHurt.classList.toggle('shield',n-onShield<=0);
   hurtA=n-onShield<=0?.55:1;
   if(n-onShield<=0){shieldFx.material.opacity=.5;sfxShieldHit();}
@@ -2469,7 +2746,7 @@ function recKey(m){m=m||run.mode;return MODES[m]&&MODES[m].diff?m+'-'+(m===run.m
 function saveRecords(){try{localStorage.setItem('delta-uno-records',JSON.stringify(records));}catch(e){}}
 const fmtTime=s=>{const m=Math.floor(s/60),r=s-m*60;return m+':'+(r<10?'0':'')+r.toFixed(1);};
 const fmtNum=n=>String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
-let carrier=null;
+let carrier=null,keysHintT=0;
 const _cw=new V3();
 
 function clearWorld(){
@@ -2510,6 +2787,7 @@ function startRun(mode,diff){
   if(mode==='conquista')spawnCarrier();
   updateRings();
   menuEl.hidden=true;endEl.hidden=true;sheet.hidden=true;hud.classList.remove('off');
+  $('#keys').classList.remove('gone');clearTimeout(keysHintT);keysHintT=setTimeout(()=>$('#keys').classList.add('gone'),15000);
   if(sfx.ctx&&sfx.ctx.state==='suspended')sfx.ctx.resume();
   last=performance.now();
   toast({conquista:'Conquista · liberá las 6 zonas',supervivencia:'Supervivencia · preparate',libre:'Vuelo libre',carrera:'Carrera · pasá por los anillos'}[mode],2.5);
@@ -2753,12 +3031,12 @@ function syncMenu(){
   scrollHints();
 }
 function openMenu(){
-  releaseAll();keys.clear();sheet.hidden=true;endEl.hidden=true;crashMsg.hidden=true;
+  releaseAll();dropKeys();sheet.hidden=true;endEl.hidden=true;crashMsg.hidden=true;
   menuEl.hidden=false;hud.classList.add('off');syncMenu();
   if(sfx.ctx&&sfx.ctx.state==='running')sfx.ctx.suspend();
 }
 function showEnd(kind){
-  releaseAll();keys.clear();
+  releaseAll();dropKeys();
   const rows=[];let isNew=false,title='';
   if(run.mode==='carrera'){
     title='Carrera terminada';
@@ -2964,6 +3242,7 @@ function frame(now){
   const raw=(now-last)/1000;last=now;
   if(document.hidden)return;
   const dt=clamp(raw,.001,.05);
+  stepPad(); // también en pausa: Start la abre y la cierra
   if(!sheetOpen()&&!overlayOpen()){
     ship.t+=dt;
     readInput(dt);
@@ -2997,7 +3276,7 @@ function frame(now){
 }
 
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden){releaseAll();keys.clear();if(sfx.ctx&&sfx.ctx.state==='running')sfx.ctx.suspend();}
+  if(document.hidden){releaseAll();dropKeys();if(sfx.ctx&&sfx.ctx.state==='running')sfx.ctx.suspend();}
   else{last=performance.now();if(sfx.ctx&&!sheetOpen()&&!overlayOpen())sfx.ctx.resume();if(unlocked)requestWake();}
 });
 
@@ -3026,7 +3305,7 @@ function boot(data){
   window.DeltaUno={renderer,ship,input,settings,TUNE,rocks,activeRocks,rings,chart,chartDir,straighten,terrain,heightAt,S,BIOMES,PLANET_R,CEIL:{CEIL_WARN,CEIL_PUSH,CEIL_MAX},buildMs,flags:()=>({dead,inv,warning,thinWarn}),
     zones,groups,enemies,lost,drops,DROP_KIND,damage,spawnDrop,dodge,tryDodge,rockets,lockCancel,AIM,seenVel,ZONE_KIND,eBolts,boltHitsShip,
     tgt:()=>camTarget,camBlend:()=>camBlend,camera,
-    hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
+    binds,turbo,inputDev:()=>inputDev,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
     vit:()=>({hull,shield,heat,overheat,score,record,combo,curZone:curZone&&zones.indexOf(curZone),target:!!target,fov:camera.fov,missiles,missileT,lockOn,lockP,hasLock:!!lockTarget,repairT,repairCool})};
   last=performance.now();
   requestAnimationFrame(frame);

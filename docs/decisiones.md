@@ -10,6 +10,47 @@ Qué se decidió hasta ahora y por qué. Los números salen del código (`src/ma
 - **Modo Asistido:** al soltar los controles, la nave se nivela sola. En Manual queda inclinada hasta que la corrijas.
 - **Velocidad:** se vuela de crucero al 50 %. El turbo se recalienta en 6 segundos y se enfría en 8; si se recalienta, queda bloqueado 3 segundos.
 
+### PC: teclado y mouse (esquema definido por Santiago)
+
+| Tecla | Acción |
+|---|---|
+| W / S | Palanca arriba / abajo (la trompa; con "como avión", W baja la trompa) |
+| Q / E | Palanca a los costados (doblar, o lo que diga "Palanca a los costados") |
+| A / D | Botones Rotar; dos toques esquivan |
+| Clic izquierdo | Disparar |
+| Clic derecho | Misil: mantener para fijar, soltar para disparar |
+| Espacio | Blanco: tocar elige o cambia, mantener suelta |
+| Shift | Turbo mientras se mantiene |
+| Rueda del mouse | Empuje, de a 10 % |
+| R | Reparar |
+| C | Cámara: sigue al blanco o normal |
+| Esc | Pausa y ajustes |
+
+- **Teclas alternativas:** las flechas, F (misil) y T (Blanco) quedan como segunda opción.
+- **Asignar teclas:** cada acción tiene dos casilleros que se cambian en Ajustes → Teclado y mouse. Si una tecla ya estaba en otra acción, se saca de ahí y se avisa.
+- **Pantalla:** jugando con teclado o mando no se muestran la palanca ni los botones táctiles. Los indicadores de misil, Blanco y reparación muestran su tecla. En el teléfono, el teclado no esconde los botones; el mando sí.
+
+### Mando (Xbox o PlayStation)
+
+- **Botones de fábrica:**
+  - Stick izquierdo: palanca.
+  - LB y RB: rotar (dos toques esquivan).
+  - RT: disparar.
+  - LT: misil.
+  - Y: Blanco.
+  - A: turbo.
+  - X: reparar.
+  - B: cámara.
+  - Stick derecho arriba y abajo, o la cruz: empuje.
+  - Start: pausa.
+- **Sticks:** dan valores intermedios, para apuntar fino.
+- **Asignar botones:** se cambian en Ajustes → Mando. Start queda fijo para pausar.
+
+### Pantalla táctil
+
+- **Botones en pantalla:** Automático, Siempre o Nunca.
+- **Vibrar al recibir daño:** Sí o No. Funciona en la mayoría de los Android.
+
 ## Combate del jugador
 
 - **Escudo y casco:** 100 cada uno. El escudo empieza a recargarse 4 segundos después del último golpe.
