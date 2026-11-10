@@ -1,0 +1,23 @@
+{
+  "name": "delta-uno",
+  "version": "0.10.0",
+  "private": true,
+  "description": "Juego de naves en 3D para teléfono, sobre un planeta esférico.",
+  "scripts": {
+    "dev": "vite",
+    "dev:telefono": "vite --host",
+    "build": "vite build && node scripts/artifact.mjs dist",
+    "build:test": "vite build --mode test && node scripts/artifact.mjs dist-test",
+    "preview": "vite preview",
+    "test": "node tests/run.js",
+    "medir:punteria": "node tests/herramientas/medir-punteria.js"
+  },
+  "dependencies": {
+    "three": "0.128.0"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0",
+    "vite": "5.4.21",
+    "vite-plugin-singlefile": "2.3.4"
+  }
+}

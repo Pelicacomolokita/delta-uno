@@ -1,0 +1,228 @@
+/* Layout: el mundo ocupa toda la pantalla. Instrumentos arriba, pulgar izquierdo vuela, pulgar derecho empuja, rota y dispara. */
+:root{
+  color-scheme:dark;
+  --void:#0a1022;
+  --paper:#f6ead6;
+  --paper-dim:rgba(246,234,214,.68);
+  --line:rgba(246,234,214,.36);
+  --glass:rgba(10,16,34,.5);
+  --glass-strong:rgba(10,16,34,.92);
+  --bolt:#86f2e4;
+  --ember:#ff6b3d;
+  --ember-soft:rgba(255,107,61,.32);
+  --hull:#a5e36f;
+  --sky:#2b5470;
+  --cloud:#c98a4e;
+  --font-label:'B612',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --font-data:'B612 Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--void);overscroll-behavior:none}
+body{color:var(--paper);font:400 13px/1.35 var(--font-label);-webkit-text-size-adjust:100%}
+button{appearance:none;-webkit-appearance:none;font:inherit;color:inherit;background:none;border:0;padding:0;margin:0}
+button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--bolt);outline-offset:2px}
+
+#stage{position:fixed;inset:0;overflow:hidden;background:var(--void);touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+#game{
+  position:absolute;left:0;top:0;transform-origin:0 0;overflow:hidden;
+  --sa-l:env(safe-area-inset-left,0px);--sa-r:env(safe-area-inset-right,0px);--sa-t:env(safe-area-inset-top,0px);--sa-b:env(safe-area-inset-bottom,0px);
+}
+/* Con la pantalla girada por CSS, los bordes seguros del teléfono caen en otros lados del juego */
+#game.rot90{--sa-l:env(safe-area-inset-top,0px);--sa-t:env(safe-area-inset-right,0px);--sa-r:env(safe-area-inset-bottom,0px);--sa-b:env(safe-area-inset-left,0px)}
+#game.rotm90{--sa-l:env(safe-area-inset-bottom,0px);--sa-t:env(safe-area-inset-left,0px);--sa-r:env(safe-area-inset-top,0px);--sa-b:env(safe-area-inset-right,0px)}
+#view{position:absolute;inset:0;width:100%;height:100%;display:block}
+#hud{
+  position:absolute;inset:0;padding-block:0;
+  padding-left:max(16px,var(--sa-l));padding-right:max(16px,var(--sa-r));
+  --gut-l:max(16px,var(--sa-l));--gut-r:max(16px,var(--sa-r));
+}
+
+/* Marcas de vuelo */
+#reticle,#fpm{position:absolute;left:0;top:0;pointer-events:none;will-change:transform;overflow:visible}
+#reticle{color:var(--bolt)}
+#fpm{color:var(--paper)}
+
+/* Instrumentos */
+#readout{position:absolute;top:calc(var(--sa-t) + 8px);left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:5px 12px 5px 6px;background:var(--glass);border:1px solid var(--line);border-radius:3px;pointer-events:none}
+#ball{position:relative;width:40px;height:40px;flex:none;border-radius:50%;overflow:hidden;border:1px solid var(--line)}
+#ballInner{position:absolute;left:-50%;top:-50%;width:200%;height:200%;background:linear-gradient(to bottom,var(--sky) 0 50%,var(--paper) 50% 50.8%,var(--cloud) 50.8% 100%);will-change:transform}
+#ball::after{content:"";position:absolute;left:8px;right:8px;top:50%;height:2px;margin-top:-1px;background:var(--void);border-radius:1px}
+.cell{display:grid;gap:1px;min-width:46px}
+.cell b{font:700 15px/1.1 var(--font-data);font-variant-numeric:tabular-nums;white-space:nowrap}
+.cell span{font:400 10px/1.1 var(--font-label);letter-spacing:.08em;text-transform:uppercase;color:var(--paper-dim)}
+#game.compact #cellHead{display:none}
+#game.compact .cell{min-width:40px}
+.cell.alert b{color:var(--ember)}
+#zone{position:absolute;top:calc(var(--sa-t) + 112px);left:var(--gut-l);max-width:min(600px,calc(100% - var(--gut-l) - 120px));padding:2px 8px;background:var(--glass);border-radius:3px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;pointer-events:none}
+
+#gear{position:absolute;left:var(--gut-l);top:calc(var(--sa-t) + 8px);width:44px;height:44px;display:grid;place-items:center;background:var(--glass);border:1px solid var(--line);border-radius:3px}
+#gear svg{width:22px;height:22px}
+
+/* Palanca */
+#stickZone{position:absolute;left:0;top:calc(var(--sa-t) + 58px);bottom:0;width:46%;touch-action:none}
+#stick{position:absolute;left:calc(var(--gut-l) + 12px);bottom:calc(var(--sa-b) + 18px);width:116px;height:116px;border-radius:50%;border:1px solid var(--line);background:var(--glass);pointer-events:none;transition:transform .16s ease-out}
+#stick.live{transition:none}
+#stick::before,#stick::after{content:"";position:absolute;background:var(--line)}
+#stick::before{left:50%;top:7px;bottom:7px;width:1px}
+#stick::after{top:50%;left:7px;right:7px;height:1px}
+#knob{position:absolute;left:32px;top:32px;width:52px;height:52px;border-radius:50%;background:var(--paper);opacity:.9;box-shadow:0 2px 10px rgba(10,16,34,.55);z-index:1;will-change:transform}
+#stickTag{position:absolute;left:calc(var(--gut-l) + 12px);bottom:calc(var(--sa-b) + 142px);padding:3px 7px;background:var(--glass);border-radius:3px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--paper);pointer-events:none;transition:opacity .5s}
+#stickTag.gone{opacity:0}
+
+/* Empuje */
+#thrust{position:absolute;right:calc(var(--gut-r) - 4px);top:calc(var(--sa-t) + 8px);bottom:calc(var(--sa-b) + 194px);width:56px;touch-action:none;cursor:ns-resize}
+#thrustTrack{position:absolute;right:4px;top:0;bottom:0;width:44px;background:var(--glass);border:1px solid var(--line);border-radius:3px;overflow:hidden}
+#thrustFill{position:absolute;left:0;right:0;bottom:0;height:45%;background:rgba(246,234,214,.22)}
+#thrustGrip{position:absolute;left:0;right:0;bottom:45%;height:6px;margin-bottom:-3px;background:var(--paper)}
+#thrustHot{position:absolute;left:0;right:0;top:0;bottom:37.5%;background:rgba(255,107,61,.14)}
+#thrustMid{position:absolute;left:0;right:0;bottom:37.5%;height:1px;background:var(--ember)}
+#heatBar{position:absolute;left:0;bottom:0;width:6px;height:100%;background:var(--ember);transform:scaleY(0);transform-origin:50% 100%;will-change:transform}
+#thrust.hot #thrustTrack{border-color:var(--ember)}
+#thrustVal{position:absolute;right:4px;width:44px;top:7px;text-align:center;font:700 13px/1 var(--font-data);font-variant-numeric:tabular-nums;pointer-events:none;text-shadow:0 1px 2px rgba(10,16,34,.9)}
+#thrustLbl{position:absolute;right:4px;width:44px;bottom:8px;display:flex;justify-content:center;writing-mode:vertical-rl;transform:rotate(180deg);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--paper);text-shadow:0 1px 2px rgba(10,16,34,.9);pointer-events:none}
+
+/* Disparo y rotación */
+#fire,.roll{position:absolute;border-radius:50%;touch-action:none;display:grid;place-items:center;cursor:pointer}
+#fire{right:calc(var(--gut-r) + 2px);bottom:calc(var(--sa-b) + 12px);width:96px;height:96px;background:var(--ember-soft);border:2px solid var(--ember);font:700 12px/1 var(--font-label);letter-spacing:.1em;text-transform:uppercase;box-shadow:inset 0 0 0 7px rgba(10,16,34,.28)}
+#fire.on{background:var(--ember);color:var(--void);transform:scale(.96)}
+.roll{width:62px;height:62px;background:var(--glass);border:1px solid var(--line);align-content:center;gap:1px}
+.roll svg{width:24px;height:24px}
+.roll span{font-size:9.5px;line-height:1;letter-spacing:.06em;text-transform:uppercase;color:var(--paper-dim)}
+.roll.on{background:var(--paper);color:var(--void)}
+.roll.on span{color:var(--void)}
+.roll.cool{opacity:.45}
+#rollR{right:calc(var(--gut-r) + 108px);bottom:calc(var(--sa-b) + 29px)}
+#rollL{right:calc(var(--gut-r) + 178px);bottom:calc(var(--sa-b) + 29px)}
+#repair{right:calc(var(--gut-r) + 248px);bottom:calc(var(--sa-b) + 29px)}
+#repair span{font-variant-numeric:tabular-nums}
+#repair.active{background:var(--hull);color:var(--void)}
+#repair.active span{color:var(--void)}
+#repair.cool{opacity:.55}
+#missile{right:calc(var(--gut-r) + 17px);bottom:calc(var(--sa-b) + 118px);width:66px;height:66px}
+#missile svg{width:22px;height:22px}
+#missile b{font:700 12px/1 var(--font-data);color:var(--paper)}
+#missile i{position:absolute;left:19px;right:19px;bottom:5px;height:3px;background:var(--bolt);transform-origin:0 50%;transform:scaleX(0)}
+#missile.empty{opacity:.45}
+#missile.locking{border-color:var(--bolt);color:var(--bolt)}
+#missile.locked{background:var(--bolt);color:var(--void)}
+#missile.locked span,#missile.locked b{color:var(--void)}
+#rollR .i-roll{transform:scaleX(-1)}
+.i-rudder,.i-turn{display:none}
+#hud.rudderbtn .i-rudder,#hud.turnbtn .i-turn{display:block}
+#hud.rudderbtn .i-roll,#hud.turnbtn .i-roll{display:none}
+
+#keys{position:absolute;left:50%;bottom:calc(var(--sa-b) + 4px);transform:translateX(-50%);font-size:11px;color:var(--paper);text-shadow:0 1px 3px rgba(10,16,34,.9);white-space:nowrap;pointer-events:none}
+
+/* Avisos de vuelo */
+#warn{position:absolute;top:calc(var(--sa-t) + 88px);left:50%;transform:translateX(-50%);padding:4px 10px;background:var(--ember);color:var(--void);font-weight:700;font-size:12px;letter-spacing:.06em;text-transform:uppercase;border-radius:3px;white-space:nowrap;pointer-events:none}
+#crashMsg{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);padding:10px 16px;background:var(--glass-strong);border:1px solid var(--ember);border-radius:3px;font-size:15px;font-weight:700;white-space:nowrap;text-align:center;pointer-events:none}
+#crashMsg small{display:block;margin-top:4px;font-size:12px;font-weight:400;color:var(--paper-dim);font-variant-numeric:tabular-nums}
+#loading{position:absolute;inset:0;display:grid;place-items:center;background:var(--void);font-size:15px;letter-spacing:.04em;z-index:4;pointer-events:none}
+
+/* Combate */
+#speedFx{position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center,transparent 52%,rgba(10,16,34,.5) 100%)}
+#hurt{position:absolute;inset:0;pointer-events:none;opacity:0;box-shadow:inset 0 0 70px 16px var(--ember)}
+#hurt.shield{box-shadow:inset 0 0 70px 16px var(--bolt)}
+#dmgDir{position:absolute;left:50%;top:50%;width:190px;height:190px;margin:-95px 0 0 -95px;color:var(--ember);opacity:0;pointer-events:none;overflow:visible}
+#vitals{position:absolute;left:var(--gut-l);top:calc(var(--sa-t) + 64px);width:140px;display:grid;gap:3px;padding:5px 7px;background:var(--glass);border-radius:3px;pointer-events:none}
+.vit{display:grid;grid-template-columns:46px 1fr;align-items:center;gap:5px;font-size:9.5px;line-height:1.1;letter-spacing:.06em;text-transform:uppercase}
+.vit i{display:block;height:6px;background:rgba(246,234,214,.16);border-radius:1px;overflow:hidden}
+.vit i b{display:block;height:100%;transform-origin:0 50%;will-change:transform}
+#barShield{background:var(--bolt)}
+#barHull{background:var(--hull)}
+#barDodge{background:var(--paper)}
+#vitals.low #barHull{background:var(--ember)}
+#lead{position:absolute;left:0;top:0;color:var(--ember);pointer-events:none;will-change:transform;overflow:visible}
+.mk{position:absolute;left:0;top:0;width:34px;height:34px;margin:-17px 0 0 -17px;color:var(--ember);pointer-events:none;will-change:transform}
+.mk svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.mk .arrow{display:none}
+.mk.off .arrow{display:block}
+.mk.off .box,.mk.off u{display:none}
+.mk.tgt{color:var(--paper)}
+.mk.sel{color:var(--paper)}
+.mk.sel .box{transform:scale(1.4)}
+.mk em{display:none;position:absolute;left:50%;top:100%;margin-top:11px;transform:translateX(-50%);padding:1px 5px;background:var(--glass-strong);border-radius:2px;font:700 10px/1.2 var(--font-data);font-style:normal;letter-spacing:.04em;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--paper)}
+.mk.sel em{display:block}
+.mk.sel.off em{display:none}
+#tgtBtn{right:calc(var(--gut-r) + 108px);bottom:calc(var(--sa-b) + 118px)}
+#tgtBtn.active{background:var(--paper);color:var(--void)}
+#tgtBtn.active span{color:var(--void)}
+.opt.wide{grid-column:span 6}
+.mk u{position:absolute;left:4px;right:4px;bottom:-6px;height:3px;background:rgba(10,16,34,.65);text-decoration:none}
+.mk u b{display:block;height:100%;background:var(--ember);transform-origin:0 50%}
+#zoneMk{position:absolute;left:0;top:0;width:110px;margin:-13px 0 0 -55px;white-space:nowrap;display:grid;justify-items:center;gap:1px;color:var(--ember);font:700 10px/1.1 var(--font-data);text-shadow:0 1px 2px rgba(10,16,34,.95);pointer-events:none;will-change:transform}
+#zoneMk svg{width:22px;height:22px;overflow:visible}
+#zone.enemy{background:var(--ember);color:var(--void);font-weight:700}
+#toast{position:absolute;left:50%;top:calc(var(--sa-t) + 118px);transform:translateX(-50%);padding:3px 10px;background:var(--glass-strong);border-radius:3px;font-size:13px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums;pointer-events:none}
+#lockMk{position:absolute;left:0;top:0;width:48px;height:48px;margin:-24px 0 0 -24px;color:var(--bolt);pointer-events:none;will-change:transform}
+#lockMk svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+#lockMk span{position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:7px;padding:1px 5px;background:var(--glass-strong);border-radius:2px;font:700 10px/1.2 var(--font-label);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+#lockMk.locked{color:var(--paper)}
+#rollTag{position:absolute;right:calc(var(--gut-r) + 108px);bottom:calc(var(--sa-b) + 98px);padding:3px 7px;background:var(--glass);border-radius:3px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;pointer-events:none;transition:opacity .5s}
+#rollTag.gone{opacity:0}
+
+/* Aviso de girar */
+#turnCue{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--glass-strong);border:1px solid var(--line);border-radius:3px;font-size:14px;white-space:nowrap;pointer-events:none;z-index:6}
+#turnCue svg{width:24px;height:24px;animation:tilt 2.2s ease-in-out infinite}
+@keyframes tilt{0%,30%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
+
+/* Ajustes */
+/* La fila de la grilla mide lo mismo que la pantalla: así el panel no crece de más y se puede deslizar */
+#sheet,#menu,#end{position:absolute;inset:0;background:rgba(10,16,34,.55);display:grid;grid-template-rows:minmax(0,1fr);place-items:center;z-index:5;padding-block:10px;padding-left:max(16px,var(--sa-l));padding-right:max(16px,var(--sa-r))}
+#sheetBody,#menuBody,#endBody{width:100%;max-width:680px;max-height:100%;overflow-y:auto;overscroll-behavior:contain;touch-action:none;scrollbar-width:thin;background:var(--glass-strong);border:1px solid var(--line);border-radius:4px;padding:12px 16px;display:grid;gap:10px}
+#sheet[hidden],#menu[hidden],#end[hidden]{display:none}
+.scrollHint{position:sticky;bottom:-12px;margin:0 -16px -12px;height:22px;background:linear-gradient(transparent,rgba(10,16,34,.95));pointer-events:none;display:grid;place-items:end center;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--paper-dim)}
+.scrollHint[hidden]{display:none}
+/* Menú de inicio */
+#menu{background:rgba(10,16,34,.35)}
+#diffBox{grid-column:auto}
+#hud.off{visibility:hidden}
+#sheet{z-index:6}
+#menuBody{max-width:760px;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:10px 18px;align-items:start}
+#menuHead{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px}
+#menuHead h1{margin:0;font:700 20px/1 var(--font-label);letter-spacing:.14em;text-transform:uppercase}
+#menuGear{min-height:38px;padding:0 12px;border:1px solid var(--line);border-radius:3px;font-size:13px}
+#modeList{display:grid;gap:6px}
+.mode{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:42px;padding:0 12px;border:1px solid var(--line);border-radius:3px;font-size:14px;font-weight:700;text-align:left}
+.mode small{font:400 11px/1.2 var(--font-data);color:var(--paper-dim);font-variant-numeric:tabular-nums;white-space:nowrap}
+.mode[aria-pressed="true"]{background:var(--paper);color:var(--void)}
+.mode[aria-pressed="true"] small{color:var(--void)}
+.mode:disabled{opacity:.5}
+#modeInfo{display:grid;gap:8px;align-content:start}
+#modeInfo h2{margin:0;font:700 16px/1.2 var(--font-label)}
+#modeInfo p{margin:0;font-size:12.5px;line-height:1.4;color:var(--paper-dim)}
+#modeRec{font-family:var(--font-data);font-variant-numeric:tabular-nums}
+#goBtn,.endGo{min-height:44px;padding:0 18px;background:var(--paper);color:var(--void);font-weight:700;font-size:14px;border-radius:3px}
+#game.compact #menuBody{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr)}
+#game.compact .mode{min-height:38px}
+/* Fin de partida */
+#endBody{max-width:440px;text-align:center;justify-items:center}
+#endBody h2{margin:0;font:700 19px/1.2 var(--font-label)}
+#endStats{display:grid;gap:3px;font-family:var(--font-data);font-size:13px;font-variant-numeric:tabular-nums}
+#endStats b{color:var(--paper)}
+#endNew{color:var(--ember);font-weight:700;font-size:13px}
+#endBtns{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+#endBtns button{min-height:44px;padding:0 16px;border:1px solid var(--line);border-radius:3px;font-size:14px}
+#sheetHead{display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:-12px;z-index:1;margin:-12px -16px 0;padding:12px 16px 8px;background:rgba(14,21,42,.98);border-bottom:1px solid var(--line)} /* "Seguir volando" siempre a mano */
+#sheetHead h2{margin:0;font:700 15px/1.2 var(--font-label);text-wrap:balance}
+#resume{min-height:40px;padding:0 16px;background:var(--paper);color:var(--void);font-weight:700;font-size:13px;border-radius:3px;white-space:nowrap}
+#sheetGrid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px 16px}
+.opt{grid-column:span 3;min-width:0;display:grid;gap:5px;align-content:start}
+.opt.third{grid-column:span 2}
+.opt h3{margin:0;font:400 10.5px/1.2 var(--font-label);letter-spacing:.08em;text-transform:uppercase;color:var(--paper-dim)}
+.opt p{margin:0;font-size:12px;line-height:1.35;color:var(--paper-dim)}
+.seg{display:flex;border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.seg button{flex:1;min-height:38px;padding:0 6px;font-size:13px;border-left:1px solid var(--line)}
+.seg button:first-child{border-left:0}
+.seg button[aria-pressed="true"]{background:var(--paper);color:var(--void);font-weight:700}
+#sheetFoot{display:flex;flex-wrap:wrap;gap:8px}
+#sheetFoot button{min-height:38px;padding:0 12px;border:1px solid var(--line);border-radius:3px;font-size:13px}
+
+#fatal{position:absolute;inset:0;display:grid;place-items:center;background:var(--void);padding-block:16px;padding-left:max(16px,var(--sa-l));padding-right:max(16px,var(--sa-r));z-index:9;text-align:center}
+#fatal p{max-width:44ch;margin:0;font-size:15px}
+
+@media (prefers-reduced-motion:reduce){
+  #turnCue svg{animation:none}
+  #stick,#stickTag{transition:none}
+}

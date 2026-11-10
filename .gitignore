@@ -1,0 +1,6 @@
+node_modules/
+dist/
+dist-test/
+tests/capturas/
+.DS_Store
+*.log

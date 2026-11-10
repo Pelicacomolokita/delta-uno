@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Delta Uno</title>
+<meta name="theme-color" content="#0a1022">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=B612:wght@400;700&family=B612+Mono:wght@400;700&display=swap">
+</head>
+<body>
+
+<div id="stage">
+  <div id="game">
+    <canvas id="view" aria-label="Vista de la nave en vuelo"></canvas>
+    <div id="hud">
+      <div id="speedFx"></div>
+      <div id="hurt"></div>
+      <svg id="dmgDir" viewBox="-50 -50 100 100" aria-hidden="true"><path d="M-24-41A48 48 0 0 1 24-41" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg>
+      <div id="marks" aria-hidden="true"></div>
+      <svg id="lead" width="26" height="26" viewBox="-13 -13 26 26" hidden aria-hidden="true"><path d="M0-10 10 0 0 10-10 0Z" fill="none" stroke="#0a1022" stroke-opacity=".6" stroke-width="4"/><path d="M0-10 10 0 0 10-10 0Z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      <div id="lockMk" hidden aria-hidden="true"><svg viewBox="-24 -24 48 48"><path d="M-20-8V-20H-8M8-20H20V-8M20 8V20H8M-8 20H-20V8" fill="none" stroke="#0a1022" stroke-opacity=".6" stroke-width="5"/><path d="M-20-8V-20H-8M8-20H20V-8M20 8V20H8M-8 20H-20V8" fill="none" stroke="currentColor" stroke-width="2.4"/></svg><span id="lockText">Fijando</span></div>
+      <div id="zoneMk" hidden aria-hidden="true"><svg viewBox="-12 -12 24 24"><path d="M0-10 9-5V5L0 10-9 5V-5Z" fill="rgba(10,16,34,.45)" stroke="currentColor" stroke-width="2"/></svg><span id="zoneDist"></span></div>
+      <svg id="reticle" width="56" height="56" viewBox="-28 -28 56 56" aria-hidden="true"><path d="M-23 0h10M13 0h10M0-23v10M0 13v10" fill="none" stroke="#0a1022" stroke-opacity=".6" stroke-width="4.5"/><circle r="3.4" fill="#0a1022" fill-opacity=".6"/><path d="M-23 0h10M13 0h10M0-23v10M0 13v10" fill="none" stroke="currentColor" stroke-width="2"/><circle r="2" fill="currentColor"/></svg>
+      <svg id="fpm" width="44" height="26" viewBox="-22 -13 44 26" aria-hidden="true"><circle r="5.5" fill="none" stroke="#0a1022" stroke-opacity=".55" stroke-width="3.6"/><path d="M-19 0h13.5M5.5 0H19M0-5.5V-12" fill="none" stroke="#0a1022" stroke-opacity=".55" stroke-width="3.6"/><circle r="5.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M-19 0h13.5M5.5 0H19M0-5.5V-12" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+
+      <button id="gear" type="button" aria-label="Ajustes de vuelo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h9M18 7h2M4 17h2M11 17h9"/><circle cx="15.5" cy="7" r="2.5"/><circle cx="8.5" cy="17" r="2.5"/></svg>
+      </button>
+
+      <div id="readout" aria-hidden="true">
+        <div id="ball"><div id="ballInner"></div></div>
+        <div class="cell"><b id="vVel">058</b><span>Veloc.</span></div>
+        <div class="cell" id="cellAlt"><b id="vAlt">000</b><span>Altura</span></div>
+        <div class="cell"><b id="vBank">&nbsp;00°</b><span>Alabeo</span></div>
+        <div class="cell"><b id="vPitch">&nbsp;00°</b><span>Cabeceo</span></div>
+        <div class="cell" id="cellHead"><b id="vHead">000°</b><span>Rumbo</span></div>
+        <div class="cell"><b id="vScore">0</b><span>Puntos</span></div>
+      </div>
+      <div id="zone" hidden></div>
+      <div id="vitals" aria-hidden="true">
+        <div class="vit"><span>Escudo</span><i><b id="barShield"></b></i></div>
+        <div class="vit"><span>Vida</span><i><b id="barHull"></b></i></div>
+        <div class="vit"><span>Evasión</span><i><b id="barDodge"></b></i></div>
+      </div>
+
+      <div id="stickZone" aria-label="Palanca de vuelo">
+        <div id="stick"><div id="knob"></div></div>
+      </div>
+      <div id="stickTag">Girar · Abajo levanta la trompa</div>
+
+      <div id="thrust" role="slider" tabindex="0" aria-label="Empuje" aria-valuemin="20" aria-valuemax="100" aria-valuenow="50">
+        <div id="thrustTrack">
+          <i id="thrustHot"></i>
+          <i id="thrustFill"></i>
+          <i id="thrustMid"></i>
+          <i id="heatBar"></i>
+          <i id="thrustGrip"></i>
+        </div>
+        <b id="thrustVal">50</b>
+        <span id="thrustLbl">Empuje</span>
+      </div>
+
+      <button id="rollL" class="roll" type="button" aria-label="Rotar a la izquierda">
+        <svg class="i-roll" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12a7 7 0 1 0 2.3-5.2L5 9"/><path d="M5 4.5V9h4.5"/></svg>
+        <svg class="i-rudder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+        <svg class="i-turn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 20v-6a5 5 0 0 0-5-5H5"/><path d="M9 5 5 9l4 4"/></svg>
+        <span class="rollWord">Rotar</span>
+      </button>
+      <button id="rollR" class="roll" type="button" aria-label="Rotar a la derecha">
+        <svg class="i-roll" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12a7 7 0 1 0 2.3-5.2L5 9"/><path d="M5 4.5V9h4.5"/></svg>
+        <svg class="i-rudder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+        <svg class="i-turn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20v-6a5 5 0 0 1 5-5h9"/><path d="m15 5 4 4-4 4"/></svg>
+        <span class="rollWord">Rotar</span>
+      </button>
+      <button id="repair" class="roll" type="button" aria-label="Reparar la nave">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+        <span id="repairWord">Reparar</span>
+      </button>
+      <button id="missile" class="roll" type="button" aria-label="Misil: mantené apretado para fijar el blanco y soltá para disparar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5c2.8 2.7 4 6 4 10l2.5 5H14l-2 3.5-2-3.5H5.500l2.500-5c0-4 1.200-7.300 4-10Z"/></svg>
+        <span>Misil <b id="missileN">4</b></span>
+        <i id="missileBar"></i>
+      </button>
+      <button id="tgtBtn" class="roll" type="button" aria-label="Blanco: tocá para elegir o cambiar de enemigo, mantené para soltarlo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="6"/><path d="M12 2.5v5M12 16.5v5M2.5 12h5M16.5 12h5"/></svg>
+        <span id="tgtWord">Blanco</span>
+      </button>
+      <button id="fire" type="button" aria-label="Disparar">Fuego</button>
+
+      <div id="rollTag">Dos toques: esquivar</div>
+      <div id="keys" hidden>Flechas: girar y trompa · A D: rotar, doble toque esquiva · W S: empuje · Espacio: disparar · F: misil · R: reparar · T: blanco · Esc: ajustes</div>
+      <div id="warn" hidden>Terreno adelante</div>
+      <div id="toast" hidden></div>
+      <div id="crashMsg" hidden></div>
+    </div>
+
+    <div id="sheet" role="dialog" aria-label="Ajustes de vuelo" hidden>
+      <div id="sheetBody">
+        <div id="sheetHead">
+          <h2>Ajustes de vuelo</h2>
+          <button id="resume" type="button">Seguir volando</button>
+        </div>
+        <div id="sheetGrid">
+          <section class="opt">
+            <h3>Modo de vuelo</h3>
+            <div class="seg" data-key="mode"><button id="optModeA" type="button" data-val="asistido">Asistido</button><button id="optModeM" type="button" data-val="manual">Manual</button></div>
+            <p id="modeNote"></p>
+          </section>
+          <section class="opt">
+            <h3>Palanca vertical</h3>
+            <div class="seg" data-key="invert"><button id="optInvY" type="button" data-val="true">Como avión</button><button id="optInvN" type="button" data-val="false">Directa</button></div>
+            <p id="invertNote"></p>
+          </section>
+          <section class="opt">
+            <h3>Palanca a los costados</h3>
+            <div class="seg" data-key="lateral"><button id="optLatDobla" type="button" data-val="dobla">Dobla</button><button id="optLatRota" type="button" data-val="rota">Gira sobre su eje</button></div>
+            <p id="lateralNote"></p>
+          </section>
+          <section class="opt">
+            <h3>Sentido a los costados</h3>
+            <div class="seg" data-key="invertX"><button id="optLatN" type="button" data-val="false">Normal</button><button id="optLatY" type="button" data-val="true">Invertido</button></div>
+          </section>
+          <section class="opt">
+            <h3>Sensibilidad</h3>
+            <div class="seg" data-key="sens"><button id="optSensS" type="button" data-val="suave">Suave</button><button id="optSensM" type="button" data-val="media">Media</button><button id="optSensF" type="button" data-val="rapida">Rápida</button></div>
+          </section>
+          <section class="opt">
+            <h3>Sonido</h3>
+            <div class="seg" data-key="sound"><button id="optSndY" type="button" data-val="true">Sí</button><button id="optSndN" type="button" data-val="false">No</button></div>
+          </section>
+          <section class="opt wide">
+            <h3>Botón Blanco</h3>
+            <div class="seg" data-key="tgtCam"><button id="optTgtCam" type="button" data-val="camara">La cámara lo sigue</button><button id="optTgtMark" type="button" data-val="marca">Solo lo marca</button></div>
+            <p>Tocá Blanco para elegir un enemigo y volvé a tocar para pasar al siguiente. Mantenelo apretado para soltarlo.</p>
+          </section>
+        </div>
+        <div id="sheetFoot">
+          <button id="straighten" type="button">Enderezar la nave</button>
+          <button id="flipBtn" type="button" hidden>Dar vuelta la pantalla</button>
+          <button id="fsBtn" type="button" hidden>Pantalla completa</button>
+          <button id="toMenu" type="button">Salir al menú</button>
+        </div>
+        <div class="scrollHint" hidden>Deslizá para ver más</div>
+      </div>
+    </div>
+
+    <div id="menu" role="dialog" aria-label="Elegir modo de juego" hidden>
+      <div id="menuBody">
+        <div id="menuHead">
+          <h1>Delta Uno</h1>
+          <button id="menuGear" type="button">Ajustes</button>
+        </div>
+        <div id="modeList">
+          <button class="mode" type="button" data-mode="conquista">Conquista<small></small></button>
+          <button class="mode" type="button" data-mode="supervivencia">Supervivencia<small></small></button>
+          <button class="mode" type="button" data-mode="libre">Vuelo libre<small></small></button>
+          <button class="mode" type="button" data-mode="carrera">Carrera<small></small></button>
+          <button class="mode" type="button" data-mode="historia" disabled>Historia<small>Próximamente</small></button>
+        </div>
+        <div id="modeInfo">
+          <h2 id="modeTitle"></h2>
+          <p id="modeDesc"></p>
+          <section class="opt" id="diffBox">
+            <h3>Dificultad</h3>
+            <div class="seg" data-key="diff"><button type="button" data-val="facil">Fácil</button><button type="button" data-val="medio">Medio</button><button type="button" data-val="dificil">Difícil</button><button type="button" data-val="extremo">Extremo</button></div>
+            <p id="diffNote"></p>
+          </section>
+          <p id="modeRec"></p>
+          <button id="goBtn" type="button">Despegar</button>
+        </div>
+        <div class="scrollHint" hidden>Deslizá para ver más</div>
+      </div>
+    </div>
+
+    <div id="end" role="dialog" aria-label="Fin de la partida" hidden>
+      <div id="endBody">
+        <h2 id="endTitle"></h2>
+        <div id="endStats"></div>
+        <div id="endNew" hidden>¡Nuevo récord!</div>
+        <div id="endBtns">
+          <button id="againBtn" class="endGo" type="button">Jugar de nuevo</button>
+          <button id="endMenu" type="button">Menú</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="loading">Generando el planeta…</div>
+    <div id="fatal" hidden><p></p></div>
+  </div>
+  <div id="turnCue" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg>
+    Girá el teléfono
+  </div>
+</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
