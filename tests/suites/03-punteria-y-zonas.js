@@ -21,9 +21,11 @@ H.transform = s => s.replace('b.life=1.7;b.dmg=e.def.dmg;b.on=true;', 'b.life=1.
   const pin = (fn, arg) => L.page.evaluate(([fs, arg]) => { clearInterval(window.__pin); const f = new Function('D', 'zi', fs); const D = window.DeltaUno; const at = f(D, arg); window.__pin = setInterval(() => { D.ship.pos.copy(at); }, 3); D.ship.pos.copy(at); }, [fn.toString().replace(/^[^{]*{|}$/g, ''), arg]);
   const unpin = () => L.page.evaluate(() => clearInterval(window.__pin));
   const zonePrep = async (zi) => {
+    await L.page.evaluate(() => window.DeltaUno.setInv(0));
     // a 250 m afuera del borde de la zona, que vayan naciendo los grupos sin verte
     await pin((D, zi) => { const z = D.zones[zi], R = D.PLANET_R, a = (z.r + 250) / R; const u = z.dir.clone().multiplyScalar(Math.cos(a)).addScaledVector(z.e1, Math.sin(a)).normalize(); return u.multiplyScalar(R + D.heightAt(u.x, u.y, u.z, 0) + 700); }, zi);
     await waitGrace(L.page);
+    await L.page.evaluate(() => window.DeltaUno.setInv(999)); // quieta y a tiro de las torretas: que no la derriben a mitad de la prueba
     await L.page.evaluate(zi => { const D = window.DeltaUno; D.groups.filter(g => g.zone === D.zones[zi]).forEach(g => { g.alert = false; }); }, zi);
     await simWait(L.page, 9);
   };
@@ -46,7 +48,7 @@ H.transform = s => s.replace('b.life=1.7;b.dmg=e.def.dmg;b.on=true;', 'b.life=1.
   console.log('densa', JSON.stringify(zi2));
   check('densa: tres escuadrones a la vez, con varias naves', zi2.groups === 3 && zi2.naves >= 8, JSON.stringify(zi2));
   check('densa: grupos más juntos que en la dispersa', zi2.minSep < zi0.minSep, zi2.minSep + ' m contra ' + zi0.minSep + ' m');
-  await L.page.evaluate(() => { const D = window.DeltaUno, g = D.groups.find(g => g.zone === D.zones[2] && !g.ground); g.alert = true; g.lostT = 0; D.zones[2].seen = false; window.__toasts = []; });
+  await L.page.evaluate(() => { const D = window.DeltaUno, g = D.groups.filter(g => g.zone === D.zones[2] && !g.ground).sort((a, b) => a.leader.pos.distanceTo(D.ship.pos) - b.leader.pos.distanceTo(D.ship.pos))[0]; g.alert = true; /* el más cercano: uno que de verdad te tenga a la vista */ g.lostT = 0; D.zones[2].seen = false; window.__toasts = []; });
   await simWait(L.page, 1);
   zi2 = await zinfo(2);
   const t2 = await L.page.evaluate(() => window.__toasts.slice());
@@ -60,6 +62,7 @@ H.transform = s => s.replace('b.life=1.7;b.dmg=e.def.dmg;b.on=true;', 'b.life=1.
   await unpin();
 
   /* balas: rectas y saliendo por la trompa */
+  await L.page.evaluate(() => window.DeltaUno.setInv(0));
   await place(L.page, 2, .3, 140); await pinAlt(L.page, 110);
   await waitGrace(L.page);
   await L.page.evaluate(() => { window.__noDmg = true; window.__F = []; window.__al = setInterval(() => window.DeltaUno.groups.forEach(g => { g.alert = true; g.lostT = 0; }), 50);

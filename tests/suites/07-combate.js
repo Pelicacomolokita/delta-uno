@@ -103,9 +103,11 @@ H.autostart = true;
   const toastTxt = await L.page.evaluate(() => document.querySelector('#toast').textContent);
   check('al entrar la zona se alerta', ins.curZone === 0, f({ curZone: ins.curZone, toastTxt }));
   const d0 = await L.page.evaluate(() => { const D = window.DeltaUno; return { st: D.groups.map(g => g.state), d: Math.min(...D.enemies.map(e => e.pos.distanceTo(D.ship.pos))) }; });
+  // los que atacan pasan cerca, se alejan y vuelven: se mide la distancia más corta en el intervalo
+  await L.page.evaluate(() => { const D = window.DeltaUno; window.__minD = Infinity; window.__mdI = setInterval(() => { const m = Math.min(...D.enemies.filter(e => e.group.state === 'attack').map(e => e.pos.distanceTo(D.ship.pos))); if (m < window.__minD) window.__minD = m; }, 20); });
   await simWait(L.page, 6);
-  const d1 = await L.page.evaluate(() => { const D = window.DeltaUno; return { st: D.groups.map(g => g.state), d: Math.min(...D.enemies.map(e => e.pos.distanceTo(D.ship.pos))), v: D.vit(), n: D.enemies.length, dead: D.flags().dead }; });
-  check('me ataca al menos el grupo que me vio, y se acerca', d1.st.some(x => x === 'attack') && d1.d < d0.d, f({ d0: d0.d, d1: d1.d, estados: d1.st.join() }));
+  const d1 = await L.page.evaluate(() => { clearInterval(window.__mdI); const D = window.DeltaUno; return { st: D.groups.map(g => g.state), d: window.__minD, v: D.vit(), n: D.enemies.length, dead: D.flags().dead }; });
+  check('me ataca al menos el grupo que me vio, y se acerca', d1.st.some(x => x === 'attack') && d1.d < d0.d, f({ d0: d0.d, minimaEnElAtaque: d1.d, estados: d1.st.join() }));
   await L.page.evaluate(() => { const D = window.DeltaUno; D.groups.filter(g => g.zone === D.zones[0]).forEach(g => { g.alert = true; g.lostT = 0; }); });
   await simWait(L.page, 8);
   const dmg = await st(L.page);
