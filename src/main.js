@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import './style.css';
 import { stats } from './stats.js';
 import { APP_VERSION, FEEDBACK_URL } from './config.js';
+import { REPARTO, MISIONES, PROXIMAS } from './historia/campana1.js';
 window.THREE = THREE; // las pruebas lo usan para armar matrices
 
 (function(){
@@ -522,9 +523,10 @@ const glow=(color,scale)=>{const s=new T.Sprite(new T.SpriteMaterial({map:softTe
 /* ---------- La nave: un triángulo delta. Lomo claro y panza azul para leer al toque si está dada vuelta ---------- */
 const WING_L=new V3(-2.4,-.1,1.6),WING_R=new V3(2.4,-.1,1.6),TAIL=new V3(0,.05,1.7);
 const shipGroup=new T.Group();scene.add(shipGroup);
-(function buildShip(){
+// mark: color de las puntas de ala (los aliados llevan el suyo; la del jugador es coral)
+function shipGeometry(mark){
   const N=[0,0,-3],L=[-2.4,-.1,1.6],R=[2.4,-.1,1.6],Sp=[0,.62,.55],B=[0,-.34,.7],TL=[-.85,.06,1.35],TR=[.85,.06,1.35];
-  const ivory=[.96,.92,.84],shade=[.72,.68,.64],belly=[.16,.28,.56],bellyD=[.10,.17,.38],coral=[1,.40,.22],glass=[.06,.16,.22],glassD=[.03,.08,.12];
+  const ivory=[.96,.92,.84],shade=[.72,.68,.64],belly=[.16,.28,.56],bellyD=[.10,.17,.38],coral=mark||[1,.40,.22],glass=[.06,.16,.22],glassD=[.03,.08,.12];
   const lerp=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
   const pos=[],col=[];
   const tri=(a,b,c,k)=>{pos.push(...a,...b,...c);col.push(...k,...k,...k);};
@@ -546,7 +548,10 @@ const shipGroup=new T.Group();scene.add(shipGroup);
   g.setAttribute('position',new T.Float32BufferAttribute(pos,3));
   g.setAttribute('color',new T.Float32BufferAttribute(col,3));
   g.computeVertexNormals();
-  const m=new T.Mesh(g,new T.MeshLambertMaterial({vertexColors:true,fog:false,emissive:0x15151c}));
+  return g;
+}
+(function buildShip(){
+  const m=new T.Mesh(shipGeometry(),new T.MeshLambertMaterial({vertexColors:true,fog:false,emissive:0x15151c}));
   shipGroup.add(m);
   // luces de navegación: rojo a babor, verde a estribor
   const nl=glow(0xff3b30,.6);nl.position.copy(WING_L);shipGroup.add(nl);
@@ -1088,17 +1093,16 @@ function stepParticles(dt){
 const SHIP_PTS=[new V3(0,0,-3),WING_L,WING_R,new V3(0,-.3,.7),new V3(0,.6,.55)];
 const CRASH_TIME=2.6,GRACE=2.4;
 const crashMsg=$('#crashMsg'),warnEl=$('#warn');
-const CRASH_TEXT={combate:'Nave destruida',suelo:'Te estrellaste contra el planeta',mar:'Te estrellaste contra el mar'};
+const CRASH_TEXT={combate:'Nave destruida',suelo:'Te estrellaste contra el planeta',mar:'Te estrellaste contra el mar',sector:'Saliste del sector'};
 let warning=false,thinWarn=false,warnT=0,beepT=0,puffT=0;
 function crash(kind){
-  if(dead>0||inv>0)return;
-  dead=CRASH_TIME;
+  const out=kind==='sector'; // salir del sector de una misión: se pierde la parte, sin explosión
+  if(dead>0||(inv>0&&!out))return;
+  dead=out?1.8:CRASH_TIME;
   run.crashes++;
-  stats.track('caida',{causa:kind,t_partida:Math.round(run.t),cerca_de:curZone?curZone.kind.name:undefined});
+  stats.track('caida',{causa:kind,t_partida:Math.round(run.t),cerca_de:curZone?curZone.kind.name:run.mode==='historia'&&mis.def?mis.def.id:undefined});
   const at=ship.pos.clone();
-  explode(at,24);burst(at,60,70,1.3,1,.8,.55);
-  shipGroup.visible=false;
-  shake=reduceMotion?0:3.4;
+  if(!out){explode(at,24);burst(at,60,70,1.3,1,.8,.55);shipGroup.visible=false;shake=reduceMotion?0:3.4;}
   ship.w.set(0,0,0);ship.vel.set(0,0,0);
   crashMsg.textContent=CRASH_TEXT[kind];
   const card=document.createElement('small');
@@ -1117,6 +1121,7 @@ function respawn(){
   groups.forEach(g=>{g.alert=false;g.lostT=0;});
   [roamZone,waveZone,carrierZone].forEach(z=>{z.seen=false;});
   if(run.mode==='carrera')raceRespawnSpot(U,_hf); // en la carrera vuelve al último anillo
+  else if(run.mode==='historia')histRestart(U,_hf); // en una misión se repite la parte
   else for(const z of zones){
     z.seen=false;
     if(z.state!=='hostil')continue;
@@ -1193,10 +1198,10 @@ function groundCheck(dt){
     }
     thinWarn=rad-PLANET_R>CEIL_WARN;
     const hotNow=overheat>0||heat>.75;
-    warnEl.textContent=warning?'Terreno adelante':thinWarn?'Falta de presión · Bajá':overheat>0?'Motor recalentado':'Motor caliente';
-    warnEl.hidden=!(warning||thinWarn||hotNow);
+    warnEl.textContent=warning?'Terreno adelante':mis.warn?mis.warn:thinWarn?'Falta de presión · Bajá':overheat>0?'Motor recalentado':'Motor caliente';
+    warnEl.hidden=!(warning||mis.warn||thinWarn||hotNow);
   }
-  if(warning||thinWarn){beepT-=dt;if(beepT<=0){beepT=.45;blip(920,920,.07,.03,'square');}}else beepT=0;
+  if(warning||thinWarn||mis.out){beepT-=dt;if(beepT<=0){beepT=.45;blip(920,920,.07,.03,'square');}}else beepT=0;
 }
 
 /* ---------- Sonido ---------- */
@@ -1834,7 +1839,8 @@ function updateHud(dt){
 const zones=[],groups=[],enemies=[],lost={suelo:0,roca:0};
 let curZone=null,zoneT=0;
 const arcTo=(a,b)=>Math.acos(clamp(a.dot(b),-1,1))*PLANET_R;
-function zoneWall(z){
+function zoneWall(z,color){
+  color=color||[.85,.26,.09];
   const N=96,pos=new Float32Array((N+1)*6),col=new Float32Array((N+1)*6),a=z.r/PLANET_R,ca=Math.cos(a),sa=Math.sin(a);
   for(let i=0;i<=N;i++){
     const t=i/N*Math.PI*2,c=Math.cos(t),s=Math.sin(t);
@@ -1842,7 +1848,7 @@ function zoneWall(z){
     const h=heightAt(_d.x,_d.y,_d.z,16),j=i*6;
     pos[j]=_d.x*(PLANET_R+h-6);pos[j+1]=_d.y*(PLANET_R+h-6);pos[j+2]=_d.z*(PLANET_R+h-6);
     pos[j+3]=_d.x*(PLANET_R+h+170);pos[j+4]=_d.y*(PLANET_R+h+170);pos[j+5]=_d.z*(PLANET_R+h+170);
-    col[j]=.85;col[j+1]=.26;col[j+2]=.09;
+    col[j]=color[0];col[j+1]=color[1];col[j+2]=color[2];
   }
   const g=new T.BufferGeometry();
   g.setAttribute('position',new T.BufferAttribute(pos,3));g.setAttribute('color',new T.BufferAttribute(col,3));
@@ -2046,7 +2052,7 @@ function makeGroup(z,kinds,home,anchor,form,alert){
     const def=ENEMY_DEF[k],f=form*(k==='dron'?.55:1);
     const sl=FORM_SLOTS[i%FORM_SLOTS.length].map(v=>v*f),slot=enemySlots.find(s=>s.free); // formación más apretada o más abierta según la zona
     slot.free=false;
-    slot.mesh.geometry=ENEMY_GEO[k];slot.mesh.scale.setScalar(def.scale);slot.mesh.visible=true;
+    slot.mesh.geometry=ENEMY_GEO[k];slot.mesh.material=enemyMat;slot.mesh.scale.setScalar(def.scale);slot.mesh.visible=true;
     const gl=slot.mesh.children[0];gl.position.set(0,.04,1.7);gl.material.color.set(0xff7a3c);gl.scale.setScalar(2);gl.material.opacity=1;
     const e={kind:k,def,group:g,slot,mesh:slot.mesh,on:true,hp:def.hp,speed:def.patrol,bank:0,cool:.6+Math.random()*2,burst:0,gap:0,breakT:0,
       breakDir:new V3(),ox:(Math.random()-.5)*120,oy:(Math.random()-.5)*60,sx:sl[0],sy:sl[1],sz:sl[2],
@@ -2068,7 +2074,7 @@ function spawnTurret(z,site){
   slot.free=false;tw.free=false;site.on=true;
   const d=site.dir,top=PLANET_R+Math.max(heightAt(d.x,d.y,d.z,0),0)+TOWER_H;
   tw.g.position.copy(d).multiplyScalar(top);tw.g.quaternion.setFromUnitVectors(Y_AXIS,d);tw.g.visible=true;
-  slot.mesh.geometry=ENEMY_GEO[kind];slot.mesh.scale.setScalar(def.scale);slot.mesh.visible=true;
+  slot.mesh.geometry=ENEMY_GEO[kind];slot.mesh.material=enemyMat;slot.mesh.scale.setScalar(def.scale);slot.mesh.visible=true;
   // la luz del motor pasa a ser una baliza roja arriba de la cabeza
   const bc=slot.mesh.children[0];bc.position.set(0,1.9,0);bc.material.color.set(0xff2a1a);bc.scale.setScalar(7);
   const pos=d.clone().multiplyScalar(top+.65*def.scale);
@@ -2096,6 +2102,7 @@ function removeEnemy(e){
 }
 function killEnemy(e,scored){
   explode(e.pos,e.def.boom);
+  if(e.misPart!==undefined&&e.misPart===mis.part)mis.kills++; // blanco de una misión
   if(e.group.site)e.group.site.alive=false; // torreta destruida: no vuelve
   if(scored){ship.kills++;addScore(e.def.score,true);maybeDrop(e.pos,e.def.drop);}
   removeEnemy(e);
@@ -2356,7 +2363,7 @@ function fireEnemyBolt(e,dP){
   }
   b.q.setFromUnitVectors(Z_AXIS,_eA);
   b.v.copy(_eA).multiplyScalar(speed);
-  b.life=1.7;b.dmg=e.def.dmg;b.on=true;
+  b.life=1.7;b.dmg=e.def.dmg*(e.dmgK||1);b.on=true; // dmgK: munición de práctica en las misiones
   if(dP+80>speed*1.7)b.life=(dP+80)/speed; // las torretas tiran más lejos
   sfxEnemyShot();
 }
@@ -2406,6 +2413,7 @@ function damage(n,dir){
   shieldWait=SHIELD_DELAY;
   const onShield=Math.min(shield,n);
   shield-=onShield;hull-=n-onShield;
+  if(run.mode==='historia')mis.dmg+=Math.min(n,shield+hull+n); // shield+hull+n: lo que había antes del golpe
   if(repairT>0)endRepair(true); // cualquier golpe corta la reparación
   if(settings.vibrate&&navigator.vibrate)try{navigator.vibrate(n>=20?60:30);}catch(e){}
   elHurt.classList.toggle('shield',n-onShield<=0);
@@ -2933,7 +2941,8 @@ const MODES={
   conquista:{name:'Conquista',diff:true,desc:'Liberá las seis zonas enemigas. Para despejar una zona tenés que destruir sus torretas y todos sus escuadrones. Una nave nodriza recorre el planeta: si la derribás, cada zona pierde refuerzos y una torreta.'},
   supervivencia:{name:'Supervivencia',diff:true,desc:'Oleadas cada vez más grandes vienen a buscarte. Cada cinco oleadas llega una nodriza. Tenés una sola vida.'},
   libre:{name:'Vuelo libre',diff:false,desc:'Recorré el planeta sin objetivo. De vez en cuando aparecen escuadrones al azar. Vidas infinitas.'},
-  carrera:{name:'Carrera',diff:false,desc:'Doce anillos contra reloj, siempre el mismo recorrido. Si te estrellás, volvés al último anillo con 5 segundos de castigo.'}
+  carrera:{name:'Carrera',diff:false,desc:'Doce anillos contra reloj, siempre el mismo recorrido. Si te estrellás, volvés al último anillo con 5 segundos de castigo.'},
+  historia:{name:'Historia',diff:false,desc:''} // la descripción sale de la misión (ver Historia)
 };
 const run={mode:null,diff:'medio',lives:Infinity,assist:true,t:0,wave:0,waveT:0,queue:[],randT:0,ring:0,raceT:0,over:null,endT:0,stepT:0,prev:new V3(),live:false,crashes:0,count:0};
 // Cada evento de uso lleva el modo y la dificultad de la partida en curso, y con qué se está jugando
@@ -2944,6 +2953,7 @@ function endRunStats(res){
   if(run.mode==='conquista'){p.zonas_libres=zones.filter(z=>z.state==='libre').length;p.vidas=run.lives===Infinity?'inf':run.lives;}
   if(run.mode==='supervivencia')p.oleada=run.wave;
   if(run.mode==='carrera'){p.anillos=run.ring;p.tiempo_carrera=Math.round(run.raceT*10)/10;}
+  if(run.mode==='historia'&&mis.def){p.mision=mis.def.id;p.parte=mis.P?mis.P.id:undefined;}
   stats.track('partida_fin',p);
   run.live=false;
 }
@@ -2977,9 +2987,10 @@ function setupZones(on){
   }
   curZone=null;
 }
-function startRun(mode,diff){
+function startRun(mode,diff,missionId){
   if(run.live)endRunStats('reinicio');
   noteSettings();
+  histStop();
   run.mode=mode;run.diff=MODES[mode].diff?(diff||'medio'):'medio';
   const D=DIFF[run.diff];
   Object.assign(AIM,D.aim);
@@ -2999,17 +3010,19 @@ function startRun(mode,diff){
   run.prev.copy(ship.pos);
   if(mode==='conquista')spawnCarrier();
   updateRings();
-  menuEl.hidden=true;endEl.hidden=true;sheet.hidden=true;hud.classList.remove('off');
+  if(mode==='historia')histStart(MISIONES.find(m=>m.id===missionId)||MISIONES[0]);
+  menuEl.hidden=true;endEl.hidden=true;briefEl.hidden=true;sheet.hidden=true;hud.classList.remove('off');
   $('#keys').classList.remove('gone');clearTimeout(keysHintT);keysHintT=setTimeout(()=>$('#keys').classList.add('gone'),15000);
   if(sfx.ctx&&sfx.ctx.state==='suspended')sfx.ctx.resume();
   last=performance.now();
-  toast({conquista:'Conquista · liberá las 6 zonas',supervivencia:'Supervivencia · preparate',libre:'Vuelo libre',carrera:'Carrera · pasá por los anillos'}[mode],2.5);
+  toast(mode==='historia'?mis.def.titulo+' · '+mis.P.objetivo.toLowerCase():{conquista:'Conquista · liberá las 6 zonas',supervivencia:'Supervivencia · preparate',libre:'Vuelo libre',carrera:'Carrera · pasá por los anillos'}[mode],2.5);
   run.live=true;run.crashes=0;run.count++;perfReset();
   stats.track('partida_inicio',{numero:run.count});
 }
 // Lo que pasa al caer, según el modo. Devuelve el texto de la tarjeta.
 function onCrash(){
   if(run.mode==='carrera'){run.raceT+=5;return 'Volvés al último anillo · +5 s';}
+  if(run.mode==='historia'){mis.falls++;return 'Repetís esta prueba';}
   if(run.mode==='supervivencia'){run.over='derrota';return 'Caíste en la oleada '+run.wave;}
   if(run.mode==='conquista'){
     if(run.lives!==Infinity)run.lives--;
@@ -3196,7 +3209,12 @@ function stepRun(dt){
   run.t+=dt;
   if(run.endT>0){run.endT-=dt;if(run.endT<=0)showEnd(run.over);}
   if(run.mode==='carrera'){stepRace(dt);return;}
+  if(run.mode==='historia')histStep(dt);
   run.stepT-=dt;if(run.stepT>0)return;run.stepT=.25;
+  if(mis.sector){ // los blancos de la misión te ven y se avisan como los de una zona
+    const mine=groups.filter(g=>g.zone===mis.sector);
+    if(mine.length)detectGroups(mis.sector,mine,arcTo(_cw.copy(ship.pos).normalize(),mis.sector.dir));
+  }
   for(const z of [roamZone,waveZone,carrierZone]){
     const mine=groups.filter(g=>g.zone===z);
     if(mine.length)detectGroups(z,mine,0);
@@ -3206,6 +3224,7 @@ function stepRun(dt){
   else if(run.mode==='supervivencia')stepWaves();
 }
 function modeLine(){
+  if(run.mode==='historia')return histLine();
   if(run.mode==='carrera')return 'Anillo '+Math.min(run.ring+1,RING_N)+'/'+RING_N+' · '+fmtTime(run.raceT)+(records.carrera?' · Récord '+fmtTime(records.carrera):'');
   if(run.mode==='supervivencia'){
     const n=enemies.length+run.queue.length;
@@ -3221,11 +3240,510 @@ function modeLine(){
   return BIOMES[ship.biome]+' · Vuelo libre';
 }
 
+/* ---------- Historia: misiones, radio y aliados ----------
+   Las misiones son datos (src/historia/, formato en docs/historia/formato.md). Cada una se juega en un sector
+   con borde visible: si salís, tenés unos segundos para volver o se pierde la parte. Al caer o perder la parte,
+   se repite desde su comienzo, con la nave reparada. */
+const SECTOR_OUT=8,SECTOR_NEAR=.92,PART_GAP=4.5,END_GAP=5.5,RADIO_GAP=4,RADIO_STALE=6;
+const HIST_KEY='delta-uno-historia';
+const progress=(()=>{try{return JSON.parse(localStorage.getItem(HIST_KEY))||{};}catch(e){return {};}})();
+function saveProgress(){try{localStorage.setItem(HIST_KEY,JSON.stringify(progress));}catch(e){}}
+const mis={def:null,sector:null,wall:null,part:-1,P:null,partT:0,t:0,events:[],emitted:new Set(),won:false,state:'off',gapT:0,
+  ring:0,kills:0,spawned:0,pose:{u:new V3(),f:new V3()},outT:0,out:false,warn:'',falls:0,dmg:0,partFalls:0,partT0:0,sites:[],th0:0,result:null};
+const sectorCache={};
+const _hA=new V3(),_hB=new V3(),_hC=new V3(),_hD=new V3();
+function basisOf(dir,e1,e2){
+  e1.set(Math.abs(dir.y)<.9?0:1,Math.abs(dir.y)<.9?1:0,0).addScaledVector(dir,-(Math.abs(dir.y)<.9?dir.y:dir.x)).normalize();
+  e2.crossVectors(e1,dir).normalize();
+}
+// Busca en el planeta un lugar que sirva para la misión. 'costa': de día, tierra pareja en el centro y mar alrededor.
+function findSector(spec){
+  const key=spec.busca+':'+spec.radio;
+  if(sectorCache[key])return sectorCache[key];
+  let s=9157;const rnd=()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};
+  const c=new V3(),e1=new V3(),e2=new V3(),q=new V3();
+  let best=-1e9;const out=startU.clone();
+  for(let k=0;k<500;k++){
+    const y=rnd()*1.6-.8,t=rnd()*Math.PI*2,r=Math.sqrt(1-y*y);
+    c.set(Math.cos(t)*r,y,Math.sin(t)*r);
+    if(c.dot(SUN)<.4)continue;
+    basisOf(c,e1,e2);
+    // centro: tierra firme y verde; el círculo de los anillos y el borde: algo de mar, nada de montaña
+    let land=0,green=0,sea=0,bad=0,high=0;
+    for(const [frac,cnt] of [[0,1],[.22,6],[.45,10],[.8,10]]){
+      for(let i=0;i<cnt;i++){
+        const ang=i/cnt*Math.PI*2+frac*3,a=frac*spec.radio/PLANET_R,sa=Math.sin(a);
+        q.copy(c).multiplyScalar(Math.cos(a)).addScaledVector(e1,sa*Math.cos(ang)).addScaledVector(e2,sa*Math.sin(ang)).normalize();
+        const h=terrain(q.x,q.y,q.z,64,true),water=S.water>.5,b=S.biome;
+        if(b>=6||S.lava>.2)bad++;
+        high=Math.max(high,h);
+        if(!water&&b>=1&&b<=3)green++;
+        if(frac<.3){if(!water&&b<6)land++;}
+        else if(water)sea++;
+      }
+    }
+    if(land<6)continue;
+    const score=green*2-bad*3-Math.abs(sea-7)*1.5-Math.max(0,high-220)*.05+c.dot(SUN)*4;
+    if(score>best){best=score;out.copy(c);}
+  }
+  sectorCache[key]=out;
+  return out;
+}
+function makeSector(def){
+  const dir=findSector(def.sector),e1=new V3(),e2=new V3();
+  basisOf(dir,e1,e2);
+  return {dir:dir.clone(),e1,e2,r:def.sector.radio,kind:{name:def.sector.nombre,patrol:320,form:1,link:1400},seen:false,state:'mision',arc:0};
+}
+// Lugares para las torretas de práctica: cerca del centro, en tierra pareja
+function sectorSites(z,n){
+  const out=[],cand=new V3();
+  let s=4517;const rnd=()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};
+  for(let k=0;k<n;k++){
+    let best=-1e9,bd=null;
+    for(let t=0;t<90;t++){
+      const strict=t<60;
+      zoneDir(z,.06+rnd()*.22,rnd()*Math.PI*2,cand);
+      terrain(cand.x,cand.y,cand.z,0,true);
+      if(strict&&(S.water>.3||S.lava>.3||S.biome>=7))continue;
+      if(out.some(o=>arcTo(o.dir,cand)<150))continue;
+      const h=Math.max(heightAt(cand.x,cand.y,cand.z,0),0),sl=siteSlope(cand,h);
+      if(strict&&sl>.45)continue;
+      const score=-sl*220+rnd()*20;
+      if(score>best){best=score;bd=cand.clone();}
+    }
+    if(bd)out.push({dir:bd,alive:true,on:false,kind:'torreta'});
+  }
+  return out;
+}
+
+/* Anillos de la misión: sobre un círculo alrededor del centro del sector */
+const misRings=new T.Group();scene.add(misRings);
+const MIS_RING_RHO=.45,MIS_RING_STEP=430,MIS_RING_ALT=[85,120,175,100,145,205,110,160];
+const misCourse=[];
+function misRingAt(i,out){
+  const z=mis.sector,dth=MIS_RING_STEP/(MIS_RING_RHO*z.r);
+  return zoneDir(z,MIS_RING_RHO,mis.th0+i*dth,out);
+}
+function buildMisRings(n){
+  clearMisRings();
+  const prev=new V3();
+  misRingAt(-1.2,_hA);prev.copy(_hA).multiplyScalar(PLANET_R+Math.max(heightAt(_hA.x,_hA.y,_hA.z,0),0)+100);
+  for(let i=0;i<n;i++){
+    misRingAt(i+1,_hA);
+    const u=_hA.clone(),h=Math.max(heightAt(u.x,u.y,u.z,0),0);
+    misCourse.push({u,pos:u.clone().multiplyScalar(PLANET_R+h+MIS_RING_ALT[i%MIS_RING_ALT.length]),n:new V3()});
+  }
+  misCourse.forEach((c,i)=>{
+    const a=i?misCourse[i-1].pos:prev,b=misCourse[i+1]?misCourse[i+1].pos:c.pos.clone().multiplyScalar(2).sub(a);
+    c.n.copy(b).sub(a).normalize();
+    const m=new T.Mesh(ringGeo,ringMatRest);m.position.copy(c.pos);m.quaternion.setFromUnitVectors(Z_AXIS,c.n);
+    misRings.add(m);c.mesh=m;
+  });
+  updateMisRings();
+}
+function clearMisRings(){misRings.clear();misCourse.length=0;}
+function updateMisRings(){misCourse.forEach((c,i)=>{c.mesh.visible=i>=mis.ring;c.mesh.material=i===mis.ring?ringMatNext:ringMatRest;});}
+// ¿El tramo a→b cruzó el anillo c por adentro?
+function crossedRing(c,a,b){
+  const s1=_rA.copy(a).sub(c.pos).dot(c.n),s2=_rB.copy(b).sub(c.pos).dot(c.n);
+  if(!((s1<0&&s2>=0)||(s1>0&&s2<=0)))return false;
+  _rA.copy(a).lerp(b,s1/(s1-s2));
+  return _rA.distanceTo(c.pos)<RING_R+.6;
+}
+
+/* Arranque, partes y final */
+function histStart(def){
+  mis.def=def;mis.sector=makeSector(def);
+  mis.wall=zoneWall(mis.sector,[.25,.62,.95]);
+  mis.sites=sectorSites(mis.sector,Math.max(0,...def.partes.map(p=>p.torretas||0)));
+  mis.th0=0;mis.t=0;mis.falls=0;mis.dmg=0;mis.result=null;mis.state='jugando';mis.part=-1;
+  radio.q.length=0;radio.heard.clear();radio.cur=null;radio.gapT=0;elRadio.hidden=true;
+  histPart(0,false);
+  // posición de partida: sobre el círculo de los anillos, mirando al primero
+  misRingAt(-1.2,_hA);misRingAt(0,_hB);
+  _hC.copy(_hB).sub(_hA);_hC.addScaledVector(_hA,-_hC.dot(_hA)).normalize();
+  ship.speed=CRUISE*TUNE.vmax;
+  shipAt(_hA,_hC,90);
+  run.prev.copy(ship.pos);
+  mis.pose.u.copy(_hA);mis.pose.f.copy(_hC);
+  makeAllies(def.aliados);
+  stats.track('mision_inicio',{mision:def.id});
+}
+function histStop(){
+  if(mis.wall){scene.remove(mis.wall);mis.wall.geometry.dispose();mis.wall.material.dispose();mis.wall=null;}
+  clearMisRings();removeAllies();
+  mis.def=null;mis.sector=null;mis.state='off';mis.part=-1;mis.P=null;mis.warn='';mis.out=false;
+  radio.q.length=0;radio.cur=null;elRadio.hidden=true;
+}
+// Arma la parte i. restart: se repite después de caer o de salir del sector.
+function histPart(i,restart){
+  const def=mis.def,P=def.partes[i];
+  // lo que quedaba de la parte anterior (o de este intento) se saca
+  enemies.slice().forEach(e=>{if(e.misPart!==undefined)removeEnemy(e);});
+  eBolts.forEach(b=>{b.on=false;});
+  mis.part=i;mis.P=P;mis.partT=0;mis.won=false;mis.kills=0;mis.spawned=0;mis.ring=0;mis.outT=0;mis.out=false;mis.warn='';
+  mis.emitted.clear();
+  mis.events=P.eventos.map(ev=>({ev,done:false}));
+  if(!restart){mis.partFalls=0;mis.partT0=mis.t;}
+  clearMisRings();
+  if(P.tipo==='anillos')buildMisRings(P.anillos);
+  else if(P.tipo==='torretas'){
+    mis.sites.slice(0,P.torretas).forEach(site=>{
+      site.alive=true;site.on=false;
+      const g=spawnTurret(mis.sector,site);
+      if(g){g.members.forEach(e=>practice(e,P));mis.spawned++;}
+    });
+  }else if(P.tipo==='naves'){
+    // salen del otro lado del centro del sector y vienen a buscarte
+    _hA.copy(ship.pos).normalize();
+    const away=arcTo(_hA,mis.sector.dir)>60?_hC.copy(mis.sector.dir).multiplyScalar(2).sub(_hA).normalize():zoneDir(mis.sector,.4,1,_hC);
+    const g=makeGroup(mis.sector,P.naves,groundPoint(away,230,new V3()),away,1,true);
+    g.members.forEach(e=>practice(e,P));mis.spawned=g.members.length;
+  }
+  allies.forEach(a=>{a.mode=P.aliados||'formacion';});
+  if(!restart&&i>0){toast('Prueba '+(i+1)+' de '+def.partes.length+' · '+P.objetivo,3);}
+  // la posición para repetir esta parte: segura y mirando hacia el centro del sector
+  if(!restart&&i>0){
+    _hA.copy(ship.pos).normalize();
+    const z=mis.sector;
+    _hB.copy(_hA).addScaledVector(z.dir,-_hA.dot(z.dir));
+    if(_hB.lengthSq()<1e-8)_hB.copy(z.e1);
+    _hB.normalize();
+    const a=.62*z.r/PLANET_R;
+    mis.pose.u.copy(z.dir).multiplyScalar(Math.cos(a)).addScaledVector(_hB,Math.sin(a)).normalize();
+    mis.pose.f.copy(z.dir).addScaledVector(mis.pose.u,-z.dir.dot(mis.pose.u)).normalize();
+  }
+}
+function practice(e,P){
+  e.misPart=mis.part;e.practice=true;e.dmgK=P.danio||1;
+  e.mesh.material=practiceMat;
+  const gl=e.mesh.children[0];if(gl)gl.material.color.set(0xffd23f);
+}
+// Al caer o salir del sector: se repite la parte. Devuelve en u y f dónde reaparece la nave.
+function histRestart(u,f){
+  if(!mis.def)return;
+  mis.partFalls++;
+  radio.q.length=0;radio.cur=null;elRadio.hidden=true;
+  u.copy(mis.pose.u);f.copy(mis.pose.f);
+  histPart(mis.part,true);
+  placeAllies(u,f);
+  if(mis.def.reinicio)say(...mis.def.reinicio);
+}
+function histStep(dt){
+  if(!mis.def||mis.state==='off')return;
+  mis.t+=dt;
+  if(mis.state==='fin')return;
+  if(mis.state==='entre'){ // pausa entre partes: se escucha la radio y aparece la siguiente
+    mis.gapT-=dt;
+    if(mis.gapT<=0){mis.state='jugando';histPart(mis.part+1,false);}
+    return;
+  }
+  if(dead>0)return;
+  mis.partT+=dt;
+  const P=mis.P;
+  if(P.tipo==='anillos'){
+    const c=misCourse[mis.ring];
+    if(c&&crossedRing(c,run.prev,ship.pos)){
+      mis.ring++;updateMisRings();blip(880,1320,.12,.05,'triangle');
+      if(mis.ring<P.anillos)toast('Anillo '+mis.ring+'/'+P.anillos,1.2);
+    }
+    if(c&&c.mesh)c.mesh.scale.setScalar(1+.06*Math.sin(ship.t*6));
+    if(mis.ring>=P.anillos)mis.won=true;
+  }else if(mis.spawned>0&&!enemies.some(e=>e.misPart===mis.part))mis.won=true;
+  run.prev.copy(ship.pos);
+  // eventos de la parte
+  for(const x of mis.events){
+    if(x.done||!histWhen(x.ev.cuando))continue;
+    x.done=true;
+    if(x.ev.radio)say(...x.ev.radio);
+    if(x.ev.hacer)histDo(x.ev.hacer);
+  }
+  // borde del sector
+  const arc=arcTo(_hA.copy(ship.pos).normalize(),mis.sector.dir),r=mis.sector.r;
+  mis.out=arc>r;
+  if(mis.out){
+    mis.outT+=dt;
+    const left=Math.ceil(SECTOR_OUT-mis.outT);
+    mis.warn='Volvé al sector · '+Math.max(0,left);
+    if(mis.outT>=SECTOR_OUT){mis.warn='';mis.out=false;crash('sector');return;}
+  }else{mis.outT=0;mis.warn=arc>r*SECTOR_NEAR?'Límite del sector':'';}
+  if(mis.won){
+    stats.track('mision_parte',{mision:mis.def.id,parte:P.id,segundos:Math.round(mis.t-mis.partT0),caidas:mis.partFalls});
+    if(mis.part+1<mis.def.partes.length){mis.state='entre';mis.gapT=PART_GAP;toast('Prueba completa',2);}
+    else histComplete();
+  }
+}
+function histWhen(c){
+  if(c.t!==undefined)return mis.partT>=c.t;
+  if(c.anillo!==undefined)return mis.ring>=c.anillo;
+  if(c.derribos!==undefined)return mis.kills>=c.derribos;
+  if(c.cascoBajo!==undefined)return hull<c.cascoBajo;
+  if(c.fin)return mis.won;
+  if(c.evento)return mis.emitted.has(c.evento);
+  return false;
+}
+function histDo(a){
+  if(a[0]==='firma'){const al=allies.find(x=>x.id===a[1]);if(al)startFirma(al);}
+}
+function histComplete(){
+  const def=mis.def,secs=mis.t,falls=mis.falls;
+  mis.state='fin';inv=1e9; // ya terminó: nada te puede voltear mientras sale el resumen
+  const medals=def.medallas.filter(m=>m.id==='completa'||(m.id==='sin_caer'&&falls===0)||(m.id==='tiempo'&&secs<=m.seg)).map(m=>m.id);
+  const prev=progress[def.id]||{};
+  const newBest=!prev.best||secs<prev.best;
+  progress[def.id]={done:true,medals:[...new Set([...(prev.medals||[]),...medals])],best:newBest?secs:prev.best};
+  saveProgress();
+  mis.result={secs,falls,dmg:mis.dmg,medals,newBest};
+  enemies.slice().forEach(e=>{if(e.misPart!==undefined)removeEnemy(e);});
+  stats.track('mision_fin',{mision:def.id,segundos:Math.round(secs),caidas:falls,medallas:medals.length});
+  toast('Misión cumplida',3);
+  run.over='mision';run.endT=END_GAP;
+}
+// Qué marca el hexágono: el próximo anillo, o el centro del sector si te estás yendo
+function histObjective(){
+  if(!mis.def||mis.state!=='jugando')return null;
+  const z=mis.sector;
+  if(mis.warn)return {pos:_hD.copy(z.dir).multiplyScalar(PLANET_R+380),label:'Sector'};
+  if(mis.P.tipo==='anillos'){const c=misCourse[mis.ring];return c?{pos:c.pos,label:'Anillo '+(mis.ring+1)}:null;}
+  if(!enemies.some(e=>e.misPart===mis.part&&e.pos.distanceTo(ship.pos)<1400))return {pos:_hD.copy(z.dir).multiplyScalar(PLANET_R+380),label:'Blancos'};
+  return null;
+}
+function histLine(){
+  if(!mis.def)return '';
+  const P=mis.P,n=mis.def.partes.length;
+  let goal=P.objetivo;
+  if(P.tipo==='anillos')goal+=' '+Math.min(mis.ring,P.anillos)+'/'+P.anillos;
+  else goal+=' '+mis.kills+'/'+(P.torretas||P.naves.length);
+  return mis.def.titulo+' · Prueba '+(mis.part+1)+'/'+n+' · '+goal;
+}
+// Menú
+function histRecText(){
+  const done=MISIONES.filter(m=>progress[m.id]&&progress[m.id].done).length;
+  const med=MISIONES.reduce((k,m)=>k+((progress[m.id]&&progress[m.id].medals)||[]).length,0);
+  return done?'Medallas '+med+'/'+MISIONES.reduce((k,m)=>k+m.medallas.length,0):'Nuevo';
+}
+function histMenuTitle(){const m=MISIONES[0];return 'Campaña '+m.campana+' · Misión '+m.numero+': '+m.titulo;}
+function histMenuDesc(){
+  return 'Volá con el escuadrón Delta: anillos, torretas de práctica y blancos de simulación. Si caés, repetís la prueba. Próximamente: '+PROXIMAS.map(p=>p.titulo).join(' y ')+'.';
+}
+// Pantalla de instrucciones antes de despegar
+function openBrief(def){
+  releaseAll();dropKeys();
+  menuEl.hidden=true;endEl.hidden=true;
+  $('#briefKicker').textContent='Campaña '+def.campana+' · Misión '+def.numero+' · '+def.sector.nombre;
+  $('#briefTitle').textContent=def.titulo;
+  $('#briefText').textContent=def.instruccion;
+  const ol=$('#briefParts');ol.textContent='';
+  def.partes.forEach(p=>{const li=document.createElement('li');li.textContent=p.objetivo;ol.append(li);});
+  const got=(progress[def.id]&&progress[def.id].medals)||[];
+  const ul=$('#briefMedals');ul.textContent='';
+  def.medallas.forEach(m=>{const li=document.createElement('li');li.textContent=(got.includes(m.id)?'★ ':'☆ ')+m.texto;ul.append(li);});
+  briefEl.hidden=false;briefEl.dataset.mission=def.id;
+  hud.classList.add('off');scrollHints();
+}
+$('#briefGo').addEventListener('click',()=>{unlock();startRun('historia','medio',briefEl.dataset.mission);});
+$('#briefBack').addEventListener('click',openMenu);
+
+/* Radio: un mensaje por vez, con al menos 4 segundos entre uno y otro. Primero los importantes;
+   los comentarios que quedaron atrasados se descartan. Al repetir una parte, se vacía. */
+const elRadio=$('#radio'),elRadioWho=$('#radioWho'),elRadioText=$('#radioText');
+const radio={q:[],gapT:0,showT:0,cur:null,heard:new Set(),log:[]};
+function say(who,text,prio){
+  const k=who+'|'+text;
+  if(prio==='baja'&&radio.heard.has(k))return; // un comentario ya escuchado no se repite al reintentar
+  radio.q.push({who,text,prio:prio||'alta',part:mis.part,fin:!!mis.won,at:ship.t});
+}
+function stepRadio(dt){
+  if(radio.showT>0){radio.showT-=dt;if(radio.showT<=0){elRadio.hidden=true;radio.cur=null;}}
+  radio.gapT-=dt;
+  if(radio.gapT>0||!radio.q.length)return;
+  // fuera lo de partes anteriores (salvo el cierre de la parte) y los comentarios viejos
+  radio.q=radio.q.filter(m=>(m.part===mis.part||m.fin)&&!(m.prio==='baja'&&ship.t-m.at>RADIO_STALE));
+  if(!radio.q.length)return;
+  let i=radio.q.findIndex(m=>m.prio==='alta');if(i<0)i=0;
+  const m=radio.q.splice(i,1)[0],R=REPARTO[m.who]||{radio:m.who};
+  radio.cur=m;radio.heard.add(m.who+'|'+m.text);radio.log.push({who:m.who,text:m.text,t:ship.t});
+  if(radio.log.length>60)radio.log.shift();
+  elRadioWho.textContent=R.radio;elRadioText.textContent=m.text;
+  elRadio.style.setProperty('--who',R.marca?'rgb('+R.marca.map(v=>Math.round(v*255)).join(',')+')':'var(--paper)');
+  elRadio.hidden=false;
+  radio.showT=clamp(2.4+m.text.length*.05,3.6,6.5);radio.gapT=RADIO_GAP;
+  blip(1500,1150,.05,.025,'square');
+}
+
+/* Aliados: vuelan solos en formación atrás del jugador, o en círculo arriba del sector mirando la prueba.
+   Por ahora no combaten (llega con la misión 2). Rastro tiene su maniobra: la "firma". */
+// x: a la derecha, y: arriba, z: atrás (negativo: adelante). Los de adelante se ven desde la cámara.
+const ALLY_SLOTS=[[-34,0,-42],[34,0,-42],[-46,3,-24],[46,3,-24],[0,12,60],[0,18,90]];
+const allyMat=new T.MeshLambertMaterial({vertexColors:true,emissive:0x15151c});
+const practiceMat=new T.MeshLambertMaterial({color:0xe2c24a,emissive:0x2a2006});
+const allies=[];
+const allyMarks=Array.from({length:ALLY_SLOTS.length},()=>{
+  const el=document.createElement('div');el.className='amk';el.hidden=true;
+  el.innerHTML='<span></span><i></i>';$('#amks').appendChild(el);
+  return {el,label:el.querySelector('span')};
+});
+function makeAllies(ids){
+  removeAllies();
+  ids.forEach((id,i)=>{
+    const R=REPARTO[id]||{radio:id};
+    const mesh=new T.Group();
+    mesh.add(new T.Mesh(shipGeometry(R.marca),allyMat));
+    const flames=[-.55,.55].map(x=>{const g=glow(0x7ff0e1,1.7);g.position.set(x,.04,1.6);mesh.add(g);return g;});
+    scene.add(mesh);
+    allies.push({id,name:R.radio,mesh,flames,pos:new V3(),fwd:new V3(),speed:60,bank:0,roll:0,lat:0,mode:(mis.P&&mis.P.aliados)||'formacion',slot:ALLY_SLOTS[i%ALLY_SLOTS.length],orbitA:i/ids.length*Math.PI*2,man:null,seen:0});
+  });
+  placeAllies(U,fwd);
+}
+function removeAllies(){
+  allies.forEach(a=>{scene.remove(a.mesh);a.mesh.children[0].geometry.dispose();a.flames.forEach(f=>f.material.dispose());});
+  allies.length=0;allyMarks.forEach(m=>{m.el.hidden=true;});
+}
+// Los pone en su lugar de la formación alrededor de la nave (en u, mirando hacia f)
+function placeAllies(u,f){
+  _hB.copy(f).addScaledVector(u,-f.dot(u)).normalize();
+  _hC.crossVectors(_hB,u).normalize();
+  allies.forEach(a=>{
+    a.man=null;a.lat=0;a.roll=0;a.bank=0;
+    const base=_hD.copy(u).multiplyScalar(PLANET_R+clearance(u,_hB)+90);
+    a.pos.copy(base).addScaledVector(_hC,a.slot[0]).addScaledVector(u,a.slot[1]).addScaledVector(_hB,-a.slot[2]);
+    a.fwd.copy(_hB);a.speed=Math.max(ship.speed,50);
+    a.flames.forEach(fl=>fl.scale.setScalar(1.7));
+  });
+}
+const _aU=new V3(),_aH=new V3(),_aR=new V3(),_aT=new V3(),_aD=new V3(),_aA=new V3(),_aL=new V3(),_aX=new V3(),_aY=new V3(),_aZ=new V3(),_aV=new V3();
+function stepAllies(dt){
+  if(!allies.length)return;
+  // rumbo del jugador, sin la componente vertical
+  _aH.copy(fwd).addScaledVector(U,-fwd.dot(U));
+  if(_aH.lengthSq()<1e-6)_aH.copy(up).addScaledVector(U,-up.dot(U));
+  _aH.normalize();_aR.crossVectors(_aH,U).normalize();
+  for(const a of allies)stepAlly(a,dt);
+}
+function stepAlly(a,dt){
+  const p=a.pos,r=p.length(),ps=Math.max(ship.speed,40);
+  _aU.copy(p).divideScalar(r);
+  let want=ps;a.lat=0;
+  if(a.man)want=firmaStep(a,dt,ps);
+  else if(a.mode==='orbita'&&mis.sector){ // en círculo arriba del sector
+    a.orbitA+=dt*55/560;
+    zoneDir(mis.sector,560/mis.sector.r,a.orbitA,_aD);
+    groundPoint(_aD,250+a.slot[1]*4,_aT);
+    want=58;
+  }else{ // formación: su lugar atrás del jugador, apuntando un poco más adelante para volar en paralelo
+    _aT.copy(ship.pos).addScaledVector(_aR,a.slot[0]).addScaledVector(U,a.slot[1]).addScaledVector(_aH,-a.slot[2]);
+    const along=_aA.copy(_aT).sub(p).dot(_aH),d=p.distanceTo(_aT);
+    want=ps*clamp(1+along/90,.6,1.9);
+    if(d<160)_aT.addScaledVector(_aH,70);
+  }
+  _aD.copy(_aT).sub(p).normalize();
+  // suelo, techo, rocas y no pegarse al jugador ni entre ellos
+  const altH=r-PLANET_R-heightAt(_aU.x,_aU.y,_aU.z,64);
+  _aL.copy(p).addScaledVector(a.fwd,a.speed*1.2);
+  const rl=_aL.length(),altA=rl-PLANET_R-heightAt(_aL.x/rl,_aL.y/rl,_aL.z/rl,64);
+  const lift=Math.max(altA<45?(45-altA)/45:0,altH<45?(45-altH)/45:0);
+  if(lift>0)_aD.addScaledVector(_aU,lift*4);
+  if(r-PLANET_R>1050)_aD.addScaledVector(_aU,-(r-PLANET_R-1050)/100);
+  for(const rk of activeRocks){
+    _aA.copy(p).sub(rk.pos);const d=_aA.length();
+    if(d<rk.bound+40)_aD.addScaledVector(_aA,(1-(d-rk.bound)/40)*2.2/(d||1));
+  }
+  _aA.copy(p).sub(ship.pos);const dS=_aA.length();
+  if(dS<20)_aD.addScaledVector(_aA,(1-dS/20)*1.5/(dS||1));
+  if(!a.man){
+    for(const o of allies){if(o===a)continue;_aA.copy(p).sub(o.pos);const d=_aA.length();if(d>0&&d<18)_aD.addScaledVector(_aA,(1-d/18)*1.2/d);}
+  }
+  _aD.normalize();
+  // gira hacia donde quiere ir e inclina las alas al doblar
+  const ang=Math.acos(clamp(a.fwd.dot(_aD),-1,1));
+  let turnRate=0;
+  if(ang>1e-4){
+    _aA.crossVectors(a.fwd,_aD);if(_aA.lengthSq()<1e-8)_aA.copy(_aU);_aA.normalize();
+    const step=Math.min(ang,1.5*dt);
+    _q.setFromAxisAngle(_aA,step);a.fwd.applyQuaternion(_q).normalize();
+    turnRate=_aA.dot(_aU)*step/dt;
+  }
+  const bankT=a.man&&a.man.bank!==undefined?a.man.bank:clamp(turnRate*1.1,-1.2,1.2);
+  a.bank+=(bankT-a.bank)*(1-Math.exp(-6*dt));
+  a.speed+=(want-a.speed)*(1-Math.exp(-(a.man?3:1.4)*dt));
+  p.addScaledVector(a.fwd,a.speed*dt);
+  _aX.crossVectors(a.fwd,_aU);if(_aX.lengthSq()<1e-6)_aX.set(1,0,0);_aX.normalize();
+  if(a.lat)p.addScaledVector(_aX,a.lat*dt); // desplazamiento de costado (la firma)
+  if(r-PLANET_R-heightAt(_aU.x,_aU.y,_aU.z,0)<6)p.setLength(PLANET_R+heightAt(_aU.x,_aU.y,_aU.z,0)+6);
+  _aV.crossVectors(_aX,a.fwd).normalize();
+  const b=a.bank+a.roll,cb=Math.cos(b),sb=Math.sin(b);
+  _aY.copy(_aV).multiplyScalar(cb).addScaledVector(_aX,-sb);
+  _aX.multiplyScalar(cb).addScaledVector(_aV,sb);
+  _aZ.copy(a.fwd).negate();
+  _m.makeBasis(_aX,_aY,_aZ);a.mesh.quaternion.setFromRotationMatrix(_m);
+  a.mesh.position.copy(p);
+}
+/* La firma de Rastro (reporte 01): se pone adelante del jugador, amaga hacia la izquierda, esquiva hacia la
+   derecha con un tonel y sale con un golpe de turbo. Espera a estar a la vista antes de amagar. */
+function startFirma(a){a.man={step:'ir',t:0};}
+function onScreen(p){
+  _aA.copy(p).sub(camera.position);
+  camera.getWorldDirection(_aV);
+  if(_aA.dot(_aV)<5)return false;
+  _aA.copy(p).project(camera);
+  return Math.abs(_aA.x)<.55&&_aA.y>-.5&&_aA.y<.62; // lejos de los bordes y de los instrumentos de arriba
+}
+function firmaStep(a,dt,ps){
+  const m=a.man,p=a.pos;m.t+=dt;m.bank=undefined;
+  const ahead=()=>_aT.copy(ship.pos).addScaledVector(_aH,58).addScaledVector(U,3); // cerca y casi a la altura del jugador: entre la nave y la mira
+  switch(m.step){
+    case 'ir':{ // se adelanta
+      ahead();
+      if(p.distanceTo(_aT)<16||m.t>12){m.step='mostrar';m.t=0;}
+      return ps+45;
+    }
+    case 'mostrar':{ // adelante y a la vista
+      ahead();
+      const along=_aA.copy(_aT).sub(p).dot(_aH);
+      if(m.t>.9&&(onScreen(p)||m.t>4)){m.step='amague';m.t=0;a.seen=onScreen(p)?1:0;}
+      return ps+clamp(along*.6,-20,25);
+    }
+    case 'amague':{ // inclina y se tira apenas a la izquierda
+      _aT.copy(p).addScaledVector(_aH,220);
+      m.bank=.95;a.lat=-16;
+      if(m.t>.5){m.step='esquiva';m.t=0;}
+      return ps;
+    }
+    case 'esquiva':{ // tonel y salto a la derecha
+      _aT.copy(p).addScaledVector(_aH,220);
+      const k=Math.min(1,m.t/.75);
+      m.bank=0;a.lat=70*(1-k*.6);a.roll=-Math.PI*2*(k*k*(3-2*k));
+      if(m.t>.75){m.step='turbo';m.t=0;a.roll=0;}
+      return ps+10;
+    }
+    case 'turbo':{ // golpe de turbo hacia adelante
+      _aT.copy(p).addScaledVector(_aH,220).addScaledVector(U,15);
+      a.flames.forEach(f=>f.scale.setScalar(4.2));
+      if(m.t>1.5){a.man=null;a.flames.forEach(f=>f.scale.setScalar(1.7));mis.emitted.add('firma_fin');}
+      return ps+80;
+    }
+  }
+  return ps;
+}
+// Nombres de los aliados en pantalla, cuando están cerca y a la vista
+function updateAllyHud(){
+  allyMarks.forEach((mk,i)=>{
+    const a=allies[i];
+    if(!a||dead>0||a.pos.distanceTo(ship.pos)>1300){if(!mk.el.hidden)mk.el.hidden=true;return;}
+    screenSpot(a.pos,_spot);
+    if(_spot.off){if(!mk.el.hidden)mk.el.hidden=true;return;}
+    if(mk.el.hidden)mk.el.hidden=false;
+    if(mk.label.textContent!==a.name)mk.label.textContent=a.name;
+    mk.el.style.transform='translate('+_spot.x.toFixed(1)+'px,'+_spot.y.toFixed(1)+'px)';
+  });
+}
+
 /* ---------- Menú de inicio y fin de partida ---------- */
-const menuEl=$('#menu'),endEl=$('#end');
-const overlayOpen=()=>!menuEl.hidden||!endEl.hidden;
+const menuEl=$('#menu'),endEl=$('#end'),briefEl=$('#brief');
+const overlayOpen=()=>!menuEl.hidden||!endEl.hidden||!briefEl.hidden;
 function recText(m){
   if(m==='carrera')return records.carrera?'Récord '+fmtTime(records.carrera):'';
+  if(m==='historia')return histRecText();
   const r=records[MODES[m].diff?m+'-'+settings.diff:m];
   return r?'Récord '+fmtNum(r):'';
 }
@@ -3236,28 +3754,38 @@ function syncMenu(){
     b.setAttribute('aria-pressed',m===sel?'true':'false');
     if(MODES[m])b.querySelector('small').textContent=recText(m);
   });
-  $('#modeTitle').textContent=M.name;
-  $('#modeDesc').textContent=M.desc;
+  $('#modeTitle').textContent=sel==='historia'?histMenuTitle():M.name;
+  $('#modeDesc').textContent=sel==='historia'?histMenuDesc():M.desc;
   $('#diffBox').hidden=!M.diff;
   const D=DIFF[settings.diff]||DIFF.medio;
   $('#diffNote').textContent=sel==='supervivencia'?(settings.diff==='extremo'?'Sin ayudas para apuntar. ':'')+'La dificultad cambia la puntería enemiga y el tamaño de las oleadas.':D.note;
   const rt=recText(sel);
-  $('#modeRec').textContent=rt?rt+(M.diff?' en '+D.name.toLowerCase():''):'Todavía sin récord';
+  $('#modeRec').textContent=rt?rt+(M.diff?' en '+D.name.toLowerCase():''):sel==='historia'?'Todavía sin jugar':'Todavía sin récord';
+  $('#goBtn').textContent=sel==='historia'?'Ver la misión':'Despegar';
   syncStatsNote();
   scrollHints();
 }
 function openMenu(){
   if(run.live)endRunStats('abandono');
   noteSettings();
-  releaseAll();dropKeys();sheet.hidden=true;endEl.hidden=true;crashMsg.hidden=true;
+  histStop();
+  releaseAll();dropKeys();sheet.hidden=true;endEl.hidden=true;briefEl.hidden=true;crashMsg.hidden=true;
   menuEl.hidden=false;hud.classList.add('off');syncMenu();
   if(sfx.ctx&&sfx.ctx.state==='running')sfx.ctx.suspend();
 }
 function showEnd(kind){
-  endRunStats(run.mode==='carrera'?'terminada':kind==='victoria'?'victoria':'derrota');
+  endRunStats(run.mode==='carrera'?'terminada':kind==='victoria'||kind==='mision'?'victoria':'derrota');
   releaseAll();dropKeys();
-  const rows=[];let isNew=false,title='';
-  if(run.mode==='carrera'){
+  const rows=[];let isNew=false,title='',text='';
+  $('#againBtn').textContent=run.mode==='historia'?'Repetir la misión':'Jugar de nuevo';
+  if(run.mode==='historia'){
+    const r=mis.result;
+    title='Misión cumplida · '+mis.def.titulo;text=mis.def.resumen;isNew=r.newBest;
+    rows.push(['Tiempo',fmtTime(r.secs)],['Caídas',r.falls],['Daño recibido',Math.round(r.dmg)]);
+    mis.def.medallas.forEach(m=>rows.push([(r.medals.includes(m.id)?'★ ':'☆ ')+m.texto,r.medals.includes(m.id)?'Sí':'No']));
+    const next=PROXIMAS[0];
+    if(next)rows.push(['Próxima: '+next.titulo,'En desarrollo']);
+  }else if(run.mode==='carrera'){
     title='Carrera terminada';
     const best=records.carrera;
     if(!best||run.raceT<best){records.carrera=run.raceT;saveRecords();isNew=true;}
@@ -3272,9 +3800,11 @@ function showEnd(kind){
     rows.push(['Tiempo',fmtTime(run.t)]);
   }
   $('#endTitle').textContent=title;
+  $('#endText').textContent=text;$('#endText').hidden=!text;
   const st=$('#endStats');st.textContent='';
   rows.forEach(([k,v])=>{const d=document.createElement('div');d.append(k+' ');const b=document.createElement('b');b.textContent=v;d.append(b);st.append(d);});
   $('#endNew').hidden=!isNew;
+  $('#endNew').textContent=run.mode==='historia'?'¡Mejor tiempo!':'¡Nuevo récord!';
   crashMsg.hidden=true;
   endEl.hidden=false;hud.classList.add('off');
   if(sfx.ctx&&sfx.ctx.state==='running')sfx.ctx.suspend();
@@ -3283,9 +3813,13 @@ document.querySelectorAll('.mode').forEach(b=>b.addEventListener('click',()=>{
   if(b.disabled)return;
   settings.lastMode=b.dataset.mode;saveSettings();syncMenu();
 }));
-$('#goBtn').addEventListener('click',()=>{unlock();startRun(settings.lastMode||'conquista',settings.diff);});
+$('#goBtn').addEventListener('click',()=>{
+  unlock();
+  if(settings.lastMode==='historia')openBrief(MISIONES[0]);
+  else startRun(settings.lastMode||'conquista',settings.diff);
+});
 $('#menuGear').addEventListener('click',()=>{unlock();openSheet();});
-$('#againBtn').addEventListener('click',()=>{unlock();startRun(run.mode,run.diff);});
+$('#againBtn').addEventListener('click',()=>{unlock();if(run.mode==='historia')openBrief(mis.def||MISIONES[0]);else startRun(run.mode,run.diff);});
 $('#endMenu').addEventListener('click',openMenu);
 $('#toMenu').addEventListener('click',openMenu);
 // Versión, aviso de datos de uso y "Dar tu opinión"
@@ -3338,7 +3872,7 @@ function scrollHints(){
     h.hidden=el.scrollHeight-el.clientHeight-el.scrollTop<8;
   });
 }
-['#sheetBody','#menuBody','#endBody'].forEach(s=>dragScroll($(s)));
+['#sheetBody','#menuBody','#endBody','#briefBody'].forEach(s=>dragScroll($(s)));
 
 /* ---------- Marcas en pantalla ---------- */
 const marks=Array.from({length:ENEMY_MAX},()=>{
@@ -3390,6 +3924,7 @@ function updateCombatHud(dt){
       m.bar.style.transform='scaleX('+(e.hp/e.def.hp).toFixed(2)+')';
     }
     m.el.classList.toggle('tgt',e===target);
+    m.el.classList.toggle('pr',!!e.practice);
   });
   if(target&&dead<=0){
     screenSpot(leadPoint,_spot);
@@ -3418,7 +3953,14 @@ function updateCombatHud(dt){
   let near=null;
   for(const z of zones)if(z.state==='hostil'&&(!near||z.arc<near.arc))near=z;
   const ringNext=run.mode==='carrera'&&!run.over?course[run.ring]:null;
-  if(ringNext&&dead<=0){
+  const objective=run.mode==='historia'&&dead<=0?histObjective():null;
+  if(objective){
+    elZoneMk.hidden=false;
+    screenSpot(objective.pos,_spot);
+    elZoneMk.style.transform='translate('+_spot.x.toFixed(1)+'px,'+_spot.y.toFixed(1)+'px)';
+    zoneMkT-=dt;
+    if(zoneMkT<=0){zoneMkT=.2;elZoneDist.textContent=objective.label+' · '+Math.round(objective.pos.distanceTo(ship.pos));}
+  }else if(ringNext&&dead<=0){
     elZoneMk.hidden=false;
     screenSpot(ringNext.pos,_spot);
     elZoneMk.style.transform='translate('+_spot.x.toFixed(1)+'px,'+_spot.y.toFixed(1)+'px)';
@@ -3500,6 +4042,8 @@ function frame(now){
     stepRun(dt);
     threat.lock=0;
     stepEnemies(dt);
+    stepAllies(dt);
+    stepRadio(dt);
     stepBolts(dt);
     stepMissiles(dt);
     stepEnemyMissiles(dt);
@@ -3515,6 +4059,7 @@ function frame(now){
     stepDust();
     updateHud(dt);
     updateCombatHud(dt);
+    updateAllyHud();
     updateThreat(dt);
     sfxEngine();
     if(run.live&&raw<.5)perfStep(raw);
@@ -3561,7 +4106,7 @@ function boot(data){
   window.DeltaUno={renderer,ship,input,settings,TUNE,rocks,activeRocks,rings,chart,chartDir,straighten,terrain,heightAt,S,BIOMES,PLANET_R,CEIL:{CEIL_WARN,CEIL_PUSH,CEIL_MAX},buildMs,flags:()=>({dead,inv,warning,thinWarn}),
     zones,groups,enemies,lost,drops,DROP_KIND,damage,spawnDrop,dodge,tryDodge,rockets,lockCancel,AIM,seenVel,ZONE_KIND,eBolts,boltHitsShip,
     tgt:()=>camTarget,camBlend:()=>camBlend,camera,
-    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
+    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
     vit:()=>({hull,shield,heat,overheat,score,record,combo,curZone:curZone&&zones.indexOf(curZone),target:!!target,fov:camera.fov,missiles,missileT,lockOn,lockP,hasLock:!!lockTarget,repairT,repairCool})};
   last=performance.now();
   requestAnimationFrame(frame);

@@ -2,13 +2,17 @@
 
 Copiá todo lo que está dentro del bloque y pegalo en la IA que vaya a escribir la historia. Si cambia algo del juego, actualizá primero la sección "Cómo es el juego hoy".
 
+Su primer reporte está en `docs/historia/reporte-01.md`. Para la próxima entrega conviene pasarle también `docs/historia/formato.md`, que explica cómo se escribe una misión para el juego.
+
 ```
 Sos guionista y diseñador narrativo de videojuegos. Necesito la historia de "Delta Uno", un juego de naves en 3D para teléfono, que se juega con la pantalla en horizontal. Nosotros programamos el juego; vos escribís el mundo, los personajes y las misiones, en un formato que podamos programar directamente.
 
 ## Cómo es el juego hoy
 - Se juega en un planeta esférico que se recorre de punta a punta en unos 3 minutos de vuelo. Biomas: mar, playa, pradera, bosque, desierto, mesetas, hielo, montaña y volcán. Hay rocas flotantes y un techo de altura.
 - El jugador pilota un caza básico triangular. Tiene cañón, hasta 4 misiles guiados que fijan un blanco antes de disparar, escudo y casco, turbo que se recalienta, una evasión lateral, una reparación que tarda 8 segundos y se corta si le pegan, y una cámara que sigue a un enemigo elegido.
-- Enemigos que ya existen: cazas, pesadas (lentas y resistentes), interceptores (muy rápidos, atacan de pasada), drones (enjambres que se tiran encima), torretas en tierra y una nave nodriza enorme que larga drones. En desarrollo: lanzamisiles en tierra (te fijan antes de disparar; se esquivan con la evasión o con turbo) y bombarderos.
+- Enemigos que ya existen: cazas, pesadas (lentas y resistentes), interceptores (muy rápidos, atacan de pasada), drones (enjambres que se tiran encima), torretas en tierra, lanzamisiles en tierra (te fijan antes de disparar; se esquivan con la evasión o con turbo) y una nave nodriza enorme que larga drones. En desarrollo: bombarderos.
+- Cada misión se juega en un sector con borde visible. Si el jugador sale, tiene 8 segundos para volver o pierde la parte y la repite.
+- La misión 1 (entrenamiento) ya se puede jugar, con los textos provisorios de tu primer reporte. Los aliados vuelan en formación, todavía sin combatir. La "firma" de Rastro ya existe como maniobra.
 - Los enemigos ocupan zonas dispersas, normales o densas. Te detectan cuando te acercás y se avisan entre ellos. Para liberar una zona hay que destruir sus torretas y todos sus escuadrones.
 - Otras piezas para armar misiones: recorrido de anillos contra reloj, oleadas, escolta de una nave grande y aliados manejados por la máquina.
 - Los aliados vuelan solos: derriban enemigos, persiguen, son perseguidos, disparan misiles y pueden morir si el jugador no los respalda. Cuando cae una parte de los enemigos (por ejemplo 10 de 16), los que quedan pueden ir a perseguir a los aliados.

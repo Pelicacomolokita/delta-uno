@@ -33,6 +33,7 @@ Cada evento lleva: versión, plataforma (android-app, pc-archivo o web), sistema
 - ajustes: qué cambió el jugador en Ajustes.
 - error: errores del juego (hasta 5 por sesión).
 - opinion_click: tocó "Dar tu opinión" (en el juego o en la página).
+- mision_inicio, mision_parte y mision_fin: modo Historia (qué misión, cuánto tardó cada prueba, caídas y medallas).
 - pagina_visita y descarga_click: visitas a la página de descarga y toques en los botones o atajos (archivo: apk o pc), con utm_source.
 - sesion_fin: duración de la sesión (solo cuando se cierra la página; en el teléfono casi nunca llega).
 

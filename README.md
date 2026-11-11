@@ -91,6 +91,7 @@ Todo se puede cambiar en **Ajustes → Teclado y mouse**. Con un mando de Xbox o
 ```
 index.html                  pantalla: botones, paneles, menú de inicio
 src/main.js                 todo el juego (por ahora en un solo archivo, ver "Próximos pasos")
+src/historia/               las misiones como datos (textos, partes, eventos de radio); formato en docs/historia/formato.md
 src/stats.js                datos anónimos de uso (PostHog)
 src/config.js               clave de PostHog y enlace del formulario (salen de las variables de GitHub)
 src/style.css               estilos
@@ -107,6 +108,7 @@ tests/suites/               las pruebas, por tema
 tests/herramientas/         mediciones que no son pruebas de sí o no
 docs/decisiones.md          qué se decidió y por qué: controles, puntería, zonas, modos, campaña
 docs/prompt-historia.md     el prompt para que una IA escriba la historia
+docs/historia/              reportes de la historia y el formato de las misiones
 docs/prompt-difusion.md     el prompt para que una IA ayude a publicar la demo y juntar opiniones
 docs/version/               textos que van con cada versión (notas, instrucciones del zip para PC)
 ```
@@ -143,12 +145,12 @@ Las pruebas abren el juego en un Chromium con pantalla táctil simulada (horizon
 | `09-teclado-mouse-mando` | Controles de PC, mando simulado, asignar teclas y botones, botones en pantalla |
 | `10-defensas-mar-camara` | Defensas sobre torres, lanzamisiles, misiles que se esquivan, cámara de Blanco |
 | `11-datos-de-uso` | Eventos de PostHog, aviso y opción para apagarlos, envíos sin conexión, versión en el menú, botón de opinión |
+| `12-historia` | Misión 1: reglas de los textos, instrucciones, anillos, firma de Rastro, torretas y blancos de práctica, repetir la parte al caer o salir del sector, resumen y medallas |
 
 **Pendiente:** la prueba del planeta (biomas, vuelta completa, choques con el suelo) es de una versión vieja y hay que actualizarla.
 
 ## Próximos pasos
 
-1. Juntar opiniones de la demo y corregir lo que aparezca.
-2. Gráficos: texturas por bioma en formato KTX2 y efectos con el pack de partículas de Kenney (licencia CC0).
-3. Campaña 1 (ver `docs/decisiones.md`).
-4. Separar `src/main.js` en módulos (planeta, vuelo, combate, enemigos, zonas, modos y pantalla), de a uno por vez y con las pruebas pasando después de cada separación.
+1. Modo Historia: misión 2 (emboscada), con aliados que combaten, bombarderos y derribos guionados.
+2. Gráficos con estilo industrial desgastado: texturas por bioma en formato KTX2 y efectos con el pack de partículas de Kenney (licencia CC0).
+3. Separar `src/main.js` en módulos (planeta, vuelo, combate, enemigos, zonas, modos y pantalla), de a uno por vez y con las pruebas pasando después de cada separación.

@@ -117,7 +117,7 @@ Tiene olas a dos escalas, más claras en las crestas, y espuma de cerca, todo en
 | Supervivencia | 1 | Oleadas cada vez más grandes; nodriza cada 5 oleadas |
 | Vuelo libre | Infinitas | Escuadrones al azar, sin zonas fijas |
 | Carrera | Infinitas | 12 anillos fijos; si caés, volvés al último con 5 s de castigo |
-| Historia | — | En diseño |
+| Historia | Infinitas | Si caés o salís del sector, repetís la parte de la misión. Hoy: campaña 1, misión 1 |
 
 Los récords se guardan por modo y, en Conquista y Supervivencia, también por dificultad.
 
@@ -163,8 +163,28 @@ Al principio pilota un caza básico. Más adelante habrá más naves para elegir
 - **Idioma:** textos en español rioplatense, con voseo.
 - **Cantidad de naves:** hasta unas 25 a la vez. No está medido en un teléfono.
 
+### Modo Historia (lo programado)
+
+- **Misión 1, Entrenamiento:** jugable con textos provisorios del reporte 01 (`docs/historia/reporte-01.md`).
+  - Tiene tres pruebas: 6 anillos, 3 torretas de práctica y 3 blancos de simulación sin piloto. Los blancos de práctica son amarillos y su munición hace la mitad de daño.
+  - Vuelan Ferreyra (Delta Uno), Aguja, Rastro, Chispa y Faro.
+  - En el anillo 2, Rastro hace su firma delante del jugador: amague a la izquierda, tonel a la derecha y golpe de turbo. Chispa la comenta.
+- **Sector:** la misión se juega en un sector con borde azul.
+  - Cerca del borde avisa.
+  - Afuera cuenta 8 segundos y, si no volvés, se pierde la parte. Decidido por Santiago: aviso y derrota.
+- **Reinicio:** al caer o perder la parte se repite desde su comienzo, con la nave reparada y los misiles llenos. Se reaparece adentro del sector, mirando al centro. Es provisorio: el reporte lo deja por definir.
+- **Radio:**
+  - Muestra un mensaje por vez, con al menos 4 segundos entre uno y otro, y como máximo 90 caracteres.
+  - Primero salen los importantes.
+  - Los comentarios atrasados se descartan, y al repetir una parte se vacía.
+- **Pantallas:** instrucciones antes de despegar y resumen con tres medallas: completar, sin caer ni salir del sector, y en menos de 5 minutos.
+- **Progreso:** se guarda en el navegador o la app, con las medallas ganadas y el mejor tiempo.
+- **Aliados:** vuelan en formación (dos adelante, dos a los costados y Faro atrás, cerrando) o en círculo arriba del sector. Todavía no combaten ni pueden caer.
+- **Estilo visual:** a futuro va hacia lo industrial desgastado. Lo eligió Santiago.
+- **Formato de las misiones:** está en `docs/historia/formato.md`.
+
 ### Lo que falta programar para la campaña
 
-Aliados, bombarderos, el convoy, los lanzamisiles, los mensajes de radio, las pantallas de instrucciones y de resumen, los eventos guionados y el guardado del progreso.
+Aliados que combaten y pueden caer, bombarderos, el convoy, derribos guionados (el líder alcanzado por un misil), la retirada de un enemigo por un punto de salida, y más tipos de sector.
 
-La historia la escribe otra IA con `docs/prompt-historia.md`.
+La historia la escribe otra IA con `docs/prompt-historia.md`. Su primer reporte está en `docs/historia/reporte-01.md`.

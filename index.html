@@ -22,6 +22,8 @@
       <div id="marks" aria-hidden="true"></div>
       <svg id="lead" width="26" height="26" viewBox="-13 -13 26 26" hidden aria-hidden="true"><path d="M0-10 10 0 0 10-10 0Z" fill="none" stroke="#0a1022" stroke-opacity=".6" stroke-width="4"/><path d="M0-10 10 0 0 10-10 0Z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
       <div id="emks" aria-hidden="true"></div>
+      <div id="amks" aria-hidden="true"></div>
+      <div id="radio" role="status" hidden><b id="radioWho"></b><span id="radioText"></span></div>
       <div id="warn" role="alert" hidden></div>
       <div id="lockMk" hidden aria-hidden="true"><svg viewBox="-24 -24 48 48"><path d="M-20-8V-20H-8M8-20H20V-8M20 8V20H8M-8 20H-20V8" fill="none" stroke="#0a1022" stroke-opacity=".6" stroke-width="5"/><path d="M-20-8V-20H-8M8-20H20V-8M20 8V20H8M-8 20H-20V8" fill="none" stroke="currentColor" stroke-width="2.4"/></svg><span id="lockText">Fijando</span></div>
       <div id="zoneMk" hidden aria-hidden="true"><svg viewBox="-12 -12 24 24"><path d="M0-10 9-5V5L0 10-9 5V-5Z" fill="rgba(10,16,34,.45)" stroke="currentColor" stroke-width="2"/></svg><span id="zoneDist"></span></div>
@@ -206,7 +208,7 @@
           <button class="mode" type="button" data-mode="supervivencia">Supervivencia<small></small></button>
           <button class="mode" type="button" data-mode="libre">Vuelo libre<small></small></button>
           <button class="mode" type="button" data-mode="carrera">Carrera<small></small></button>
-          <button class="mode" type="button" data-mode="historia" disabled>Historia<small>Próximamente</small></button>
+          <button class="mode" type="button" data-mode="historia">Historia<small></small></button>
         </div>
         <div id="modeInfo">
           <h2 id="modeTitle"></h2>
@@ -226,6 +228,7 @@
     <div id="end" role="dialog" aria-label="Fin de la partida" hidden>
       <div id="endBody">
         <h2 id="endTitle"></h2>
+        <p id="endText" hidden></p>
         <div id="endStats"></div>
         <div id="endNew" hidden>¡Nuevo récord!</div>
         <div id="endBtns">
@@ -233,6 +236,23 @@
           <button id="endMenu" type="button">Menú</button>
           <button id="endFeedback" class="feedback" type="button" hidden>Dar tu opinión</button>
         </div>
+      </div>
+    </div>
+
+    <div id="brief" role="dialog" aria-label="Instrucciones de la misión" hidden>
+      <div id="briefBody">
+        <small id="briefKicker"></small>
+        <h2 id="briefTitle"></h2>
+        <p id="briefText"></p>
+        <div class="briefCols">
+          <div><h3>Pruebas</h3><ol id="briefParts"></ol></div>
+          <div><h3>Medallas</h3><ul id="briefMedals"></ul></div>
+        </div>
+        <div id="briefBtns">
+          <button id="briefGo" class="endGo" type="button">Despegar</button>
+          <button id="briefBack" type="button">Volver</button>
+        </div>
+        <div class="scrollHint" hidden>Deslizá para ver más</div>
       </div>
     </div>
 
