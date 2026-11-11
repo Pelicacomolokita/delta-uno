@@ -69,6 +69,17 @@ jobs:
           sed "s/VERSION/$V/g" docs/version/notas.md > notas.md
           ls -la salida
 
+      - name: Revisar el APK
+        run: |
+          APK="salida/delta-uno-$V.apk"
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BT/aapt2" dump badging "$APK" | grep -E "^package:|sdkVersion|application-label:|launchable-activity" | tee badging.txt
+          grep -q "versionName='$V'" badging.txt || { echo "::error::La versión del APK no es $V"; exit 1; }
+          "$BT/aapt2" dump xmltree --file AndroidManifest.xml "$APK" | grep -E "screenOrientation" || { echo "::error::Falta la pantalla horizontal"; exit 1; }
+          "$BT/apksigner" verify --print-certs "$APK" | grep -E "Signer #1 certificate (DN|SHA-256)"
+          unzip -l "$APK" | grep -q "assets/public/index.html" || { echo "::error::El APK no trae el juego"; exit 1; }
+          unzip -p "$APK" assets/capacitor.config.json
+
       - uses: actions/upload-artifact@v6
         with:
           name: delta-uno-${{ env.V }}
