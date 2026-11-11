@@ -64,9 +64,9 @@ const AIM={
 const DETECT_FRONT=650,DETECT_SIDE=300,DETECT_LOSE=1300,DETECT_FORGET=3;
 // Tipos de zona: cuántos enemigos, qué tan juntos y qué tan rápido se avisan entre ellos
 const ZONE_KIND={
-  dispersa:{name:'Dispersa',r:1000,groups:4,active:3,turrets:2,mix:['par','intercept','enjambre4','par'],anchor:[.4,.85],patrol:240,form:1.5,link:450,bonus:700},
-  normal:{name:'Normal',r:760,groups:5,active:3,turrets:3,mix:['cazas','enjambre','intercept','escolta','cazas'],anchor:[.1,.7],patrol:320,form:1,link:750,bonus:1000},
-  densa:{name:'Densa',r:560,groups:6,active:3,turrets:4,mix:['escolta','enjambre','cazas','intercept','enjambre','escolta'],anchor:[0,.4],patrol:190,form:.7,link:1100,bonus:1500}
+  dispersa:{name:'Dispersa',r:1000,groups:4,active:3,turrets:2,launchers:1,mix:['par','intercept','enjambre4','par'],anchor:[.4,.85],patrol:240,form:1.5,link:450,bonus:700},
+  normal:{name:'Normal',r:760,groups:5,active:3,turrets:3,launchers:1,mix:['cazas','enjambre','intercept','escolta','cazas'],anchor:[.1,.7],patrol:320,form:1,link:750,bonus:1000},
+  densa:{name:'Densa',r:560,groups:6,active:3,turrets:4,launchers:2,mix:['escolta','enjambre','cazas','intercept','enjambre','escolta'],anchor:[0,.4],patrol:190,form:.7,link:1100,bonus:1500}
 };
 const ZONE_ORDER=['dispersa','normal','densa','dispersa','normal','densa'];
 
@@ -324,6 +324,17 @@ const GROUND_FS=`
     if(dist<150.){ // grano fino, solo en vuelo rasante: es lo que da la sensación de velocidad
       float micro=tri(vP/1.7,w);
       c*=1.+(micro-.5)*(.34+canopy*.3)*(1.-water)*(1.-smoothstep(30.,150.,dist));
+    }
+    if(water>.01){ // el mar: marejada grande, olas y espuma de cerca; dan escala y movimiento para calcular la distancia
+      float sw=tri(vP/75.+vec3(uTime*.018,0.,uTime*.012),w);
+      float rp=tri(vP/12.+vec3(uTime*.07,0.,-uTime*.05),w);
+      float farW=smoothstep(500.,2200.,dist);
+      float nearW=1.-smoothstep(180.,700.,dist);
+      c*=1.+((sw-.5)*.6+(rp-.5)*.45*nearW)*water*(1.-farW*.6);
+      c+=vec3(.02,.05,.07)*(smoothstep(.55,.75,sw)+smoothstep(.6,.8,rp)*nearW)*water*(1.-farW*.6); // crestas más claras
+      float fm=tri(vP/3.4+vec3(-uTime*.16,0.,uTime*.11),w);
+      float foam=smoothstep(.70,.80,fm)*smoothstep(.45,.65,rp)*(1.-smoothstep(70.,320.,dist));
+      c=mix(c,vec3(.78,.86,.92),foam*.85*water);
     }
     float sunUp=dot(up,uSun),dayH=smoothstep(-.22,.18,sunUp);
     float l=max(dot(n,uSun),0.)*smoothstep(-.12,.08,sunUp);
@@ -706,6 +717,7 @@ function turnToward(v,t,k){
   _ax.normalize();
   _q.setFromAxisAngle(_ax,ang*k);v.applyQuaternion(_q).normalize();
 }
+const CAM_TGT_MAX=35*Math.PI/180,_tAx=new V3();
 function stepCamera(dt,time){
   const sf=ship.speed/TUNE.vmax,tf=ship.tf=sstep(.52,.95,sf); // tf: cuánto turbo hay en este momento
   // Con un blanco elegido, la cámara se pone detrás de la nave en la línea hacia el enemigo: se ven los dos
@@ -717,6 +729,10 @@ function stepCamera(dt,time){
     _tD.divideScalar(dd||1);
     const near=sstep(20,55,dd); // muy cerca, vuelve a mirar hacia adelante para no marear
     if(near<1)_tD.lerp(fwd,1-near).normalize();
+    // gira como mucho 35° desde la trompa: la nave siempre se ve de atrás y no perdés para dónde vas.
+    // Si el blanco queda más afuera, lo señala la flecha en el borde de la pantalla.
+    const ang=Math.acos(clamp(fwd.dot(_tD),-1,1));
+    if(ang>CAM_TGT_MAX){_tAx.crossVectors(fwd,_tD);if(_tAx.lengthSq()>1e-8){_tAx.normalize();_tD.copy(fwd).applyAxisAngle(_tAx,CAM_TGT_MAX);}else _tD.copy(fwd);}
     wantF=_tD;
   }
   camBlend+=((tgtCam?1:0)-camBlend)*(1-Math.exp(-3.5*dt));
@@ -1822,16 +1838,25 @@ function makeZone(dir){
   e1.addScaledVector(dir,-e1.dot(dir)).normalize();
   const kind=ZONE_KIND[ZONE_ORDER[zones.length%ZONE_ORDER.length]];
   const z={dir:dir.clone(),e1,e2:new V3().crossVectors(e1,dir).normalize(),kind,r:kind.r,state:'hostil',reserve:kind.groups,level:1,spawned:0,spawnT:0,regrow:0,seen:false,arc:1e9,wall:null,sites:[]};
-  // Lugares de las torretas: en tierra firme y separados entre sí
-  const cand=new V3();
-  for(let t=0;t<60&&z.sites.length<kind.turrets;t++){
-    const frac=.15+Math.random()*.6;
-    const a=frac*z.r/PLANET_R,ang=Math.random()*Math.PI*2,sa=Math.sin(a);
-    cand.copy(z.dir).multiplyScalar(Math.cos(a)).addScaledVector(z.e1,sa*Math.cos(ang)).addScaledVector(z.e2,sa*Math.sin(ang)).normalize();
-    terrain(cand.x,cand.y,cand.z,0,true);
-    if((S.water>.3||S.lava>.3)&&t<45)continue;
-    if(z.sites.some(s=>arcTo(s.dir,cand)<160))continue;
-    z.sites.push({dir:cand.clone(),alive:true,on:false});
+  // Lugares de las defensas de tierra: en terreno abierto y parejo (no en montañas ni volcanes, donde quedan tapadas),
+  // separados entre sí y, entre varios candidatos, el más plano y un poco elevado
+  const cand=new V3(),best=new V3(),need=kind.turrets+kind.launchers;
+  for(let k=0;k<need;k++){
+    let bestScore=-1e9;
+    for(let t=0;t<110;t++){
+      const strict=t<70; // si en tierra firme no hay lugar (zona en el mar), queda como plataforma sobre el agua
+      const frac=.15+Math.random()*.6,a=frac*z.r/PLANET_R,ang=Math.random()*Math.PI*2,sa=Math.sin(a);
+      cand.copy(z.dir).multiplyScalar(Math.cos(a)).addScaledVector(z.e1,sa*Math.cos(ang)).addScaledVector(z.e2,sa*Math.sin(ang)).normalize();
+      terrain(cand.x,cand.y,cand.z,0,true);
+      if(strict&&(S.water>.3||S.lava>.3||S.biome>=7))continue;
+      if(z.sites.some(q=>arcTo(q.dir,cand)<160))continue;
+      const h=Math.max(heightAt(cand.x,cand.y,cand.z,0),0),sl=siteSlope(cand,h);
+      if(strict&&sl>.45)continue;
+      const score=Math.min(h,160)*.25-sl*220+Math.random()*20;
+      if(score>bestScore){bestScore=score;best.copy(cand);}
+      if(t===69&&bestScore>-1e9)break; // ya hay un lugar en tierra firme
+    }
+    if(bestScore>-1e9)z.sites.push({dir:best.clone(),alive:true,on:false,kind:k<kind.turrets?'torreta':'lanzamisiles'});
   }
   z.wall=zoneWall(z);
   zones.push(z);
@@ -1850,6 +1875,18 @@ function buildZones(){
   }
 }
 // dirección (unitaria) dentro de la zona: a "frac" del radio y con ángulo "t"
+// Pendiente del terreno alrededor de un punto (0 plano, 1 a 45°)
+const _slA=new V3(),_slB=new V3(),_slT=new V3();
+function siteSlope(u,h){
+  _slA.set(Math.abs(u.y)<.9?0:1,Math.abs(u.y)<.9?1:0,0);_slA.addScaledVector(u,-_slA.dot(u)).normalize();
+  _slB.crossVectors(u,_slA);
+  let m=0;
+  for(const [e,sg] of [[_slA,1],[_slA,-1],[_slB,1],[_slB,-1]]){
+    _slT.copy(u).addScaledVector(e,sg*14/PLANET_R).normalize();
+    m=Math.max(m,Math.abs(heightAt(_slT.x,_slT.y,_slT.z,0)-h)/14);
+  }
+  return m;
+}
 function zoneDir(z,frac,t,out){
   const a=frac*z.r/PLANET_R,sa=Math.sin(a);
   return out.copy(z.dir).multiplyScalar(Math.cos(a)).addScaledVector(z.e1,sa*Math.cos(t)).addScaledVector(z.e2,sa*Math.sin(t)).normalize();
@@ -1891,12 +1928,38 @@ function turretGeometry(){
   g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('color',new T.Float32BufferAttribute(col,3));
   g.computeVertexNormals();return g;
 }
+// Cajas sueltas con color propio: para armar piezas simples sin modelos
+function boxesGeometry(list){
+  const pos=[],col=[];
+  for(const [x0,y0,z0,x1,y1,z1,c] of list){
+    const v=[[x0,y0,z0],[x1,y0,z0],[x1,y1,z0],[x0,y1,z0],[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]];
+    for(const [a,b,cc,d] of [[0,3,2,1],[4,5,6,7],[0,4,7,3],[1,2,6,5],[3,7,6,2],[0,1,5,4]]){
+      pos.push(...v[a],...v[b],...v[cc],...v[a],...v[cc],...v[d]);
+      for(let k=0;k<6;k++)col.push(...c);
+    }
+  }
+  const g=new T.BufferGeometry();
+  g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('color',new T.Float32BufferAttribute(col,3));
+  g.computeVertexNormals();return g;
+}
+// Lanzamisiles: una base con un cajón de cuatro tubos que apunta hacia -Z
+function launcherGeometry(){
+  const base=[.22,.2,.22],rack=[.30,.26,.20],tube=[.12,.11,.12],tip=[.95,.32,.12];
+  return boxesGeometry([
+    [-1.5,-.6,-1.5,1.5,.3,1.5,base],
+    [-1.25,.3,-2.2,1.25,2.1,1.6,rack],
+    [-1.05,.45,-2.35,-.2,1.15,-2.2,tube],[.2,.45,-2.35,1.05,1.15,-2.2,tube],
+    [-1.05,1.25,-2.35,-.2,1.95,-2.2,tube],[.2,1.25,-2.35,1.05,1.95,-2.2,tube],
+    [-.9,.55,-2.4,-.35,1.05,-2.35,tip],[.35,1.35,-2.4,.9,1.85,-2.35,tip]
+  ]);
+}
 const ENEMY_GEO={
   caza:enemyGeometry([0,0,-3.4],[-2,-.05,1.5],[2,-.05,1.5],[0,.6,.5],[0,-.3,.6],[-.6,.06,1.2],[.6,.06,1.2]),
   pesada:enemyGeometry([0,0,-2.6],[-3,-.1,1.2],[3,-.1,1.2],[0,1,.2],[0,-.6,.4],[-1,.1,1.3],[1,.1,1.3]),
   interceptor:enemyGeometry([0,0,-4.6],[-1.5,-.05,1.9],[1.5,-.05,1.9],[0,.45,.8],[0,-.25,.9],[-.4,.05,1.7],[.4,.05,1.7]),
   dron:enemyGeometry([0,0,-2],[-1.6,0,.9],[1.6,0,.9],[0,.9,.2],[0,-.9,.2],[-.5,0,.9],[.5,0,.9]),
   torreta:turretGeometry(),
+  lanzamisiles:launcherGeometry(),
   nodriza:enemyGeometry([0,0,-3],[-3.2,-.2,1.6],[3.2,-.2,1.6],[0,1.3,.4],[0,-.9,.3],[-1.6,.2,1.8],[1.6,.2,1.8])
 };
 // ram: daño si te choca (los drones se tiran encima). ground: fija en el suelo. carrier: la nodriza.
@@ -1905,7 +1968,9 @@ const ENEMY_DEF={
   pesada:{name:'Pesada',hp:12,patrol:36,attack:46,turn:.55,hit:7.4,range:480,cone:Math.cos(8.5*DEG),burstN:4,coolA:2.4,coolB:1.2,dmg:14,breakDist:130,score:400,drop:1,boom:20,scale:2.1},
   interceptor:{name:'Interceptor',hp:2,patrol:62,attack:98,turn:1.35,hit:3.2,range:380,cone:Math.cos(6*DEG),burstN:2,coolA:1.3,coolB:.8,dmg:6,breakDist:150,breakTime:2.6,score:150,drop:.3,boom:8,scale:.9},
   dron:{name:'Dron',hp:1,patrol:58,attack:86,turn:1.9,hit:2.6,range:0,cone:2,burstN:0,coolA:99,coolB:0,dmg:0,breakDist:0,ram:12,score:40,drop:.06,boom:6,scale:.6},
-  torreta:{name:'Torreta',hp:7,patrol:0,attack:0,turn:1.1,hit:4.6,range:680,cone:Math.cos(5*DEG),burstN:3,coolA:2.2,coolB:1.4,dmg:9,breakDist:0,ground:true,score:250,drop:.5,boom:14,scale:1.3},
+  torreta:{name:'Torreta',hp:7,patrol:0,attack:0,turn:1.1,hit:7.5,range:680,radar:800,cone:Math.cos(5*DEG),burstN:3,coolA:2.2,coolB:1.4,dmg:9,breakDist:0,ground:true,score:250,drop:.5,boom:16,scale:2.2},
+  // Lanzamisiles: te fija con línea de vista y tira un misil que te persigue (ver Misiles enemigos)
+  lanzamisiles:{name:'Lanzamisiles',hp:6,patrol:0,attack:0,turn:.9,hit:7,range:1100,radar:900,cone:-1,burstN:0,coolA:99,coolB:0,dmg:0,breakDist:0,ground:true,launcher:true,lockTime:2.5,reload:9,score:300,drop:.6,boom:18,scale:2},
   nodriza:{name:'Nodriza',hp:60,patrol:30,attack:30,turn:.22,hit:16,range:560,cone:-1,gimbal:Math.PI,burstN:5,coolA:2.6,coolB:1.6,dmg:10,breakDist:0,carrier:true,score:2000,drop:1,boom:46,scale:5.2}
 };
 // Escuadrones posibles: cada tipo de zona va rotando entre los suyos
@@ -1921,6 +1986,16 @@ const enemySlots=Array.from({length:ENEMY_MAX},()=>{
   return {mesh,free:true};
 });
 const freeSlots=()=>enemySlots.reduce((n,s)=>n+(s.free?1:0),0);
+// Torres de las defensas de tierra: verticales, con la cabeza a 14 m. Se hunden 26 m en el suelo, así el terreno
+// lejano (que se dibuja con menos detalle y puede quedar más alto o más bajo) nunca las deja flotando ni tapadas.
+const TOWER_H=18,Y_AXIS=new V3(0,1,0);
+const towerMat=new T.MeshLambertMaterial({color:0x50555f,emissive:0x0d0a0a});
+const towerGeo=new T.CylinderGeometry(1.3,2.3,TOWER_H+26,6);towerGeo.translate(0,-(TOWER_H+26)/2,0);
+const platGeo=new T.CylinderGeometry(3.4,3.0,1.1,6);platGeo.translate(0,-.55,0);
+const towers=Array.from({length:12},()=>{
+  const g=new T.Group();g.add(new T.Mesh(towerGeo,towerMat),new T.Mesh(platGeo,towerMat));
+  g.visible=false;scene.add(g);return {g,free:true};
+});
 const _sp=new V3(),_eU=new V3(),_eT=new V3(),_eD=new V3(),_eP=new V3(),_eL=new V3(),_eR=new V3(),_eV=new V3(),_ex=new V3(),_ey=new V3(),_ez=new V3(),_eA=new V3();
 const FORM_SLOTS=[[0,0,0],[-18,2,16],[18,2,16],[0,6,32],[-34,4,30],[34,4,30]];
 function spawnGroup(z){
@@ -1954,6 +2029,7 @@ function makeGroup(z,kinds,home,anchor,form,alert){
     const sl=FORM_SLOTS[i%FORM_SLOTS.length].map(v=>v*f),slot=enemySlots.find(s=>s.free); // formación más apretada o más abierta según la zona
     slot.free=false;
     slot.mesh.geometry=ENEMY_GEO[k];slot.mesh.scale.setScalar(def.scale);slot.mesh.visible=true;
+    const gl=slot.mesh.children[0];gl.position.set(0,.04,1.7);gl.material.color.set(0xff7a3c);gl.scale.setScalar(2);gl.material.opacity=1;
     const e={kind:k,def,group:g,slot,mesh:slot.mesh,on:true,hp:def.hp,speed:def.patrol,bank:0,cool:.6+Math.random()*2,burst:0,gap:0,breakT:0,
       breakDir:new V3(),ox:(Math.random()-.5)*120,oy:(Math.random()-.5)*60,sx:sl[0],sy:sl[1],sz:sl[2],
       pos:home.clone().addScaledVector(side,sl[0]).addScaledVector(u,sl[1]).addScaledVector(heading,-sl[2]),fwd:heading.clone()};
@@ -1966,16 +2042,22 @@ function makeGroup(z,kinds,home,anchor,form,alert){
   if(home.distanceTo(ship.pos)<900)flashAt(home,26);
   return g;
 }
-// Torreta: fija en el suelo de la zona. Es un "grupo" de uno, así comparte la detección y el aviso con los demás.
+// Defensas de tierra (torretas y lanzamisiles): fijas sobre una torre. Cada una es un "grupo" de uno,
+// así comparte la detección y el aviso con los escuadrones de su zona.
 function spawnTurret(z,site){
-  const def=ENEMY_DEF.torreta,slot=enemySlots.find(s=>s.free);if(!slot)return null;
-  slot.free=false;site.on=true;
-  slot.mesh.geometry=ENEMY_GEO.torreta;slot.mesh.scale.setScalar(def.scale);slot.mesh.visible=true;
-  const d=site.dir,pos=d.clone().multiplyScalar(PLANET_R+heightAt(d.x,d.y,d.z,0)+.4*def.scale);
+  const kind=site.kind||'torreta',def=ENEMY_DEF[kind],slot=enemySlots.find(s=>s.free),tw=towers.find(t=>t.free);
+  if(!slot||!tw)return null;
+  slot.free=false;tw.free=false;site.on=true;
+  const d=site.dir,top=PLANET_R+Math.max(heightAt(d.x,d.y,d.z,0),0)+TOWER_H;
+  tw.g.position.copy(d).multiplyScalar(top);tw.g.quaternion.setFromUnitVectors(Y_AXIS,d);tw.g.visible=true;
+  slot.mesh.geometry=ENEMY_GEO[kind];slot.mesh.scale.setScalar(def.scale);slot.mesh.visible=true;
+  // la luz del motor pasa a ser una baliza roja arriba de la cabeza
+  const bc=slot.mesh.children[0];bc.position.set(0,1.9,0);bc.material.color.set(0xff2a1a);bc.scale.setScalar(7);
+  const pos=d.clone().multiplyScalar(top+.65*def.scale);
   const fwd=z.e1.clone().addScaledVector(d,-z.e1.dot(d)).normalize().addScaledVector(d,.35).normalize();
   const g={zone:z,leader:null,members:[],wp:pos.clone(),anchor:d.clone(),state:'patrol',alert:false,lostT:0,ground:true,site};
-  const e={kind:'torreta',def,group:g,slot,mesh:slot.mesh,on:true,hp:def.hp,speed:0,bank:0,cool:1+Math.random()*2,burst:0,gap:0,breakT:0,
-    breakDir:new V3(),ox:0,oy:0,sx:0,sy:0,sz:0,pos,fwd};
+  const e={kind,def,group:g,slot,mesh:slot.mesh,on:true,hp:def.hp,speed:0,bank:0,cool:1+Math.random()*2,burst:0,gap:0,breakT:0,
+    breakDir:new V3(),ox:0,oy:0,sx:0,sy:0,sz:0,pos,fwd,tower:tw,lockT:0,reload:2+Math.random()*3,los:false,losT:0,blink:Math.random()*6};
   e.mesh.position.copy(pos);
   enemies.push(e);g.members.push(e);g.leader=e;groups.push(g);
   return g;
@@ -1991,6 +2073,7 @@ function removeEnemy(e){
   if(g.leader===e)g.leader=g.members[0]||null;
   if(!g.members.length){const gi=groups.indexOf(g);if(gi>=0)groups.splice(gi,1);}
   if(g.site)g.site.on=false;
+  if(e.tower){e.tower.free=true;e.tower.g.visible=false;e.tower=null;}
   if(target===e)target=null;
 }
 function killEnemy(e,scored){
@@ -2056,7 +2139,7 @@ function detectGroups(z,mine,arc){
       if(out||d>DETECT_LOSE){g.lostT+=.25;if(g.lostT>=DETECT_FORGET){g.alert=false;g.lostT=0;}}
       else g.lostT=0;
     }else if(!out){
-      if(g.ground||L.def.carrier){if(d<L.def.range+120)alertGroup(g);} // torretas y nodriza: radar, ven para todos lados
+      if(g.ground||L.def.carrier){if(d<(L.def.radar||L.def.range+120))alertGroup(g);} // defensas de tierra y nodriza: radar, ven para todos lados
       else{
         const front=Math.max(0,L.fwd.dot(_eA)/(d||1));
         if(d<DETECT_SIDE+(DETECT_FRONT-DETECT_SIDE)*front)alertGroup(g);
@@ -2223,7 +2306,9 @@ function stepTurret(e,dt){
   _ey.crossVectors(_eR,e.fwd).normalize();
   _ez.copy(e.fwd).negate();
   _m.makeBasis(_eR,_ey,_ez);e.mesh.quaternion.setFromRotationMatrix(_m);
-  if(attacking&&_eP.dot(_tU)/(dP||1)>.08)enemyGuns(e,dP,dt);
+  e.blink+=dt;const bc=e.mesh.children[0];bc.material.opacity=(e.blink%1.4)<.25?1:.18; // baliza que titila: se las ve de lejos
+  if(def.launcher)launcherStep(e,dt,dP,attacking);
+  else if(attacking&&_eP.dot(_tU)/(dP||1)>.08)enemyGuns(e,dP,dt);
   if(dead<=0&&inv<=0&&dodge.t<=0&&dP<def.hit+2.4){_eA.copy(_eP).negate();damage(ROCK_DAMAGE,_eA);killEnemy(e,true);}
 }
 
@@ -2628,6 +2713,102 @@ function stepShock(dt){
   if(shockT>=1)shockRing.visible=false;
 }
 
+/* ---------- Misiles enemigos: los lanzamisiles te fijan con línea de vista y tiran un misil que te persigue ----------
+   Se esquiva con la evasión (le hace perder el rastro), con turbo a fondo (va apenas más lento que tu velocidad máxima)
+   o poniendo una montaña en el medio. */
+const EM={speed:118,turn:1.25,life:11,dmg:30,fuse:7,accel:60};
+const threat={lock:0,incoming:0,beepT:0};
+const eMslMat=new T.MeshLambertMaterial({color:0xb8392b,emissive:0x3a0a06,fog:false});
+const eMsl=Array.from({length:6},()=>{
+  const mesh=new T.Mesh(rocketGeo,eMslMat);mesh.scale.setScalar(1.4);
+  const g=glow(0xff5a2a,3.6);g.position.z=1.5;mesh.add(g);
+  mesh.visible=false;scene.add(mesh);
+  return {mesh,on:false,pos:new V3(),vel:new V3(),life:0,track:false,smokeT:0};
+});
+const _los=new V3();
+function lineOfSight(a,b){
+  for(let i=1;i<10;i++){
+    _los.copy(a).lerp(b,i/10);
+    const r=_los.length();_los.divideScalar(r);
+    if(r<PLANET_R+heightAt(_los.x,_los.y,_los.z,64)+2)return false;
+  }
+  return true;
+}
+function launcherStep(e,dt,dP,attacking){
+  const def=e.def;
+  e.reload=Math.max(0,e.reload-dt);
+  e.losT-=dt;
+  if(e.losT<=0){e.losT=.25;e.los=attacking&&dP<def.range&&lineOfSight(e.pos,ship.pos);}
+  const can=attacking&&dead<=0&&e.reload<=0&&dP<def.range&&e.los&&dodge.t<=0;
+  if(can)e.lockT+=dt;else e.lockT=Math.max(0,e.lockT-dt*1.5);
+  if(e.lockT>0)threat.lock=Math.max(threat.lock,Math.min(1,e.lockT/def.lockTime));
+  if(e.lockT>=def.lockTime){e.lockT=0;e.reload=def.reload;fireEnemyMissile(e);}
+}
+function fireEnemyMissile(e){
+  const m=eMsl.find(x=>!x.on);if(!m)return;
+  const u=_v.copy(e.pos).normalize();
+  m.pos.copy(e.pos).addScaledVector(u,3);
+  m.vel.copy(ship.pos).sub(m.pos).normalize().addScaledVector(u,.6).normalize().multiplyScalar(40); // sale hacia arriba y se endereza
+  m.life=EM.life;m.track=true;m.on=true;m.smokeT=0;m.mesh.visible=true;
+  m.mesh.position.copy(m.pos);
+  blip(160,520,.45,.05,'sawtooth');
+}
+function killEnemyMissile(m,boom){if(boom)explode(m.pos,boom);m.on=false;m.mesh.visible=false;}
+const _mT=new V3(),_mD=new V3(),_mA=new V3();
+function stepEnemyMissiles(dt){
+  let incoming=0;
+  for(const m of eMsl){
+    if(!m.on)continue;
+    m.life-=dt;
+    if(m.life<=0){killEnemyMissile(m,5);continue;}
+    if(m.track&&(dodge.t>0||dead>0))m.track=false; // la evasión le hace perder el rastro
+    _mT.copy(ship.pos).sub(m.pos);
+    const d=_mT.length(),sp=m.vel.length(),nsp=Math.min(EM.speed,sp+EM.accel*dt);
+    if(m.track&&m.vel.dot(_mT)<-.3*d*sp)m.track=false; // ya te pasó de largo
+    if(m.track){
+      _mD.copy(ship.pos).addScaledVector(ship.vel,Math.min(d/EM.speed,2)*.6).sub(m.pos).normalize();
+      _mA.copy(m.vel).normalize();
+      const ang=Math.acos(clamp(_mA.dot(_mD),-1,1));
+      if(ang>1e-4){_eA.crossVectors(_mA,_mD);if(_eA.lengthSq()>1e-10){_eA.normalize();_mA.applyAxisAngle(_eA,Math.min(ang,EM.turn*dt));}}
+      m.vel.copy(_mA).multiplyScalar(nsp);
+      incoming++;
+    }else m.vel.setLength(nsp);
+    m.pos.addScaledVector(m.vel,dt);
+    m.mesh.position.copy(m.pos);m.mesh.quaternion.setFromUnitVectors(NOSE,_mA.copy(m.vel).normalize());
+    m.smokeT-=dt;if(m.smokeT<=0){m.smokeT=.05;emitSmoke(m.pos,1.8,.8,.6,false);}
+    const r=m.pos.length();_mD.copy(m.pos).divideScalar(r);
+    if(r<PLANET_R+heightAt(_mD.x,_mD.y,_mD.z,64)+1){killEnemyMissile(m,8);continue;} // contra el suelo o la montaña
+    if(m.track&&dead<=0&&inv<=0&&_mT.copy(ship.pos).sub(m.pos).length()<EM.fuse){
+      damage(EM.dmg,_mA.copy(_mT).negate().normalize());killEnemyMissile(m,11);
+    }
+  }
+  threat.incoming=incoming;
+}
+
+// Aviso en pantalla: ámbar mientras te fijan (pita cada vez más rápido), rojo con un misil en camino
+const elWarn=$('#warn'),emks=[];
+for(let i=0;i<6;i++){const d=document.createElement('i');d.className='emk';d.hidden=true;$('#emks').appendChild(d);emks.push(d);}
+function updateThreat(dt){
+  const inc=threat.incoming>0&&dead<=0,lk=threat.lock>0&&!inc&&dead<=0;
+  if(inc||lk){
+    elWarn.hidden=false;elWarn.classList.toggle('msl',inc);
+    const txt=inc?'¡Misil! Esquivá o acelerá':'Te están fijando';
+    if(elWarn.textContent!==txt)elWarn.textContent=txt;
+    threat.beepT-=dt;
+    if(threat.beepT<=0){
+      threat.beepT=inc?.13:.55-.4*threat.lock;
+      if(inc)blip(2100,1800,.06,.035,'square');else blip(1300,1300,.07,.03,'square');
+      elWarn.classList.toggle('blink');
+    }
+  }else if(!elWarn.hidden){elWarn.hidden=true;threat.beepT=0;}
+  eMsl.forEach((m,i)=>{
+    const el=emks[i];
+    if(!m.on||!m.track||dead>0){if(!el.hidden)el.hidden=true;return;}
+    screenSpot(m.pos,_spot);el.hidden=false;
+    el.style.transform='translate('+_spot.x.toFixed(1)+'px,'+_spot.y.toFixed(1)+'px) rotate(45deg)';
+  });
+}
+
 /* ---------- Humo ---------- */
 const SMOKE_N=120,smG=new Float32Array(SMOKE_N),smPos=new Float32Array(SMOKE_N*3),smA=new Float32Array(SMOKE_N),smS=new Float32Array(SMOKE_N),smVel=new Float32Array(SMOKE_N*3),smLife=new Float32Array(SMOKE_N),smMax=new Float32Array(SMOKE_N),smBase=new Float32Array(SMOKE_N);
 let smNext=0;
@@ -2755,6 +2936,7 @@ function clearWorld(){
   eBolts.forEach(b=>{b.on=false;});bolts.forEach(b=>{b.on=false;});
   rockets.forEach(m=>{m.on=false;m.mesh.visible=false;});
   drops.forEach(d=>{d.on=false;d.mesh.visible=false;});
+  eMsl.forEach(m=>{m.on=false;m.mesh.visible=false;});threat.lock=0;threat.incoming=0;
   camTarget=null;target=null;lockCancel();
   [roamZone,waveZone,carrierZone].forEach(z=>{z.seen=false;});
 }
@@ -2998,7 +3180,7 @@ function modeLine(){
   }
   if(run.mode==='conquista'){
     const freed=zones.filter(z=>z.state==='libre').length;
-    let s=(curZone?'Zona '+curZone.kind.name.toLowerCase()+(curZone.seen?' · te vieron':'')+' · '+curZone.sites.filter(t=>t.alive).length+' torretas · ':'')+
+    let s=(curZone?'Zona '+curZone.kind.name.toLowerCase()+(curZone.seen?' · te vieron':'')+' · '+curZone.sites.filter(t=>t.alive).length+' defensas · ':'')+
       'Vidas '+(run.lives===Infinity?'∞':run.lives)+' · Libres '+freed+'/'+zones.length;
     if(carrier&&carrier.on)s+=' · Nodriza '+(carrier.pos.distanceTo(ship.pos)/1000).toFixed(1).replace('.',',')+' km';
     return s;
@@ -3252,9 +3434,11 @@ function frame(now){
     stepCombat(dt);
     stepZones(dt);
     stepRun(dt);
+    threat.lock=0;
     stepEnemies(dt);
     stepBolts(dt);
     stepMissiles(dt);
+    stepEnemyMissiles(dt);
     stepEnemyBolts(dt);
     stepDrops(dt);
     stepRocks(dt);
@@ -3267,6 +3451,7 @@ function frame(now){
     stepDust();
     updateHud(dt);
     updateCombatHud(dt);
+    updateThreat(dt);
     sfxEngine();
   }
   renderer.render(scene,camera);
@@ -3305,7 +3490,7 @@ function boot(data){
   window.DeltaUno={renderer,ship,input,settings,TUNE,rocks,activeRocks,rings,chart,chartDir,straighten,terrain,heightAt,S,BIOMES,PLANET_R,CEIL:{CEIL_WARN,CEIL_PUSH,CEIL_MAX},buildMs,flags:()=>({dead,inv,warning,thinWarn}),
     zones,groups,enemies,lost,drops,DROP_KIND,damage,spawnDrop,dodge,tryDodge,rockets,lockCancel,AIM,seenVel,ZONE_KIND,eBolts,boltHitsShip,
     tgt:()=>camTarget,camBlend:()=>camBlend,camera,
-    binds,turbo,inputDev:()=>inputDev,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
+    binds,turbo,inputDev:()=>inputDev,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
     vit:()=>({hull,shield,heat,overheat,score,record,combo,curZone:curZone&&zones.indexOf(curZone),target:!!target,fov:camera.fov,missiles,missileT,lockOn,lockP,hasLock:!!lockTarget,repairT,repairCool})};
   last=performance.now();
   requestAnimationFrame(frame);

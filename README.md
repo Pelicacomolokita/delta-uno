@@ -96,13 +96,14 @@ Las pruebas abren el juego en un Chromium con pantalla táctil simulada (horizon
 | `07-combate` | Patrullas, ataques, daño, vida, puntos, despejar zonas, botones sin encimarse |
 | `08-modos-y-enemigos` | Menú de inicio, ajustes que se deslizan, los cuatro modos, torretas, nodriza, drones |
 | `09-teclado-mouse-mando` | Controles de PC, mando simulado, asignar teclas y botones, botones en pantalla |
+| `10-defensas-mar-camara` | Defensas sobre torres, lanzamisiles, misiles que se esquivan, cámara de Blanco |
 
 **Pendiente:** la prueba del planeta (biomas, vuelta completa, choques con el suelo) es de una versión vieja y hay que actualizarla.
 
 ## Próximos pasos
 
 1. Separar `src/main.js` en módulos (planeta, vuelo, combate, enemigos, zonas, modos y pantalla), de a uno por vez y con las pruebas pasando después de cada separación.
-2. Torretas más visibles, cámara de Blanco que no pierda la nave y lanzamisiles que te fijan.
+2. Pulir la demo: errores que aparezcan jugando.
 3. Campaña 1 (ver `docs/decisiones.md`).
 4. Texturas por bioma en formato KTX2 y efectos con el pack de partículas de Kenney (licencia CC0).
 5. APK con Capacitor.

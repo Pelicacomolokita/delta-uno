@@ -68,7 +68,7 @@ H.transform = s => s.replace('b.life=1.7;b.dmg=e.def.dmg;b.on=true;', 'b.life=1.
 
   /* ---- Torretas ---- */
   await setRender(L.page, false);
-  const tur = await L.page.evaluate(() => { const D = window.DeltaUno; return D.zones.map(z => z.kind.name + ':' + z.sites.length).join(' '); });
+  const tur = await L.page.evaluate(() => { const D = window.DeltaUno; return D.zones.map(z => z.kind.name + ':' + z.sites.filter(s => s.kind === 'torreta').length).join(' '); });
   console.log('torretas por zona', tur);
   check('cada zona tiene torretas (dispersa 2, normal 3, densa 4)', /Dispersa:2/.test(tur) && /Normal:3/.test(tur) && /Densa:4/.test(tur), tur);
   // sobre una torreta de la zona 1, a 350 m de altura y quieto

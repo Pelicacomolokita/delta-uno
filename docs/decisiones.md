@@ -57,7 +57,7 @@ Qué se decidió hasta ahora y por qué. Los números salen del código (`src/ma
 - **Choque con una roca:** 35 de daño.
 - **Misiles guiados:** hasta 4. Se mantiene apretado el botón 1 segundo para fijar el blanco y se suelta para disparar. Se recupera uno cada 20 segundos, y también hay repuestos.
 - **Reparación:** 30 de casco en 8 segundos. Cualquier golpe la corta. Recarga de 45 segundos. Se puede volar y disparar mientras repara.
-- **Botón Blanco:** la cámara sigue al enemigo elegido. Tocar elige o pasa al siguiente; mantener lo suelta. **Pendiente:** hoy hace perder de vista la propia nave; hay que limitar el giro para que la nave siempre quede en cuadro.
+- **Botón Blanco:** la cámara sigue al enemigo elegido. Tocar elige o pasa al siguiente; mantener lo suelta. La cámara gira como mucho 35° desde la trompa, así la nave siempre se ve de atrás. Si el blanco queda más afuera, lo marca la flecha en el borde de la pantalla.
 
 ## Puntería enemiga
 
@@ -79,13 +79,17 @@ Antes pegaban 7 de cada 10 tiros de cerca, y parecía que las balas los buscaban
 
 ## Zonas
 
-| Tipo | Radio | Escuadrones (a la vez) | Torretas | Aviso entre grupos | Puntos al despejar |
-|---|---|---|---|---|---|
-| Dispersa | 1.000 m | 4 (3) | 2 | 450 m | 700 |
-| Normal | 760 m | 5 (3) | 3 | 750 m | 1.000 |
-| Densa | 560 m | 6 (3) | 4 | 1.100 m | 1.500 |
+| Tipo | Radio | Escuadrones (a la vez) | Torretas | Lanzamisiles | Aviso entre grupos | Puntos al despejar |
+|---|---|---|---|---|---|---|
+| Dispersa | 1.000 m | 4 (3) | 2 | 1 | 450 m | 700 |
+| Normal | 760 m | 5 (3) | 3 | 1 | 750 m | 1.000 |
+| Densa | 560 m | 6 (3) | 4 | 2 | 1.100 m | 1.500 |
 
-- **Despejar:** hay que destruir todas las torretas y todos los escuadrones.
+- **Despejar:** hay que destruir todas las defensas de tierra (torretas y lanzamisiles) y todos los escuadrones.
+- **Defensas de tierra:**
+  - Están sobre una torre de 18 m que se hunde en el suelo, así el terreno lejano, que se dibuja con menos detalle, no las tapa ni las deja flotando.
+  - Tienen una baliza roja que titila.
+  - Se ubican en terreno abierto y parejo. Van en montaña o volcán solo si la zona no tiene otro lugar, y sobre el agua si la zona está en el mar.
 - **En Conquista:** una zona liberada no vuelve a llenarse.
 - **Límite de naves:** como mucho 16 enemigos activos a la vez.
 
@@ -97,8 +101,13 @@ Antes pegaban 7 de cada 10 tiros de cerca, y parecía que las balas los buscaban
 | Pesada | 12 | Lenta, ráfagas de 4, más daño |
 | Interceptor | 2 | Muy rápido, ataca de pasada y vuelve a dar la vuelta |
 | Dron | 1 | En enjambres de 4 a 6; no dispara, se tira encima (12 de daño) |
-| Torreta | 7 | Fija en tierra, no apunta por debajo del horizonte, alcance 680 m |
+| Torreta | 7 | Fija sobre una torre, no apunta por debajo del horizonte, alcance 680 m, radar 800 m |
+| Lanzamisiles | 6 | Fijo sobre una torre. Si te ve con línea de vista a menos de 1.100 m, te fija durante 2,5 segundos y tira un misil que te persigue (30 de daño, recarga 9 segundos). Se esquiva con la evasión, con turbo (el misil va a 118 m/s y tu máxima es 130) o poniendo una montaña en el medio |
 | Nodriza | 60 | Recorre las zonas, tiene cañones que giran y larga drones. Derribarla: +1 vida, y cada zona pierde un escuadrón y una torreta |
+
+## El mar
+
+Tiene olas a dos escalas, más claras en las crestas, y espuma de cerca, todo en movimiento. Antes era un color parejo y no se podía calcular a qué altura estabas.
 
 ## Modos y dificultad
 
