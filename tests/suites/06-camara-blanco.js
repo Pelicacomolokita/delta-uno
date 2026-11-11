@@ -56,11 +56,12 @@ const view = page => page.evaluate(() => {
   await L.page.waitForFunction(() => window.DeltaUno.enemies.length >= 3, null, { timeout: 30000 });
   await L.page.evaluate(() => { window.__calm = setInterval(() => window.DeltaUno.enemies.forEach(e => { e.cool = 99; e.burst = 0; }), 10); });
   await tap();
+  await simWait(L.page, .2); // la palabra del botón se actualiza unas 12 veces por segundo
   const sel1 = await L.page.evaluate(() => { const D = window.DeltaUno, t = D.tgt(); return t ? { kind: t.kind, i: D.enemies.indexOf(t), hint: document.querySelector('#toast').textContent, word: document.querySelector('#tgtWord').textContent } : null; });
   check('tocar Blanco elige un enemigo', !!sel1 && /Mantené para soltar/.test(sel1.hint) && sel1.word === 'Cambiar', JSON.stringify(sel1));
   await simWait(L.page, 2);
   const v1 = await view(L.page);
-  check('la cámara mira al blanco y la nave queda en cuadro', v1.blend > .9 && v1.camTgt > .97 && v1.tgtIn && v1.shipIn, f(v1));
+  check('la cámara gira hacia el blanco, sin pasar de unos 40° desde la trompa, y la nave queda en cuadro', v1.blend > .9 && v1.camTgt >= Math.min(.97, v1.tgtFwd + .3) && v1.camFwd >= .74 && v1.shipIn, f(v1));
   const markSel = await L.page.evaluate(() => { const m = [...document.querySelectorAll('.mk.sel')]; return { n: m.length, txt: m[0] && m[0].querySelector('em').textContent }; });
   check('el blanco tiene marca y distancia', markSel.n === 1 && /Blanco \d+/.test(markSel.txt), JSON.stringify(markSel));
 
@@ -72,7 +73,7 @@ const view = page => page.evaluate(() => {
   });
   await simWait(L.page, 2.5);
   const vb = await view(L.page);
-  check('con el blanco atrás, la cámara se da vuelta y muestra los dos', vb.tgtFwd < -.9 && vb.camTgt > .97 && vb.tgtIn && vb.shipIn, f(vb));
+  check('con el blanco atrás, la cámara no se da vuelta: la nave sigue de espaldas', vb.tgtFwd < -.9 && vb.camFwd >= .74 && vb.shipIn, f(vb));
   await setRender(L.page, true); await sleep(1200);
   await L.page.screenshot({ path: path.join(dir, 't-2-atras.png') });
   await L.page.evaluate(() => clearInterval(window.__pinB));
@@ -118,7 +119,7 @@ const view = page => page.evaluate(() => {
   /* cuando cae, pasa solo al siguiente */
   const auto = await L.page.evaluate(async () => {
     const D = window.DeltaUno, s = D.ship, t = D.tgt(), n0 = D.enemies.length;
-    t.hp = 1; t.pos.setLength(D.PLANET_R + 1);
+    t.hp = 1; if (t.def.ground) D.hitEnemyForTest(t); else t.pos.setLength(D.PLANET_R + 1); // las defensas de tierra no se estrellan: se las derriba
     await new Promise(r => { const t0 = s.t, i = setInterval(() => { if (!t.on || s.t - t0 > 2) { clearInterval(i); r(); } }, 10); });
     await new Promise(r => setTimeout(r, 150));
     const nt = D.tgt();
@@ -171,9 +172,9 @@ const view = page => page.evaluate(() => {
   await setRender(P.page, false);
   const ptb = await center(P.page, '#tgtBtn');
   await P.touch('touchStart', [[ptb[0], ptb[1], 0]]); await P.touch('touchEnd', []);
-  await simWait(P.page, .1);
-  const pt = await P.page.evaluate(() => document.querySelector('#toast').textContent);
-  check('en vertical, el botón Blanco responde', /enemigos|Tocá para cambiar/.test(pt), pt); // sin enemigos cerca avisa; con alguno cerca, lo elige
+  await simWait(P.page, .3);
+  const pt = await P.page.evaluate(() => ({ toast: document.querySelector('#toast').textContent, tgt: !!window.DeltaUno.tgt() }));
+  check('en vertical, el botón Blanco responde', pt.tgt || /enemigos/.test(pt.toast), JSON.stringify(pt)); // con alguno cerca lo elige; si no, avisa
   check('sin errores en vertical', P.errs.length === 0, P.errs.join(' | '));
   await P.ctx.close();
   await browser.close();

@@ -91,7 +91,7 @@ Antes pegaban 7 de cada 10 tiros de cerca, y parecía que las balas los buscaban
   - Tienen una baliza roja que titila.
   - Se ubican en terreno abierto y parejo. Van en montaña o volcán solo si la zona no tiene otro lugar, y sobre el agua si la zona está en el mar.
 - **En Conquista:** una zona liberada no vuelve a llenarse.
-- **Límite de naves:** como mucho 16 enemigos activos a la vez.
+- **Límite de naves:** como mucho 20 enemigos activos a la vez. En una zona densa entran sus 6 defensas, 3 escuadrones y la nodriza. No está medido en un teléfono real.
 
 ## Enemigos
 

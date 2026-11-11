@@ -50,7 +50,7 @@ const DODGE_TIME=.42,DODGE_DIST=35,DODGE_COOL=3,DOUBLE_TAP=.3;
 const SHIELD_MAX=100,HULL_MAX=100,SHIELD_DELAY=4,SHIELD_REGEN=12,ROCK_DAMAGE=35,COMBO_TIME=6;
 const MISSILE_MAX=4,MISSILE_RELOAD=20,LOCK_TIME=1,LOCK_RANGE=900,LOCK_CONE=.92,MISSILE_SPEED=310,MISSILE_TURN=2.8,MISSILE_LIFE=7,MISSILE_DMG=6,SPLASH_R=28,SPLASH_DMG=2;
 const REPAIR_TIME=8,REPAIR_AMOUNT=30,REPAIR_COOL=45;
-const ENEMY_MAX=16;    // enemigos activos a la vez (los drones y las torretas son baratos)
+const ENEMY_MAX=20;    // enemigos activos a la vez: en una zona densa entran 6 defensas de tierra, 3 escuadrones y la nodriza
 const ZONE_WAKE=1500,ZONE_SLEEP=2300,ZONE_LEASH=650,ZONE_REGROW=120;
 const DEG=Math.PI/180;
 // Puntería enemiga. Un solo lugar para ajustar, y más adelante uno por dificultad.
