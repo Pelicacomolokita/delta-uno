@@ -73,10 +73,13 @@ jobs:
         run: |
           APK="salida/delta-uno-$V.apk"
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
-          "$BT/aapt2" dump badging "$APK" | grep -E "^package:|sdkVersion|application-label:|launchable-activity" | tee badging.txt
+          echo "Herramientas: $BT"
+          "$BT/aapt2" dump badging "$APK" | grep -E "^package:|[sS]dkVersion|application-label:|^application:" | tee badging.txt
           grep -q "versionName='$V'" badging.txt || { echo "::error::La versión del APK no es $V"; exit 1; }
           "$BT/aapt2" dump xmltree --file AndroidManifest.xml "$APK" | grep -E "screenOrientation" || { echo "::error::Falta la pantalla horizontal"; exit 1; }
-          "$BT/apksigner" verify --print-certs "$APK" | grep -E "Signer #1 certificate (DN|SHA-256)"
+          "$BT/apksigner" verify --verbose --print-certs "$APK" > firma.txt 2>&1 || true
+          grep -E "Verifie|DN:|SHA-256" firma.txt || cat firma.txt
+          grep -q "Verifies" firma.txt || { echo "::error::La firma del APK no verifica"; exit 1; }
           unzip -l "$APK" | grep -q "assets/public/index.html" || { echo "::error::El APK no trae el juego"; exit 1; }
           unzip -p "$APK" assets/capacitor.config.json
 
