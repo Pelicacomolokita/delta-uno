@@ -3,7 +3,7 @@
 const H = require('../helpers');
 const { chromium, fs, path, dir, check, sleep, open, center, setRender, st, f, simWait, place, pinAlt, faceOut, waitGrace } = H;
 H.autostart = true;
-H.transform = s => s.replace('b.life=1.7;b.dmg=e.def.dmg;b.on=true;', 'b.life=1.7;b.dmg=e.def.dmg;b.on=true;(window.__F||(window.__F=[])).push(Math.acos(Math.min(1,e.fwd.dot(_eA)))*57.2958);');
+H.transform = s => s.replace('b.life=1.7;b.dmg=e.def.dmg*(e.dmgK||1);b.on=true;', 'b.life=1.7;b.dmg=e.def.dmg*(e.dmgK||1);b.on=true;(window.__F||(window.__F=[])).push(Math.acos(Math.min(1,e.fwd.dot(_eA)))*57.2958);');
 (async () => {
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] });
   const L = await open(browser, { width: 844, height: 390 });

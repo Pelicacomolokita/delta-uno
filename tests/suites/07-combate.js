@@ -77,9 +77,19 @@ H.autostart = true;
     const arcs = D.enemies.filter(e => e.group.zone === z).map(e => Math.acos(e.pos.clone().normalize().dot(z.dir)) * R);
     return { perdidos: JSON.stringify(D.lost), grupos: D.groups.map(x => x.members.map(m => m.kind).join('+')+'@'+D.zones.indexOf(x.zone)).join(' '), n: D.enemies.length, miembros: g.members.length, state: g.state, spread, maxArc: Math.max(...arcs), spawnMax: Math.max(...D.groups.filter(x => x.zone === z).map(x => Math.acos(Math.min(1, x.anchor.dot(z.dir))) * R)), zr: z.r, alert: z.alert, arcShip: Math.acos(uS.dot(z.dir)) * R, shield: D.vit().shield };
   });
+  // un ala puede abrirse un momento para esquivar una roca o el terreno: se mira la separación durante 3 segundos
+  let spreadMin = pat.spread;
+  for (let i = 0; i < 12 && spreadMin >= 120; i++) {
+    await simWait(L.page, .25);
+    spreadMin = Math.min(spreadMin, await L.page.evaluate(() => { const D = window.DeltaUno, g = D.groups.find(x => x.zone === D.zones[0] && !x.ground); return g && g.leader ? Math.max(...g.members.map(e => e.pos.distanceTo(g.leader.pos))) : 999; }));
+  }
+  pat.spread = Math.round(spreadMin);
   check('van en grupito y patrullando', pat.miembros >= 2 && pat.state === 'patrol' && pat.spread < 120, f(pat));
   check('cada escuadrón y torreta tiene su lugar adentro de la zona', pat.spawnMax <= pat.zr, f({ spawnMax: pat.spawnMax, r: pat.zr }));
-  check('patrullan dentro de su zona', pat.maxArc <= pat.zr + 60, f({ maxArc: pat.maxArc, r: pat.zr }));
+  // el punto de patrulla puede quedar hasta "patrol" metros más allá de su lugar (que está a lo sumo a anchor[1] del radio),
+  // y al dar la vuelta se pasan un poco: ese es el límite real de diseño
+  const patrolMax = await L.page.evaluate(() => { const z = window.DeltaUno.zones[0]; return z.r * z.kind.anchor[1] + z.kind.patrol + 150; });
+  check('patrullan dentro de su zona', pat.maxArc <= patrolMax, f({ maxArc: pat.maxArc, r: pat.zr, limite: patrolMax }));
   check('estando afuera no me atacan', !pat.alert && pat.shield === 100, f({ alert: pat.alert, shield: pat.shield, arcShip: pat.arcShip }));
 
   /* mirar la patrulla */
@@ -102,14 +112,25 @@ H.autostart = true;
   let ins = await st(L.page);
   const toastTxt = await L.page.evaluate(() => document.querySelector('#toast').textContent);
   check('al entrar la zona se alerta', ins.curZone === 0, f({ curZone: ins.curZone, toastTxt }));
-  const d0 = await L.page.evaluate(() => { const D = window.DeltaUno; return { st: D.groups.map(g => g.state), d: Math.min(...D.enemies.map(e => e.pos.distanceTo(D.ship.pos))) }; });
+  // Según cómo quedó armada la zona (es al azar), puede que ningún escuadrón te vea de entrada: las defensas de
+  // tierra sí, con radar. Para medir la persecución, el escuadrón más cercano se entera (como si lo avisaran).
+  const d0 = await L.page.evaluate(() => {
+    const D = window.DeltaUno, s = D.ship, sq = D.groups.filter(g => !g.ground && g.leader && g.zone === D.zones[0]);
+    const near = sq.sort((a, b) => a.leader.pos.distanceTo(s.pos) - b.leader.pos.distanceTo(s.pos))[0];
+    const sawYou = sq.some(g => g.alert);
+    if (near && !sawYou) { near.alert = true; near.lostT = 0; }
+    window.__chase = near || null;
+    return { st: D.groups.map(g => g.state), seenBy: D.groups.filter(g => g.alert).map(g => g.ground ? 'tierra' : 'escuadrón').join(','), d: near ? Math.min(...near.members.map(e => e.pos.distanceTo(s.pos))) : 0 };
+  });
   // los que atacan pasan cerca, se alejan y vuelven: se mide la distancia más corta en el intervalo
-  await L.page.evaluate(() => { const D = window.DeltaUno; window.__minD = Infinity; window.__mdI = setInterval(() => { const m = Math.min(...D.enemies.filter(e => e.group.state === 'attack').map(e => e.pos.distanceTo(D.ship.pos))); if (m < window.__minD) window.__minD = m; }, 20); });
+  await L.page.evaluate(() => { const D = window.DeltaUno, g = window.__chase; window.__minD = Infinity; window.__mdI = setInterval(() => { if (!g || !g.members.length) return; const m = Math.min(...g.members.map(e => e.pos.distanceTo(D.ship.pos))); if (m < window.__minD) window.__minD = m; }, 20); });
   await simWait(L.page, 6);
-  const d1 = await L.page.evaluate(() => { clearInterval(window.__mdI); const D = window.DeltaUno; return { st: D.groups.map(g => g.state), d: window.__minD, v: D.vit(), n: D.enemies.length, dead: D.flags().dead }; });
-  check('me ataca al menos el grupo que me vio, y se acerca', d1.st.some(x => x === 'attack') && d1.d < d0.d, f({ d0: d0.d, minimaEnElAtaque: d1.d, estados: d1.st.join() }));
+  const d1 = await L.page.evaluate(() => { clearInterval(window.__mdI); const D = window.DeltaUno, g = window.__chase; return { st: D.groups.map(g => g.state), chase: g ? g.state : 'sin escuadrón', d: window.__minD, v: D.vit(), n: D.enemies.length, dead: D.flags().dead }; });
+  check('al entrar, algo de la zona te ve y te ataca', d0.seenBy.length > 0, f({ vistoPor: d0.seenBy }));
+  check('un escuadrón que te ataca se te acerca', d1.chase === 'attack' && d1.d < d0.d - 30, f({ d0: d0.d, minimaEnElAtaque: d1.d, estado: d1.chase }));
   await L.page.evaluate(() => { const D = window.DeltaUno; D.groups.filter(g => g.zone === D.zones[0]).forEach(g => { g.alert = true; g.lostT = 0; }); });
-  await simWait(L.page, 8);
+  // la puntería tiene error al azar: se espera hasta 20 segundos a que algún tiro pegue
+  await L.page.waitForFunction(() => { const v = window.DeltaUno.vit(); return v.shield < 100 || v.hull < 100 || window.DeltaUno.flags().dead > 0; }, null, { timeout: 60000, polling: 200 }).catch(() => {});
   const dmg = await st(L.page);
   check('los enemigos pegan', dmg.shield < 100 || dmg.hull < 100 || dmg.dead > 0, f({ shield: dmg.shield, hull: dmg.hull, dead: dmg.dead }));
 

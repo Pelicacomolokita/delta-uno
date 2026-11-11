@@ -3,7 +3,7 @@
 const H = require('../helpers');
 const { chromium, fs, path, dir, check, sleep, open, center, setRender, st, f, simWait, place, pinAlt, faceOut, waitGrace } = H;
 H.autostart = false;
-H.transform = s => s.replace('b.life=1.7;b.dmg=e.def.dmg;b.on=true;', 'b.life=1.7;b.dmg=e.def.dmg;b.on=true;(window.__FK||(window.__FK={}))[e.kind]=(window.__FK[e.kind]||0)+1;').replace('function onZoneCleared(){', 'window.__ozc=()=>onZoneCleared();function onZoneCleared(){');
+H.transform = s => s.replace('b.life=1.7;b.dmg=e.def.dmg*(e.dmgK||1);b.on=true;', 'b.life=1.7;b.dmg=e.def.dmg*(e.dmgK||1);b.on=true;(window.__FK||(window.__FK={}))[e.kind]=(window.__FK[e.kind]||0)+1;').replace('function onZoneCleared(){', 'window.__ozc=()=>onZoneCleared();function onZoneCleared(){');
 (async () => {
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-webgl', '--ignore-gpu-blocklist', '--enable-unsafe-swiftshader'] });
   const L = await open(browser, { width: 844, height: 390 });
@@ -19,7 +19,7 @@ H.transform = s => s.replace('b.life=1.7;b.dmg=e.def.dmg;b.on=true;', 'b.life=1.
   const t1 = await L.page.evaluate(() => window.DeltaUno.ship.t);
   console.log('menú', JSON.stringify(m0.modes));
   check('al abrir aparece el menú de inicio, con el juego en pausa', m0.open && Math.abs(t1 - m0.t) < .01, '');
-  check('cinco modos y Historia como próximamente', m0.modes.length === 5 && /Historia.*\(off\)/.test(m0.modes[4]) && /Próximamente/.test(m0.modes[4]), m0.modes.join(' | '));
+  check('cinco modos, con Historia habilitada', m0.modes.length === 5 && /^Historia/.test(m0.modes[4]) && !/\(off\)/.test(m0.modes[4]), m0.modes.join(' | '));
   await setRender(L.page, true); await sleep(300);
   await L.page.screenshot({ path: path.join(dir, 'j-menu.png') });
   await tapEl('.mode[data-mode="conquista"]');
@@ -31,7 +31,7 @@ H.transform = s => s.replace('b.life=1.7;b.dmg=e.def.dmg;b.on=true;', 'b.life=1.
   check('Carrera no pide dificultad', !m2.diffShown, '');
   await tapEl('.mode[data-mode="historia"]');
   const m3 = await L.page.evaluate(() => window.DeltaUno.settings.lastMode);
-  check('Historia no se puede elegir todavía', m3 === 'carrera', m3);
+  check('Historia se puede elegir', m3 === 'historia', m3);
   await tapEl('.mode[data-mode="conquista"]');
   await tapEl('#goBtn');
   await setRender(L.page, false);
