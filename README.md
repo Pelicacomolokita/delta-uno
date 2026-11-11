@@ -4,14 +4,20 @@ Juego de naves en 3D para teléfono, en horizontal, sobre un planeta esférico. 
 
 Está hecho con [three.js](https://threejs.org) 0.128 y se arma con [Vite](https://vitejs.dev). El resultado es **un solo archivo HTML** que trae adentro el código, los estilos y la librería 3D. Ese mismo archivo sirve para publicarlo como página, para abrirlo sin servidor y para la app de Android, que lo envuelve con [Capacitor](https://capacitorjs.com).
 
-**Versión actual: 0.12.0 (demo).** Se baja de [Releases](https://github.com/Pelicacomolokita/delta-uno/releases): el APK para Android y un zip para jugar en la computadora.
+**Versión actual: 0.12.0 (demo).** Página de descarga: **https://pelicacomolokita.github.io/delta-uno/** (el APK para Android y un zip para jugar en la computadora, con instrucciones y un código QR). También están en [Releases](https://github.com/Pelicacomolokita/delta-uno/releases).
 
 ## La demo: APK, versión para PC y datos de uso
 
 GitHub arma todo solo (`.github/workflows/demo.yml`), así que no hace falta instalar Android Studio:
 
 - **Cada vez que se sube algo a `main`:** arma el APK y el zip para PC. Quedan en **Actions → la última corrida → Artifacts** (se borran a los 90 días).
-- **Con una etiqueta de versión** (`v0.12.0`, `v0.13.0`…): además publica la versión en **Releases**, que es el enlace para compartir.
+- **Con una etiqueta de versión** (`v0.12.0`, `v0.13.0`…) **o a mano** (Actions → Armar la demo → Run workflow): además publica la versión en **Releases** y actualiza la página de descarga.
+- **Archivos con nombre fijo:** `delta-uno.apk` y `delta-uno-pc.zip`. Así estos enlaces bajan siempre la última versión:
+  - Página: `https://pelicacomolokita.github.io/delta-uno/` (sale de `pagina/index.html`, la arma `scripts/pagina.mjs`)
+  - Atajos: `…/delta-uno/apk` y `…/delta-uno/pc` (cuentan el clic y bajan el archivo)
+  - Directo de GitHub: `https://github.com/Pelicacomolokita/delta-uno/releases/latest/download/delta-uno.apk`
+- **Página de descarga, una sola vez:** hay que activar GitHub Pages en **Settings → Pages → Source: GitHub Actions**. Sin eso, la corrida marca error en el paso de la página (la versión en Releases se publica igual).
+- **Capturas de la página:** `node scripts/capturas.cjs` (después de `npm run build:test`) las saca jugando, en `pagina/img/`.
 - **Versión:** sale de `package.json`. Se ve en el menú del juego y en el APK. Para una versión nueva hay que subir el número; si no, Android no la instala encima de la anterior.
 - **Firma del APK:** usa una clave de pruebas que está en el repositorio (`android/app/delta-uno-pruebas.jks`), así cada APK nuevo se instala encima del anterior. Para Google Play hace falta otra clave, privada.
 - **Identificador de la app:** `io.github.pelicacomolokita.deltauno`, provisorio. Está en `capacitor.config.json`, `android/app/build.gradle` (`namespace` y `applicationId`), `android/app/src/main/res/values/strings.xml` y la carpeta de `MainActivity.java`. Cambiarlo hace que sea otra app: quien tenga la anterior va a tener las dos.
@@ -93,6 +99,9 @@ capacitor.config.json       nombre e identificador de la app
 .github/workflows/demo.yml  arma el APK y el zip para PC en GitHub
 scripts/artifact.mjs        arma la versión para publicar en claude.ai
 scripts/iconos.mjs          arma el ícono y la pantalla de carga de la app
+scripts/pagina.mjs          arma la página de descarga (pagina/ → dist-pagina/)
+scripts/capturas.cjs        saca las capturas de la página jugando
+pagina/                     la página de descarga y sus capturas
 tests/helpers.js            ayudas comunes de las pruebas (teléfono simulado, toques, tiempos)
 tests/suites/               las pruebas, por tema
 tests/herramientas/         mediciones que no son pruebas de sí o no

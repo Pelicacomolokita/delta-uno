@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delta Uno · demo</title>
+<meta name="description" content="Juego de naves en 3D alrededor de un planeta entero. Demo gratis para Android y computadora.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Delta Uno · demo gratis">
+<meta property="og:description" content="Juego de naves en 3D alrededor de un planeta entero. Para Android y computadora.">
+<meta property="og:url" content="{{PAGE_URL}}">
+<meta property="og:image" content="{{PAGE_URL}}img/despegue.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0a1022">
+<link rel="icon" href="{{ICON_URI}}">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=B612:wght@400;700&family=B612+Mono:wght@400;700&display=swap">
+<style>
+:root{
+  color-scheme:dark;
+  --void:#0a1022;--deep:#0f1832;--paper:#f6ead6;--paper-dim:rgba(246,234,214,.7);--line:rgba(246,234,214,.22);
+  --ember:#ff6b3d;--ember-deep:#e2532a;--bolt:#86f2e4;
+  --label:'B612',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;--data:'B612 Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{background:var(--void)}
+body{margin:0;color:var(--paper);font:400 16px/1.5 var(--label);-webkit-text-size-adjust:100%;
+  background:radial-gradient(120% 60% at 50% -10%,#1a2d5c 0,rgba(26,45,92,0) 70%),var(--void)}
+a{color:inherit}
+.wrap{max-width:980px;margin:0 auto;padding:0 16px}
+header{display:flex;align-items:center;gap:12px;padding:18px 0 8px}
+header svg{width:40px;height:40px;flex:none;border-radius:10px}
+.brand{font-weight:700;letter-spacing:.16em;text-transform:uppercase;font-size:18px}
+.ver{font:400 12px/1 var(--data);color:var(--paper-dim);border:1px solid var(--line);border-radius:3px;padding:5px 7px;margin-left:auto;white-space:nowrap}
+.hero{display:grid;gap:24px;padding:20px 0 8px}
+h1{font-size:clamp(28px,7vw,46px);line-height:1.08;margin:0;letter-spacing:-.01em}
+.lead{margin:0;color:var(--paper-dim);max-width:34em}
+.get{display:grid;gap:12px;align-content:start}
+.btn{display:grid;gap:3px;padding:16px 18px;border-radius:6px;border:1px solid var(--line);text-decoration:none;background:rgba(246,234,214,.04);transition:transform .12s,background .12s}
+.btn:hover{background:rgba(246,234,214,.08)}
+.btn:active{transform:scale(.985)}
+.btn b{font-size:19px;display:flex;align-items:center;gap:10px}
+.btn small{font:400 12.5px/1.35 var(--data);color:var(--paper-dim)}
+.btn.main{background:var(--ember);border-color:var(--ember);color:#1a0d06}
+.btn.main:hover{background:#ff7d55}
+.btn.main small{color:rgba(26,13,6,.75)}
+.btn svg{width:22px;height:22px;flex:none}
+.note{margin:0;font-size:14px;color:var(--paper-dim);padding:10px 12px;border-left:3px solid var(--bolt);background:rgba(134,242,228,.06)}
+.qr{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:6px}
+.qr svg{width:116px;height:116px;display:block}
+.qr p{margin:0;font-size:14px;color:var(--paper-dim)}
+.qr strong{color:var(--paper);display:block;font-size:15px;margin-bottom:2px}
+.shots{display:grid;grid-auto-flow:column;grid-auto-columns:min(88%,620px);gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding:8px 0 14px;margin:8px 0 0;scrollbar-width:thin}
+.shots figure{margin:0;scroll-snap-align:start}
+.shots img{width:100%;height:auto;display:block;border-radius:8px;border:1px solid var(--line);aspect-ratio:1688/780;background:var(--deep)}
+.shots figcaption{font-size:13px;color:var(--paper-dim);padding-top:6px}
+h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--paper-dim);margin:36px 0 12px;font-weight:700}
+.cols{display:grid;gap:16px}
+.card{border:1px solid var(--line);border-radius:6px;padding:16px;background:rgba(10,16,34,.55)}
+.card h3{margin:0 0 10px;font-size:18px}
+ol.steps{margin:0;padding:0;list-style:none;counter-reset:s;display:grid;gap:10px}
+ol.steps li{counter-increment:s;position:relative;padding-left:38px;min-height:26px;font-size:15px}
+ol.steps li::before{content:counter(s);position:absolute;left:0;top:0;font:700 13px/26px var(--data);width:26px;height:26px;text-align:center;border-radius:50%;border:1px solid var(--line);color:var(--bolt)}
+.fine{font-size:13px;color:var(--paper-dim);margin:12px 0 0}
+details{margin-top:12px}
+summary{cursor:pointer;font-size:14px;color:var(--paper-dim)}
+.keys{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:10px 0 0;font-size:14px}
+.keys dt{font:700 12.5px/1.6 var(--data);color:var(--bolt);white-space:nowrap}
+.keys dd{margin:0}
+.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.modes .card p{margin:0;font-size:14px;color:var(--paper-dim)}
+.modes .card h3{font-size:16px;margin-bottom:4px}
+.facts{margin:12px 0 0;font-size:14px;color:var(--paper-dim)}
+.opinion{display:grid;gap:12px;justify-items:start;margin-top:36px;padding:20px;border-radius:8px;border:1px solid var(--ember);background:rgba(255,107,61,.08)}
+.opinion p{margin:0}
+.opinion .btn{padding:12px 16px}
+footer{margin:44px 0 28px;padding-top:16px;border-top:1px solid var(--line);font-size:13px;color:var(--paper-dim);display:grid;gap:6px}
+@media (min-width:760px){
+  .hero{grid-template-columns:1.1fr .9fr;align-items:center;padding-top:36px}
+  .cols{grid-template-columns:1fr 1fr}
+}
+@media (prefers-reduced-motion:reduce){.btn{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    {{ICON_SVG}}
+    <span class="brand">Delta Uno</span>
+    <span class="ver">v{{VERSION}} · demo</span>
+  </header>
+
+  <section class="hero">
+    <div>
+      <h1>Volá alrededor de un planeta entero.</h1>
+      <p class="lead" style="margin-top:14px">Juego de naves en 3D, gratis. Liberá zonas enemigas, aguantá oleadas o corré contra reloj sobre mares, desiertos, hielo y volcanes. Es una demo en desarrollo: lo que nos digas define lo que sigue.</p>
+    </div>
+    <div class="get" id="get">
+      <a class="btn main" id="dlApk" href="{{APK_URL}}" data-file="apk">
+        <b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14"/></svg>Bajar para Android</b>
+        <small>APK{{APK_SIZE}} · Android 7 o más nuevo</small>
+      </a>
+      <a class="btn" id="dlPc" href="{{PC_URL}}" data-file="pc">
+        <b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg>Bajar para computadora</b>
+        <small>Windows, Mac o Linux{{PC_SIZE}} · se abre en el navegador</small>
+      </a>
+      <p class="note" id="iosNote" hidden>Todavía no hay versión para iPhone ni iPad. Podés jugarla en la computadora.</p>
+      <div class="qr" id="qr" hidden>
+        {{QR_SVG}}
+        <p><strong>¿La querés en el teléfono?</strong>Escaneá el código con la cámara y tocá “Bajar para Android”.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="shots" aria-label="Capturas del juego">
+    <figure><img src="img/despegue.jpg" width="1688" height="780" alt="La nave despega con un volcán y la primera zona enemiga adelante"><figcaption>El despegue: el volcán y la primera zona enemiga.</figcaption></figure>
+    <figure><img src="img/combate.jpg" width="1688" height="780" alt="Escuadrones enemigos marcados en pantalla, de frente a la nave" loading="lazy"><figcaption>Te vieron: los escuadrones de la zona vienen de frente.</figcaption></figure>
+    <figure><img src="img/defensas.jpg" width="1688" height="780" alt="Torretas y lanzamisiles sobre torres en una zona densa sobre el mar" loading="lazy"><figcaption>Zona densa sobre el mar: torretas y lanzamisiles que te fijan.</figcaption></figure>
+  </div>
+
+  <h2>Cómo instalarla</h2>
+  <div class="cols">
+    <div class="card" id="howApk">
+      <h3>En Android</h3>
+      <ol class="steps">
+        <li>Tocá “Bajar para Android” desde el teléfono.</li>
+        <li>Abrí el archivo que se bajó. Si Android pide permiso para instalar apps de esa fuente, aceptalo.</li>
+        <li>Si Play Protect avisa que la app es desconocida, tocá <b>Más detalles → Instalar de todas formas</b>. Pasa con toda app que no viene de la tienda.</li>
+        <li>Abrí Delta Uno y elegí un modo.</li>
+      </ol>
+      <p class="fine">Las versiones nuevas se instalan encima, sin perder récords ni ajustes. En Brasil, Indonesia, Singapur y Tailandia, Android puede no dejar instalarla por ahora; ahí podés jugarla en la computadora.</p>
+    </div>
+    <div class="card" id="howPc">
+      <h3>En la computadora</h3>
+      <ol class="steps">
+        <li>Bajá el zip y descomprimilo.</li>
+        <li>Abrí <b>Delta Uno.html</b> con doble clic. Se juega en el navegador, sin instalar nada y sin internet.</li>
+      </ol>
+      <details>
+        <summary>Ver las teclas</summary>
+        <dl class="keys">
+          <dt>W / S</dt><dd>Trompa arriba y abajo</dd>
+          <dt>Q / E</dt><dd>Doblar</dd>
+          <dt>A / D</dt><dd>Rotar; dos toques esquivan</dd>
+          <dt>Clic izquierdo</dt><dd>Disparar</dd>
+          <dt>Clic derecho</dt><dd>Misil: mantené para fijar, soltá para disparar</dd>
+          <dt>Espacio</dt><dd>Elegir el blanco</dd>
+          <dt>Shift</dt><dd>Turbo</dd>
+          <dt>Rueda</dt><dd>Empuje</dd>
+          <dt>Esc</dt><dd>Pausa y ajustes</dd>
+        </dl>
+        <p class="fine">También anda con mando de Xbox o PlayStation. Todo se puede reasignar en Ajustes.</p>
+      </details>
+    </div>
+  </div>
+
+  <h2>Qué trae la demo</h2>
+  <div class="modes">
+    <div class="card"><h3>Conquista</h3><p>Liberá las 6 zonas enemigas destruyendo sus defensas y escuadrones.</p></div>
+    <div class="card"><h3>Supervivencia</h3><p>Oleadas cada vez más grandes, con una nave nodriza cada cinco.</p></div>
+    <div class="card"><h3>Vuelo libre</h3><p>Recorré el planeta; los enemigos aparecen al azar.</p></div>
+    <div class="card"><h3>Carrera</h3><p>12 anillos contra reloj.</p></div>
+  </div>
+  <p class="facts">Cuatro dificultades, de vidas infinitas a una sola. Cazas, interceptores, drones, torretas, lanzamisiles y una nodriza enorme. Se juega con la pantalla táctil, teclado y mouse, o mando.</p>
+
+  <!--opinion-->
+  <section class="opinion">
+    <p><b>¿Ya la probaste?</b> Contanos qué te gustó, qué no y en qué equipo jugaste. Son 3 minutos y nos ayuda muchísimo.</p>
+    <a class="btn main" id="opinion" href="{{FEEDBACK_URL}}" target="_blank" rel="noopener"><b>Dar tu opinión</b></a>
+  </section>
+  <!--/opinion-->
+
+  <footer>
+    <span>Delta Uno {{VERSION}} · <a href="{{RELEASES_URL}}">Todas las versiones</a></span>
+    <!--datos--><span>Esta página cuenta visitas y descargas de forma anónima, sin cookies. El juego manda datos anónimos de uso para mejorarlo; se apagan en sus Ajustes.</span><!--/datos-->
+  </footer>
+</div>
+
+<script>
+(function(){
+  var ua=navigator.userAgent||'';
+  var android=/Android/i.test(ua), ios=/iPhone|iPad|iPod/i.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1);
+  var phone=android||ios||/Mobile/i.test(ua);
+  var get=document.getElementById('get'), apk=document.getElementById('dlApk'), pc=document.getElementById('dlPc');
+  // En la computadora, primero la versión para computadora y el código para pasarla al teléfono
+  if(!phone){
+    pc.classList.add('main');apk.classList.remove('main');get.insertBefore(pc,apk);
+    document.getElementById('qr').hidden=false;
+    document.getElementById('howApk').parentNode.insertBefore(document.getElementById('howPc'),document.getElementById('howApk'));
+  }
+  if(ios){document.getElementById('iosNote').hidden=false;apk.classList.remove('main');}
+
+  // Datos anónimos: visitas y descargas, con de dónde vino (utm_source) para saber qué foro trae gente
+  var S={{STATS_JSON}};
+  if(!S)return;
+  var q=new URLSearchParams(location.search), id='p'+Math.random().toString(36).slice(2)+Date.now().toString(36);
+  var base={token:S.key,distinct_id:id,$process_person_profile:false,$lib:'delta-uno-pagina',version:S.version,
+    $os:android?'Android':ios?'iOS':/Windows/.test(ua)?'Windows':/Mac OS X/.test(ua)?'Mac OS X':/Linux/.test(ua)?'Linux':'Otro',
+    $device_type:phone?'Mobile':'Desktop',$current_url:location.href,$referrer:document.referrer||'$direct'};
+  ['utm_source','utm_medium','utm_campaign'].forEach(function(k){if(q.get(k))base[k]=q.get(k);});
+  try{base.$referring_domain=document.referrer?new URL(document.referrer).hostname:'$direct';}catch(e){}
+  function send(ev,props){
+    var p={};for(var k in base)p[k]=base[k];for(k in props||{})p[k]=props[k];
+    var json=JSON.stringify({api_key:S.key,batch:[{event:ev,properties:p,timestamp:new Date().toISOString()}]});
+    var b64=btoa(encodeURIComponent(json).replace(/%([0-9A-F]{2})/g,function(m,h){return String.fromCharCode(parseInt(h,16));}));
+    var body='data='+encodeURIComponent(b64), url=S.host+'/e/?compression=base64';
+    try{if(navigator.sendBeacon&&navigator.sendBeacon(url,new Blob([body],{type:'application/x-www-form-urlencoded'})))return;}catch(e){}
+    try{fetch(url,{method:'POST',body:body,keepalive:true,headers:{'Content-Type':'application/x-www-form-urlencoded'}});}catch(e){}
+  }
+  send('pagina_visita');
+  [apk,pc].forEach(function(a){a.addEventListener('click',function(){send('descarga_click',{archivo:a.getAttribute('data-file'),desde:'boton'});});});
+  var op=document.getElementById('opinion');
+  if(op)op.addEventListener('click',function(){send('opinion_click',{desde:'pagina'});});
+})();
+</script>
+</body>
+</html>

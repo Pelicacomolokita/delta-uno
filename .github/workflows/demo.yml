@@ -3,6 +3,10 @@
 # - Con una etiqueta de versión (v0.12.0, v0.13.0…): además publica una versión en Releases, para compartir.
 # - A mano (Actions → "Armar la demo" → Run workflow): arma y publica la versión de package.json en Releases.
 #   Si esa versión ya estaba publicada, reemplaza los archivos (sirve después de cargar las variables de abajo).
+#   Al publicar, también actualiza la página de descarga (GitHub Pages). Hay que activarla una vez:
+#   Settings → Pages → Source: "GitHub Actions".
+# Los archivos se llaman siempre igual (delta-uno.apk y delta-uno-pc.zip), así el enlace
+# https://github.com/<usuario>/<repo>/releases/latest/download/delta-uno.apk baja siempre la última versión.
 # Los datos de PostHog y el enlace del formulario se cargan en Settings → Secrets and variables → Actions → Variables:
 #   POSTHOG_KEY, POSTHOG_HOST (opcional) y FEEDBACK_URL. Sin ellos, la demo no manda datos ni muestra "Dar tu opinión".
 name: Armar la demo
@@ -62,16 +66,16 @@ jobs:
           V=$(node -p "require('./package.json').version")
           echo "V=$V" >> "$GITHUB_ENV"
           mkdir -p salida pc
-          cp android/app/build/outputs/apk/release/app-release.apk "salida/delta-uno-$V.apk"
+          cp android/app/build/outputs/apk/release/app-release.apk salida/delta-uno.apk
           cp dist/index.html "pc/Delta Uno.html"
           cp docs/version/LEEME-pc.txt pc/LEEME.txt
-          (cd pc && zip -q -r "../salida/delta-uno-pc-$V.zip" .)
+          (cd pc && zip -q -r ../salida/delta-uno-pc.zip .)
           sed "s/VERSION/$V/g" docs/version/notas.md > notas.md
           ls -la salida
 
       - name: Revisar el APK
         run: |
-          APK="salida/delta-uno-$V.apk"
+          APK=salida/delta-uno.apk
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
           echo "Herramientas: $BT"
           "$BT/aapt2" dump badging "$APK" | grep -E "^package:|[sS]dkVersion|application-label:|^application:" | tee badging.txt
@@ -96,6 +100,39 @@ jobs:
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then TAG="$GITHUB_REF_NAME"; else TAG="v$V"; fi
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release upload "$TAG" salida/* --clobber
+            gh release edit "$TAG" --notes-file notas.md
+            # saca archivos viejos que ya no se arman (por ejemplo, de cuando llevaban el número de versión)
+            for f in $(gh release view "$TAG" --json assets --jq '.assets[].name'); do
+              [ -e "salida/$f" ] || gh release delete-asset "$TAG" "$f" --yes
+            done
           else
-            gh release create "$TAG" salida/* --target "$GITHUB_SHA" --title "Delta Uno $V (demo)" --notes-file notas.md
+            gh release create "$TAG" salida/* --target "$GITHUB_SHA" --title "Delta Uno $V (demo)" --notes-file notas.md --latest
           fi
+
+      - name: Armar la página de descarga
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        run: node scripts/pagina.mjs --apk salida/delta-uno.apk --pc salida/delta-uno-pc.zip
+        env:
+          VITE_POSTHOG_KEY: ${{ vars.POSTHOG_KEY }}
+          VITE_POSTHOG_HOST: ${{ vars.POSTHOG_HOST }}
+          VITE_FEEDBACK_URL: ${{ vars.FEEDBACK_URL }}
+
+      - uses: actions/upload-pages-artifact@v4
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        with:
+          path: dist-pagina
+
+  # Publica la página de descarga en https://<usuario>.github.io/<repo>/
+  pagina:
+    needs: armar
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.publicar.outputs.page_url }}
+    steps:
+      - id: publicar
+        uses: actions/deploy-pages@v4

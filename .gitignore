@@ -4,3 +4,6 @@ dist-test/
 tests/capturas/
 .DS_Store
 *.log
+
+# Página de descarga armada (scripts/pagina.mjs)
+dist-pagina/

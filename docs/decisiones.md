@@ -123,7 +123,8 @@ Los récords se guardan por modo y, en Conquista y Supervivencia, también por d
 
 ## Demo pública
 
-- **Plataformas:** APK para Android 7 o más nuevo, y un zip con el HTML para jugar en la computadora. Los arma GitHub y se publican en Releases.
+- **Plataformas:** APK para Android 7 o más nuevo, y un zip con el HTML para jugar en la computadora. Los arma GitHub y se publican en Releases, siempre con el mismo nombre (`delta-uno.apk`, `delta-uno-pc.zip`) para que los enlaces apunten a la última versión.
+- **Página de descarga:** en GitHub Pages. En el teléfono destaca el botón de Android; en la computadora, el de computadora y un código QR para pasarla al teléfono; en iPhone avisa que no hay versión. Atajos `/apk` y `/pc` para compartir. Cuenta visitas y descargas de forma anónima, con `utm_source` para saber de qué foro vino cada uno.
 - **App Android:** pantalla completa, siempre en horizontal (gira sola entre los dos lados) y con la pantalla siempre encendida. Sin botón de pantalla completa, porque ya lo está.
 - **Identificador de la app:** `io.github.pelicacomolokita.deltauno`, provisorio hasta que Santiago lo defina.
 - **Firma:** clave de pruebas guardada en el repositorio, para que cada versión se instale encima de la anterior. No sirve para Google Play.

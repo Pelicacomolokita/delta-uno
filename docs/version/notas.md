@@ -1,11 +1,13 @@
 Demo jugable de **Delta Uno**, un juego de naves en 3D sobre un planeta esférico.
 
+**Página de descarga, con instrucciones:** https://pelicacomolokita.github.io/delta-uno/
+
 ## Qué bajar
 
 | Archivo | Para |
 |---|---|
-| `delta-uno-VERSION.apk` | Teléfonos y tablets Android 7 o más nuevos |
-| `delta-uno-pc-VERSION.zip` | Computadora (Windows, Mac o Linux): descomprimí y abrí `Delta Uno.html` en el navegador |
+| `delta-uno.apk` | Teléfonos y tablets Android 7 o más nuevos |
+| `delta-uno-pc.zip` | Computadora (Windows, Mac o Linux): descomprimí y abrí `Delta Uno.html` en el navegador |
 
 ## Instalar en Android
 
