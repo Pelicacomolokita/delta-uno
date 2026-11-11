@@ -1,7 +1,7 @@
 # DELTA UNO
 ## Reporte 01 — Historia y requisitos para desarrollo
 
-**Versión:** 0.1 · Documento de preproducción · Contiene spoilers completos.
+**Versión:** 0.3 · Documento de preproducción · Contiene spoilers completos.
 
 **Destinatario:** desarrollo, diseño de misiones y arte.
 
@@ -69,7 +69,7 @@ Los tres acompañan al jugador desde la emboscada y durante toda la campaña 2. 
 
 ## 4. Rastro: pista, encuentros y recuperación
 
-**ACORDADO:** el tutorial muestra una maniobra reconocible de evasión realizada por Rastro. Más adelante un enemigo la repite, generando sospechas. Debe poder escapar de varios encuentros.
+**ACORDADO, actualizado:** la maniobra reconocible de Rastro se presenta en combate durante la convivencia previa a la emboscada; no exige modificar la misión 1 ya realizada. Más adelante un enemigo la repite, generando sospechas. Debe poder escapar de varios encuentros.
 
 **BASE PROPUESTA — «La firma»:** amaga hacia un lado, evade hacia el contrario y sale con un golpe de turbo. La IA debe mostrarla delante del jugador en una situación despejada. Confirmar que el amague puede representarse con los controles actuales de IA.
 
@@ -77,7 +77,7 @@ Ejemplo de radio, aún no asignado a un cronograma: Chispa: «Otra vez la firma.
 
 Progresión propuesta:
 
-1. Tutorial: conocemos al piloto y su maniobra.
+1. Primeras misiones: conocemos al piloto y vemos su maniobra en combate, con una segunda aparición antes de la emboscada.
 2. Emboscada: su nave cae fuera de vista; se pierde su señal. Queda presuntamente muerto.
 3. Campaña 2: un enemigo repite la maniobra. No basta para identificarlo.
 4. Nuevos encuentros: aparecen coincidencias de táctica, voz o conocimiento del grupo.
@@ -100,13 +100,23 @@ Progresión propuesta:
 
 ## 5. Arco de campañas y bajas
 
-### Campaña 1 — introducción de tres misiones
+### Campaña 1 — introducción ampliada de siete misiones
 
-**Misión 1 — entrenamiento. ACORDADO:** tres partes: anillos para aprender a volar; torretas en un sector; tres naves enemigas de práctica. Introduce al líder, al grupo y la maniobra de Rastro. Debe quedar claro que las naves de práctica no representan compañeros muertos. Tipo de simulación y reutilización de modelos: por definir.
+**ACORDADO, actualizado:** conservar la misión 1 realizada, dedicar las primeras cinco misiones a aprender mecánicas, conocer el mundo y convivir con el escuadrón, y trasladar la emboscada a la misión 6. La escolta y asalto original queda como misión 7. La dificultad crece mediante nuevas decisiones y combinaciones, no solo aumentando enemigos. Se incorpora conocimiento de ciudades y sectores con estructuras de vuelo. Nombres, encuentros concretos y geometrías del apartado 13 son propuestas para aprobar y probar.
 
-**Misión 2 — emboscada. ACORDADO:** formación inicial con jugador y nueve aliados. Durante los primeros 40 segundos caen seis aliados; algunas caídas ocurren delante del jugador, incluido el líder alcanzado por un misil. Hay que sobrevivir dos minutos. Quedan Aguja, Chispa y Faro junto al jugador y luego derriban tres bombarderos. Propuesta temporal a validar en la ficha: los 40 segundos forman parte de los dos minutos, no se suman. Los bombarderos aún están en desarrollo y son dependencia explícita.
+**Misión 1 — entrenamiento, ya realizada según el autor.** No se ha inspeccionado su implementación. La descripción original incluía anillos, torretas y tres naves de práctica; esa descripción no autoriza a rehacer lo existente. Contrastar cualquier ajuste con el desarrollador. La demostración de Rastro pasa a combate real en misiones posteriores.
 
-**Misión 3 — escolta y asalto. ACORDADO:** proteger un transporte aproximadamente cinco veces mayor que el caza mientras se asaltan tres zonas enemigas. Los tres compañeros participan. El corredor recuperado permite sostener suministros y equipos de reparación. Ruta, paradas y secuencia exacta de zonas pendientes.
+**Misión 2 — primera salida.** Una posición enemiga amenaza el acceso aéreo a una ciudad costera. Combate con cazas y torretas en encuentros separados. Introducir la lectura del blanco, fijación y misiles sin exigir gasto obligatorio de munición. Rastro evade delante del jugador. Se abre la ruta del transporte de la misión siguiente.
+
+**Misión 3 — carga importante.** Escoltar un transporte hacia la ciudad, por un recorrido amplio entre infraestructura portuaria. Enseñar prioridades y cobertura del convoy. Repetir la maniobra de Rastro en una intercepción visible. La carga permite sostener un nodo de suministros que será atacado en M4.
+
+**Misión 4 — mantener la posición.** Defensa por oleadas de los accesos al nodo, sin necesitar daño simulado sobre edificios civiles. Se introducen pausas de combate, gestión de turbo y oportunidad de reparación de ocho segundos, sin imponer recibir daño. El ataque obliga a abrir otra vía de abastecimiento en M5.
+
+**Misión 5 — abrir el paso.** Aproximación baja entre mesetas y asalto secuencial a dos posiciones que bloquean la ruta alternativa. Es la primera combinación exigente de navegación y combate. El sigilo real se incorpora solo si se implementa la detección necesaria; existe alternativa de aproximación táctica con patrullas y sectores de detección actuales. El éxito habilita el desplazamiento del escuadrón en M6.
+
+**Misión 6 — emboscada.** Formación inicial con jugador y nueve aliados. Durante los primeros 40 segundos caen seis aliados; algunas caídas ocurren delante del jugador, incluido el líder alcanzado por un misil. Hay que sobrevivir dos minutos. Quedan Aguja, Chispa y Faro junto al jugador y luego derriban tres bombarderos. Propuesta temporal a validar: los 40 segundos forman parte de los dos minutos. Los bombarderos son dependencia explícita. La emboscada debe ocurrir en un paso con espacio para evadir, sin exigir combate dentro de un túnel estrecho.
+
+**Misión 7 — los que quedan.** Proteger un transporte aproximadamente cinco veces mayor que el caza mientras se asaltan tres zonas enemigas. Participan los tres compañeros. Se recupera el corredor tras las pérdidas. La complejidad está en alternar protección y ataque; la intensidad tiene descansos para que se sientan las ausencias.
 
 ### Campaña 2 — alrededor de diez misiones
 
@@ -168,7 +178,7 @@ La alianza no borra agravios ni convierte a todos los Desligados en aliados. Pue
 | Interceptores | Pasadas rápidas y hostigamiento. | Evitar que una misión dependa de perseguirlos fuera del sector. |
 | Drones / nodriza | Enjambres y dominio de una posición. | Drones cuentan en el presupuesto de naves; confirmar destrucción y emisión de la nodriza. |
 | Lanzamisiles terrestres | Amenaza de fijación que exige evasión o turbo. | En desarrollo. |
-| Bombarderos | Amenaza prioritaria contra convoy o instalación. | En desarrollo; requeridos por C1-M2. |
+| Bombarderos | Amenaza prioritaria contra convoy o instalación. | En desarrollo; requeridos por C1-M6. |
 
 El caza del jugador conserva cañón, hasta cuatro misiles guiados con fijación previa, escudo y casco, turbo con recalentamiento, evasión lateral, reparación de ocho segundos interrumpida por daño y cámara de seguimiento de un enemigo elegido. No escribir objetivos que exijan munición o capacidades adicionales sin marcarlos.
 
@@ -244,9 +254,9 @@ Preparar el acontecimiento dentro del campo de visión probable, con separación
 1. Comprobar soporte de fases, reinicio, eventos y cola de radio.
 2. Prototipar un sector operativo con aviso de límite y puntos de entrada/salida. **POR DEFINIR:** respuesta al jugador que insiste en salir; no se eligió pared invisible, giro forzado ni derrota por abandono.
 3. Probar la maniobra reconocible de Rastro y una retirada completa, incluidos misiles en vuelo.
-4. Preparar la secuencia de entrenamiento y el formato de objetivos encadenados.
+4. Conservar la misión 1 realizada y preparar objetivos encadenados para la introducción ampliada.
 5. Confirmar convoy por puntos, paradas y reanudación; mantener escala de referencia 5:1.
-6. Terminar bombarderos para C1-M2 y comprobar el presupuesto de naves en la emboscada.
+6. Terminar bombarderos para C1-M6 y comprobar el presupuesto de naves en la emboscada.
 7. Crear variantes visuales por facción y marcadores de compañeros sin exigir modelos únicos.
 8. Preparar estructuras ambientales modulares; separar decoración de blancos funcionales.
 
@@ -263,3 +273,262 @@ No construir todavía la solución definitiva del sacrificio, un sistema de recu
 - Después de aprobar C1, entregar la lista definitiva de misiones de C2 y C3 para desarrollar sus fichas.
 
 **Criterio de cierre de este reporte:** el desarrollador puede preparar sistemas y recursos comunes sin confundir propuestas narrativas con funcionalidades existentes ni escenas todavía pendientes con especificaciones finales.
+
+
+## 13. Introducción progresiva y construcción del mapa — actualización 0.2
+
+### Principios de dificultad
+
+- Una exigencia nueva dominante por misión; reutilizar lo conocido en un contexto distinto.
+- Separar el primer aprendizaje de maniobra de la primera presión fuerte de combate. Evitar radio explicativa durante el tramo más estrecho.
+- Mostrar primero el obstáculo con tiempo para elegir trayectoria. No ubicar una salida ciega, un giro cerrado y una amenaza nueva en el mismo punto.
+- El equipo acompaña y ayuda de verdad. No concentrar nueve voces en cada salida: destacar dos compañeros por misión y rotar a los restantes.
+- Escalar la dificultad por simultaneidad de decisiones: volar, elegir blanco, proteger y administrar recursos. Mantener una intensidad distinta de la complejidad: M7 puede ser más compleja y menos frenética que la emboscada.
+- Respetar unas 25 naves simultáneas; usar oleadas y distribución espacial sin asumir que ampliar el mapa aumenta el límite técnico.
+
+### Curva propuesta para pruebas
+
+Escala cualitativa 1 a 5, no valores de IA ni dificultad final aprobada.
+
+| Misión | Manejo | Combate | Atención dividida | Aprendizaje principal |
+|---|---|---|---|---|
+| 1, realizada | Revisar lo existente | Revisar lo existente | Revisar lo existente | Conservar y comprobar qué enseña realmente. |
+| 2 | 1 | 1 | 1 | Leer amenazas y seleccionar/fijar blancos. |
+| 3 | 2 | 2 | 2 | Proteger algo además de la propia nave. |
+| 4 | 2 | 3 | 3 | Priorizar, apoyar compañeros y aprovechar respiros. |
+| 5 | 3 | 3 | 3 | Leer el terreno, aproximarse y elegir cuándo atacar. |
+| 6 | 3 | 4 | 4 | Sobrevivir, reagruparse e interceptar bombarderos. |
+| 7 | 3 | 3 | 4 | Combinar escolta y liberación de zonas. |
+
+No fijar cantidades ni temporizadores definitivos antes de probar controles, cámara y duración de encuentros. La reparación no necesita convertirse en objetivo obligatorio si el jugador no recibió daño. Tampoco se debe agotar munición para forzar una lección; confirmar política de reposición entre fases.
+
+### Ciudades que vale la pena defender
+
+**BASE PROPUESTA — Puerto Clara:** ciudad costera que concentra viviendas, puerto y plataformas de carga. En M2 se conoce su acceso; en M3 llega el transporte; en M4 se defiende el nodo que la abastece. La familiaridad nace de regresar al lugar y reconocer su función. No requiere civiles caminando, tráfico ni edificios destruibles.
+
+**BASE PROPUESTA — Alto del Paso:** asentamiento industrial entre mesetas, conectado visualmente con depósitos y caminos. M5 abre su corredor. Permite mostrar diferencias de inversión y mantenimiento entre regiones y preparar el contexto social de los Desligados, sin revelar aún su futura fuerza militar.
+
+Diseño urbano: silueta legible desde el aire, dos o tres hitos grandes por sector, accesos amplios y áreas residenciales reconocibles separadas de las posiciones de combate. Las rutas iniciales atraviesan periferia y corredores industriales. Evitar transformar edificios civiles en blancos puntuables. La destrucción civil, penalizaciones por fuego amigo o daño estructural son mecánicas no confirmadas y no se requieren para estas misiones.
+
+### Estructuras de vuelo para el mapa
+
+| Estructura propuesta | Primer uso | Variante futura | Necesidad técnica |
+|---|---|---|---|
+| Pórticos de carga y arcos amplios | M3: atravesar un acceso portuario con buena visibilidad. | Recorrido contra reloj entre varios accesos. | Geometría con colisiones y pruebas de cámara. |
+| Canal o cauce abierto entre mesetas | M5: mantener vuelo bajo siguiendo curvas suaves. | Patrullas arriba y rutas alternativas. | Terreno y marcadores de ruta; sigilo es una incorporación separada. |
+| Puente elevado con paso inferior ancho | M5: atajo opcional de manejo. | Variante avanzada con tiempo o amenaza. | Colisiones coherentes; no requiere destrucción ni vehículos. |
+| Rocas flotantes espaciadas | M2/M3: referencias y obstáculos opcionales. | Trayectorias alternativas durante combate. | Comprobar navegación de aliados y espacio para evasión. |
+| Laderas con recodos y explanadas | M5/M6: variar aproximaciones y permitir reagrupamiento. | Emboscadas más complejas. | No asumir que el terreno bloquea detección o disparos sin soporte real. |
+| Grandes conductos industriales exteriores | Presentación ambiental antes de la central. | Ruta técnica en campaña 3. | Colisiones y lectura visual; entrada a túneles no requerida. |
+
+Construir módulos y prototipos grises antes del arte final. Ancho y altura se calculan desde la envolvente de nave, desplazamiento de evasión, velocidad típica, radio de giro y cámara reales. No fijar metros arbitrarios. Un paso para el caza puede ser inviable para un transporte de escala 5:1: darle una ruta distinta y no exigir al convoy atravesar huecos diseñados para cazas. Los aliados necesitan trayectoria válida propia.
+
+Los pasos estrechos iniciales son opcionales o tienen una ruta amplia equivalente. El primer tramo obligatorio de vuelo bajo permite reducir velocidad, ver la salida y recuperar altura si se comete un error. No exigir turbo en curvas ciegas. Verificar el daño por colisión antes de decidir si un roce puede terminar una fase.
+
+### Vuelo bajo y sigilo: dos variantes distintas
+
+**Variante A, sin sigilo nuevo:** el recorrido evita las proximidades de zonas enemigas y aprovecha cómo se distribuyen los enemigos actualmente. Hay vuelo bajo por navegación y ficción táctica, pero no se promete que bajar altitud reduzca detección. Un muro o una meseta no ocultan automáticamente al jugador. Si los radios actuales no permiten una ruta coherente, no presentar esa aproximación como indetectable.
+
+**Variante B — [MECÁNICA NUEVA] detección por terreno:** comprobar distancia y línea de visión contra terreno/estructuras, incorporar sospecha o alerta legible y decidir cómo se comparte el aviso. Si se desea que la altitud modifique detección, debe definirse respecto de la superficie local del planeta, no de un eje vertical global. Definir qué delata al jugador: exposición visual, disparos y, solo si se decide, turbo. No atribuir ruido al turbo sin implementarlo.
+
+Primera misión de sigilo propuesta: cruzar un cauce para alcanzar una posición defensiva antes de que se coordine con la otra. Entrada al cauce → recorrido con exposición legible → llegada al punto de ataque → asalto. El tramo termina antes del combate principal. Detección temprana activa un encuentro adicional o cambia el orden de la defensa, sin superar el límite de naves; no implica derrota automática en esta primera enseñanza. El comportamiento de alerta y esa ramificación también requieren implementación.
+
+No es una misión de infiltración a pie y no necesita vehículos terrestres. Los estados de detección deberán corresponder al jugador y a los aliados: definir si estos siguen la ruta baja, esperan fuera o avanzan por otro corredor. No permitir que un compañero revele al equipo sin que el jugador pueda comprenderlo o prevenirlo.
+
+### Convivencia durante operaciones
+
+| Misión | Vínculo a desarrollar | Momento adecuado |
+|---|---|---|
+| 2 | Ferreyra da confianza; Rastro demuestra competencia. | Aproximación y maniobra visible en combate despejado. |
+| 3 | Chispa reconoce la costumbre de Rastro; Faro cuida al transporte. | Tránsito seguro y salida de la intercepción. |
+| 4 | Aguja pide apoyo con precisión; Rastro cubre al jugador. | Cambio de objetivo real, sin guionizar una salvación que contradiga el combate. |
+| 5 | El equipo coordina una operación ya exigente; los otros cuatro pilotos tienen hábitos reconocibles. | Distribuir sus intervenciones entre aproximación y pausas. |
+| 6 | Se interrumpen rutinas conocidas y se pierden voces que el jugador reconoce. | Bajas visibles y reagrupamiento; las instrucciones tienen prioridad. |
+| 7 | Cuatro naves intentan cumplir tareas que antes repartían entre diez. | Formación reducida y espacios de radio más silenciosos. |
+
+Los compañeros no tienen que morir prematuramente para enseñar que están en riesgo. Sus amenazas y solicitudes de apoyo pueden ser reales con una condición de derrota clara si son esenciales. Las caídas fijadas en la emboscada siguen siendo eventos narrativos, no seis fallos inevitables de un objetivo que prometía salvarlos.
+
+### Orden sugerido de construcción y verificación
+
+1. Registrar qué enseña la misión 1 existente sin rehacerla por esta guía.
+2. Prototipar Puerto Clara, un pórtico amplio, un cauce y un puente con paso inferior. Geometría simple y colisiones primero.
+3. Probar nave, cámara, evasión, turbo y trayectorias de compañeros y transporte.
+4. Montar M2 y M3 para comprobar aprendizaje y reconocimiento de lugares/personajes.
+5. Montar M4 y probar pausas, apoyo aliado y reparación sin saturar radio.
+6. Probar M5 en variante A. Si se aprueba sigilo real, implementar y verificar la variante B antes de escribir instrucciones que lo prometan.
+7. Ajustar M6 y M7 conservando los hitos narrativos y las dependencias de bombarderos y convoy.
+8. Agregar arte y clima decorativo después de validar legibilidad, navegación y rendimiento en teléfono.
+
+**Pendiente para fichas ejecutables:** cantidades por tipo, posiciones, tiempos, medallas, condición de derrota por fase, cronograma de radio y parámetros de detección. Este apartado autoriza una dirección de construcción y propone desafíos; no presenta esos valores como probados.
+
+
+## 14. Reporte de geografía y construcción del planeta — versión 0.3
+
+**Destinatario:** desarrollador del mapa y del director de misiones.
+
+Este apartado responde las veinte consultas de desarrollo. Conserva la historia y la introducción ampliada de los apartados anteriores. La distribución territorial, red, rutas, indicativo inicial y reglas de bajas que siguen son propuestas concretas para revisión; la solicitud de elaborar el reporte no las convierte por sí sola en decisiones aprobadas.
+
+**Información técnica informada por desarrollo:** actualmente el generador distribuye biomas, seis zonas enemigas y rocas flotantes sin relación con la historia; existe un lado nocturno fijo. No se inspeccionó código ni se verificó rendimiento.
+
+### 14.1 Decisiones que desbloquean el mapa
+
+| Prioridad | Dirección recomendada | Alcance y estado |
+|---|---|---|
+| 1 | Conservar el generador y fijar regiones narrativas sobre una semilla estable. | Propuesta de arquitectura; validar con desarrollo. |
+| 2 | Una geografía compartida entre campaña y modos libres. | Propuesta; estados y progreso independientes. |
+| 3 | Mantener el tamaño actual durante el prototipo. | Propuesta; ajustar solo después de probar escala y tiempos. |
+| 4 | Guardia en el núcleo costero, Directorio en el eje extractivo y Desligados en periferia/polar. | Propuesta territorial detallada abajo. |
+| 5 | Cinco estabilizadores regionales y una central de regulación en Corona Negra. | Propuesta; distinguir de la central militar del Directorio. |
+| 6 | Corredor de M7: Costa Clara → Cuenca Verde → Alto del Paso. | Propuesta de ruta; tres posiciones defensivas. |
+
+No se solicita pintar manualmente todo el planeta ni presupone mapas de textura de un tamaño concreto. El generador conserva detalles secundarios, pero no debe cambiar accesos, terreno de misión, posiciones estructurales o colisiones dentro de los recorridos diseñados. Si hay decoraciones aleatorias, excluirlas de corredores reservados.
+
+### 14.2 Respuestas a las consultas 1–3: generación, modos y escala
+
+**1. Generación híbrida.** Fijar forma general de las regiones, bioma, bases, poblaciones, infraestructura, corredores, concentraciones de rocas y puntos de llegada/escape. Generar detalle secundario con semilla estable. Las seis zonas enemigas actuales no definen la campaña: cada operación requiere su propia composición de encuentros.
+
+**2. Modos libres.** Recomendación: compartir geografía sin compartir progreso. Campaña usa su ocupación narrativa; Conquista configura bandos para esa partida; Supervivencia usa oleadas de un sector; Carrera recorre trazados diseñados; Vuelo libre permite explorar con amenazas configurables. Una sesión libre no libera posiciones de la campaña. No limitar una partida libre al sector de una misión que no está ejecutándose.
+
+**3. Escala.** Mantener provisionalmente los tres minutos aproximados de travesía. Las siete regiones son áreas reconocibles, no siete metrópolis. Iniciar cada operación cerca de su sector; no introducir viajes planetarios obligatorios para rellenar duración. Ajustar tamaño de ciudad, relieve y distancias con pruebas reales. La recomendación no garantiza mejoras de rendimiento.
+
+### 14.3 Respuestas a las consultas 4–5: territorio y vecindad
+
+**4. Presencia inicial propuesta.** Guardia: Costa Clara y Cuenca Verde, más puestos aislados en Las Agujas. Directorio: Salinas del Sur, el complejo de Corona Negra y posiciones en Las Agujas/Mar de las Columnas. Desligados: comunidades de Paso del Deshielo y células periféricas junto a instalaciones de extracción. Su presencia en Corona Negra al comienzo de campaña 3 deriva de la captura posterior; no es su capital original.
+
+El frente principal cruza Cuenca Verde → Las Agujas → Salinas. No es una línea cerrada que divide tres países: hay corredores y posiciones aisladas. El mar ofrece una alternativa expuesta para transportes. Una región con ocupación militar del Directorio no implica que su población civil lo apoye.
+
+**5. Ubicación relativa propuesta.** Orientación referida a la iluminación actual; las coordenadas definitivas se decidirán dentro del generador.
+
+| Región | Posición | Vecinos / accesos relevantes |
+|---|---|---|
+| Costa Clara | Núcleo del hemisferio diurno. | Cuenca Verde y Mar de las Columnas. |
+| Cuenca Verde | Interior costero hacia el frente. | Costa Clara y Las Agujas. |
+| Las Agujas | Transición de vegetación a terreno seco. | Cuenca Verde, Salinas y Paso del Deshielo. |
+| Salinas del Sur | Sector seco próximo al terminador. | Las Agujas, Mar de las Columnas y Corona Negra. |
+| Mar de las Columnas | Ruta marítima lateral al corredor interior. | Costa Clara y Salinas. |
+| Paso del Deshielo | Franja polar que se extiende hacia la noche. | Las Agujas y Corona Negra. |
+| Corona Negra | Hemisferio nocturno, aproximadamente opuesto a Costa Clara. | Salinas y Paso del Deshielo. |
+
+Corona Negra está lejos del núcleo de la Guardia, pero conectada a instalaciones industriales. Una conexión indica vecindad/acceso, no necesariamente un camino transitable por tierra. Reservar mar y transiciones suficientes para no comprimir siete escenarios incompatibles en un mismo paso. No convertir esta tabla en coordenadas geográficas aprobadas.
+
+### 14.4 Respuestas a las consultas 6–8: base, población y noche
+
+**6. Base Delta, propuesta.** Base costera en Costa Clara, separada de Puerto Clara. Hangares bajos, antenas, plataformas y acceso abierto hacia el mar. Misiones comienzan con naves en vuelo cerca de la base o del sector. Regresar consiste en llegar a un punto de reunión. **[MECÁNICA NUEVA]** Aterrizar o despegar de forma controlada por el jugador no es dependencia de las primeras campañas.
+
+**7. Ciudades visibles, propuestas.**
+
+| Lugar | Región | Identidad y estado inicial |
+|---|---|---|
+| Puerto Clara | Costa Clara | Ciudad portuaria vinculada a la Guardia; viviendas, depósitos y plataformas. Mayormente intacta. |
+| Alto del Paso | Las Agujas | Asentamiento industrial de población diversa; ocupación parcial y servicios interrumpidos. |
+| Asentamientos del Deshielo | Paso del Deshielo | Comunidades donde crecen los Desligados; reparaciones precarias y abandono acumulado. |
+
+Dos poblaciones principales y pequeños asentamientos bastan para la primera construcción. Usar hitos grandes y accesos legibles. No requieren peatones, tráfico ni destrucción física. Barrios residenciales se distinguen de defensas y depósitos. Las ciudades no son bloques enteros de blancos militares.
+
+**8. Noche.** Conservar el lado nocturno fijo, sin introducir todavía una explicación astronómica obligatoria. Hay población e industria allí y se proponen operaciones nocturnas. La iluminación ayuda a reconocer instalaciones y rutas. No usar noche como sinónimo de enemigo ni como penalización de sensores no implementada.
+
+### 14.5 Respuestas a las consultas 9–11: nácar, estabilizadores y techo
+
+**9. Nácar visual, propuesta.** Conservar las rocas grises y agregar vetas claras con brillo turquesa tenue, sobre todo perceptible en sombra. El brillo no requiere luz dinámica en cada roca. Concentraciones medias en Las Agujas, grandes bloques separados en Mar de las Columnas y acumulaciones vinculadas a la red en Corona Negra. Ejemplares aislados en otras regiones. Excluir recorridos que deban quedar despejados. Algunas concentraciones tienen anclajes y plataformas extractivas ambientales. No se pide minería, recolección ni destrucción de rocas.
+
+**10. Estabilizadores, propuesta.** Son instalaciones que regulan la red de aprovechamiento del nácar. Silueta repetible: elemento central y tres soportes externos con iluminación identificable. La central usa la misma familia visual a mayor escala.
+
+| ID sugerido | Instalación | Región |
+|---|---|---|
+| STAB_COAST | Nodo costero | Costa Clara |
+| STAB_FOREST | Nodo forestal | Cuenca Verde |
+| STAB_PASS | Nodo de transferencia | Las Agujas |
+| STAB_SALT | Nodo extractivo | Salinas del Sur |
+| STAB_POLAR | Nodo polar | Paso del Deshielo |
+| REGULATION_CORE | Central de regulación planetaria | Corona Negra |
+| DIRECTORATE_HQ | Centro de mando militar del Directorio | Salinas del Sur |
+
+Hay cinco nodos regionales más la central de regulación. DIRECTORATE_HQ es otra instalación: la desactivación de campaña 2 rompe mando y coordinación militar, no apaga la infraestructura que sostiene el planeta. Su posición exacta y arquitectura pueden compartir el lenguaje industrial, pero su objetivo debe distinguirse en interfaz y radio.
+
+Conexiones principalmente subterráneas/submarinas, con conductos y terminales visibles localmente. No se requieren cables luminosos sobre toda la esfera. Los nodos son hitos ambientales al principio. **[MECÁNICA NUEVA]** Desactivación interactiva, blancos funcionales y efectos de propagación deben implementarse expresamente si una misión los necesita.
+
+**11. Techo de vuelo, propuesta.** Capa atmosférica tenue, más visible al aproximarse, y aviso de cabina. Auroras decorativas en regiones polares son opcionales. No se pide una tormenta eléctrica permanente ni daño por rayos. Definir primero la respuesta jugable al techo y hacer que los efectos la comuniquen; el efecto visual no sustituye esa regla.
+
+### 14.6 Respuestas a las consultas 12–15: rutas y emboscada
+
+**Corrección de numeración:** la emboscada es C1-M6 y la escolta con tres zonas es C1-M7. C1-M3 es la primera escolta de menor dificultad. No utilizar referencias antiguas para construir el corredor grande.
+
+**12. Corredor propuesto para C1-M7.** Salida cercana a Base Delta → periferia de Puerto Clara → Cuenca Verde → puesto de abastecimiento de Alto del Paso. La ruta repite espacios conocidos y muestra cuánto cuesta mantenerlos tras la emboscada.
+
+| Orden | Zona que bloquea la ruta | Función | Punto de espera del convoy |
+|---|---|---|---|
+| 1 | Batería del Estuario | Domina la salida costera. | En el espacio abierto del lado seguro del estuario. |
+| 2 | Puesto de la Cuenca | Controla el corredor de suministros forestal. | En un claro amplio ya asegurado. |
+| 3 | Batería del Paso | Impide llegar a Alto del Paso. | Antes del acceso final, fuera de su alcance inicial. |
+
+El transporte avanza después de liberar la posición correspondiente. Confirmar IA por puntos, espera y reanudación. Evitar que aparezcan enemigos fuera de las zonas sin comunicarlo y bloqueen la condición de liberación. La ruta se calibra para tránsitos breves y espacio apto para la escala 5:1.
+
+**Continuidad propuesta M5–M7.** M5 abre la ruta alternativa. M6 intenta reforzarla y sufre la emboscada. Durante esa operación el Directorio retoma las tres posiciones. M7 transporta suministros y recupera el corredor. Este contraataque debe comunicarse en el resumen de M6 y la instrucción de M7: no reaparecen defensas por un reinicio arbitrario del mapa.
+
+**13. Red terrestre propuesta.** Ruta principal Puerto Clara → depósitos de Cuenca Verde → Alto del Paso → instalaciones de Salinas. Ramal desde Alto del Paso hacia Paso del Deshielo. Vía industrial de Salinas hacia Corona Negra donde el terreno lo permita. Mantener transportes aéreos/marítimos para discontinuidades; no construir un puente que recorra el planeta.
+
+- Puente del Estuario: conecta puerto y depósitos.
+- Viaducto del Paso: cruza un barranco de acceso a Alto del Paso.
+
+Ambos pueden tener pasos inferiores opcionales para cazas. No necesitan ser destruibles ni tener vehículos ahora. Su destrucción futura requerirá estados y consecuencias de ruta, no solo una explosión cosmética.
+
+**14. Emboscada en Las Agujas, propuesta de contexto.** El escuadrón parte de un punto de reunión en Cuenca Verde hacia Alto del Paso para reforzar la ruta abierta en M5. Atacantes esperan detrás de mesetas y entran por los flancos; defensas terrestres participan según las capacidades implementadas. No presentar una ladera como bloqueo de sensores si no existe oclusión de detección. Los tres bombarderos amenazan el puesto de abastecimiento y plataformas de evacuación de Alto del Paso. La emboscada intenta eliminar a quienes pueden interceptarlos. La amenaza sobre el lugar puede resolverse con objetivo y temporizador de misión; daño real a edificios no está confirmado.
+
+Se mantienen los hitos: seis aliados derribados en cuarenta segundos, dos minutos de supervivencia y luego tres bombarderos. Las cantidades de atacantes y tiempos de aparición precisos quedan para la ficha ejecutable. Respetar presupuesto de naves durante cada fase.
+
+**15. Costa Clara.** Está cerca de Base Delta y se vuelve allí. Se reconoce su puerto y costa antes y después de las bajas. La familiaridad aporta significado sin necesitar una ciudad distinta para cada misión.
+
+### 14.7 Respuestas a las consultas 16–17: persistencia y desgaste
+
+**16. Estados del planeta, propuesta.** Mantener geografía y semilla; cambiar ocupación, pintura, actividad, presencia militar y variantes de daño según campaña/misión. Después de campaña 2 el centro militar DIRECTORATE_HQ queda desactivado. En campaña 3 los Desligados ocupan y repintan material e instalaciones capturadas, entre ellas el complejo de Corona Negra. La central de regulación sigue siendo distinta del centro militar.
+
+**[MECÁNICA NUEVA]** Si no existe persistencia narrativa, agregar estados de instalaciones/zonas y su restauración al reintentar. Consolidar progreso al completar la misión; al reiniciar una fase, restaurar el estado de entrada de esa fase. Los modos libres usan una configuración separada. No requerir simulación bélica global fuera del sector.
+
+**17. Desgaste propuesto.**
+
+| Región | Estado inicial | Evolución visible |
+|---|---|---|
+| Costa Clara | Daño leve, actividad civil e industrial. | Reparaciones puntuales y más defensas. |
+| Cuenca Verde | Suministro interrumpido y puestos activos. | Instalaciones recuperadas, algunos daños. |
+| Las Agujas | Ocupación y desgaste moderado. | Restos y cicatrices de la campaña 1. |
+| Salinas del Sur | Explotación intensa y presencia militar. | Centro de mando apagado tras campaña 2. |
+| Mar de las Columnas | Poco daño visible. | Restos e instalaciones aisladas. |
+| Paso del Deshielo | Abandono de larga data. | Reparaciones precarias y militarización. |
+| Corona Negra | Complejo activo y mantenido. | Fallas y sobrecarga al final de campaña 3. |
+
+Usar variantes de malla, pintura, luces y elementos ambientales cuando sea viable. No introducir destrucción física general como requisito implícito. Los restos no deben obstruir retroactivamente rutas críticas sin una prueba nueva.
+
+### 14.8 Respuestas a las consultas 18–20: indicativos, colores y supervivencia
+
+**18. Indicativo inicial, propuesta.** Jugador = Delta Diez. Ferreyra = Delta Uno hasta morir. Soria asigna al jugador el liderazgo provisional durante el reagrupamiento posterior a la emboscada; empieza M7 como Delta Uno. Diez coincide con jugador más nueve aliados, pero la numeración no obliga a darle a cada personaje un número como indicativo de radio principal.
+
+Ejemplo de radio: «Delta Diez, reuní a los demás. Desde ahora sos Delta Uno.» Este texto es un ejemplo, no parte de un cronograma validado; volver a contar caracteres al producir las tablas definitivas.
+
+**19. Colores, recomendación de trabajo.** Guardia: gris claro, azul petróleo y blanco. Directorio: grafito, marfil industrial y ámbar. Desligados: equipo recuperado con óxido, arena y turquesa, más repintado parcial de material capturado. Falta aprobación visual definitiva. Probar nave contra mar, nieve, cielo y noche antes de cerrar materiales. Los marcadores de identificación no dependen solo del color de pintura.
+
+**20. Compañeros imprescindibles, recomendación pendiente de confirmación.** Si caen antes de su muerte narrativa, se pierde y reinicia la parte actual. Comunicar esa condición en la instrucción. Aliados secundarios pueden morir cuando la ficha lo permita. En la emboscada las seis caídas programadas no son fallos de protección: el objetivo es sobrevivir y reagruparse. No activar la derrota genérica por muerte aliada durante esos eventos. Esta regla sustituye la propuesta por una recomendación explícita, pero no se registra como aprobación del autor.
+
+### 14.9 Paquete mínimo de construcción sugerido
+
+1. Prototipo gris de la esfera con las siete regiones y transiciones, conservando tamaño actual.
+2. Base Delta y Puerto Clara, separados pero próximos; hitos simples para Alto del Paso.
+3. Eje de ruta Costa Clara–Cuenca Verde–Las Agujas y sus tres posiciones de M7.
+4. Un pórtico, un cauce de curvas suaves y un puente de paso inferior amplio para probar vuelo y cámara.
+5. Familia visual de estabilizadores, central de regulación y centro militar distinguibles.
+6. Distribución reservada de rocas con zonas libres de obstáculos para rutas y eventos.
+7. Puntos de llegada y escape en cada sector; comprobación de navegación aliada.
+8. Prueba en teléfono de legibilidad, carga y máximo simultáneo antes de aumentar escala o densidad.
+
+Calidades Baja/Media/Alta, detalle de suelo, vegetación, efectos y variantes de nave pueden avanzar en paralelo al cierre de propuestas, como indicó desarrollo. No comprometer esas tareas a coordenadas o densidades aún no probadas.
+
+### 14.10 Decisiones pendientes para cerrar esta entrega
+
+- Aprobar o ajustar generación híbrida, planeta compartido y tamaño provisional.
+- Aprobar vecindades, ocupación inicial y corredor de M7.
+- Aprobar cinco nodos más central de regulación y la separación del centro militar.
+- Confirmar Delta Diez y el momento del relevo.
+- Confirmar derrota por baja prematura de compañero imprescindible.
+- Probar escala de poblaciones y pasos, definir límites de sector y validar retirada de Rastro.
+- Elegir vuelo bajo táctico o implementar sigilo real antes de prometer ocultamiento por terreno.
+
+**Límite del reporte:** define una propuesta coherente de mundo para que desarrollo estime y prototipe. Todavía faltan fichas completas de misión con cantidades, posiciones, temporizadores, radios, medallas y validación jugable. No hay código ni rendimiento verificados por este documento.
