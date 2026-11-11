@@ -35,7 +35,7 @@ export const MISIONES = [
     titulo: 'Entrenamiento',
     sector: { nombre: 'Costa Clara', radio: 1600, busca: 'costa' },
     instruccion: 'Costa Clara, sector de entrenamiento de la Guardia de Nácar. Hoy volás por primera vez con el escuadrón Delta, al mando de Julián Ferreyra. Son tres pruebas: pasar por los anillos, destruir torretas de práctica y derribar blancos de simulación. La munición es de práctica, pero el daño se mide igual. Si caés, repetís la prueba en la que estabas. No salgas del sector: afuera no hay apoyo y la prueba se pierde.',
-    resumen: 'Pasaste las tres pruebas. Ferreyra te sumó a la formación y Rastro ya te mostró su firma. Mañana el escuadrón vuela de verdad, sobre Las Agujas.',
+    resumen: 'Pasaste las tres pruebas. Ferreyra te sumó a la formación y Rastro ya te mostró su firma. La próxima salida es de verdad: una posición enemiga amenaza el acceso a Puerto Clara.',
     aliados: ['FERREYRA', 'AGUJA', 'RASTRO', 'CHISPA', 'FARO'],
     medallas: [
       { id: 'completa', texto: 'Completar el entrenamiento' },
@@ -97,8 +97,12 @@ export const MISIONES = [
   }
 ];
 
-// Misiones anunciadas que todavía no se pueden jugar (se muestran en el menú)
+// Misiones anunciadas que todavía no se pueden jugar (reporte 0.3: la campaña 1 tiene siete)
 export const PROXIMAS = [
-  { campana: 1, numero: 2, titulo: 'Emboscada' },
-  { campana: 1, numero: 3, titulo: 'Escolta y asalto' }
+  { campana: 1, numero: 2, titulo: 'Primera salida' },
+  { campana: 1, numero: 3, titulo: 'Carga importante' },
+  { campana: 1, numero: 4, titulo: 'Mantener la posición' },
+  { campana: 1, numero: 5, titulo: 'Abrir el paso' },
+  { campana: 1, numero: 6, titulo: 'Emboscada' },
+  { campana: 1, numero: 7, titulo: 'Los que quedan' }
 ];

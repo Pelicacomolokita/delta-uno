@@ -3524,7 +3524,7 @@ function histRecText(){
 }
 function histMenuTitle(){const m=MISIONES[0];return 'Campaña '+m.campana+' · Misión '+m.numero+': '+m.titulo;}
 function histMenuDesc(){
-  return 'Volá con el escuadrón Delta: anillos, torretas de práctica y blancos de simulación. Si caés, repetís la prueba. Próximamente: '+PROXIMAS.map(p=>p.titulo).join(' y ')+'.';
+  return 'Volá con el escuadrón Delta: anillos, torretas de práctica y blancos de simulación. Si caés, repetís la prueba. Próximamente: '+PROXIMAS.length+' misiones más de la campaña 1, empezando por "'+PROXIMAS[0].titulo+'".';
 }
 // Pantalla de instrucciones antes de despegar
 function openBrief(def){
