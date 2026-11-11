@@ -121,6 +121,21 @@ Tiene olas a dos escalas, más claras en las crestas, y espuma de cerca, todo en
 
 Los récords se guardan por modo y, en Conquista y Supervivencia, también por dificultad.
 
+## Demo pública
+
+- **Plataformas:** APK para Android 7 o más nuevo, y un zip con el HTML para jugar en la computadora. Los arma GitHub y se publican en Releases.
+- **App Android:** pantalla completa, siempre en horizontal (gira sola entre los dos lados) y con la pantalla siempre encendida. Sin botón de pantalla completa, porque ya lo está.
+- **Identificador de la app:** `io.github.pelicacomolokita.deltauno`, provisorio hasta que Santiago lo defina.
+- **Firma:** clave de pruebas guardada en el repositorio, para que cada versión se instale encima de la anterior. No sirve para Google Play.
+
+### Datos anónimos de uso (PostHog)
+
+- **Qué se manda:** inicio y fin de sesión, inicio y fin de partida (modo, dificultad, resultado, duración, puntos, derribos, caídas), cada caída con su causa, los cuadros por segundo de cada minuto jugado, los cambios de ajustes, los errores (hasta 5 por sesión) y los toques en "Dar tu opinión".
+- **Del equipo:** sistema, navegador, pantalla, placa de video, memoria, núcleos, idioma, plataforma (app, archivo en la PC o web) y con qué se juega.
+- **Qué no se manda:** nada que identifique a la persona. Cada equipo tiene un número al azar guardado en el navegador o la app. No se crean perfiles de persona en PostHog.
+- **Aviso:** está activado de entrada; la primera vez, el menú lo avisa con un botón "Entendido". Se apaga en Ajustes y, apagado, se borra lo que faltaba mandar.
+- **Envío:** cada 15 segundos y al salir o pasar la app a segundo plano. Sin conexión, se guarda (hasta 200 eventos) y se manda la próxima vez.
+
 ## Campaña 1 (definida por Santiago)
 
 1. **Campo de entrenamiento:** volar por anillos, atacar torretas en un sector y derribar 3 naves "enemigas" de práctica.

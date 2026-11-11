@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Delta Uno</title>
 <meta name="theme-color" content="#0a1022">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 108 108'%3E%3Cdefs%3E %3CradialGradient id='jet'%3E%3Cstop offset='0' stop-color='%23ffffff'/%3E%3Cstop offset='.35' stop-color='%237ff0e1'/%3E%3Cstop offset='1' stop-color='%237ff0e1' stop-opacity='0'/%3E%3C/radialGradient%3E %3CradialGradient id='sky' cx='.5' cy='.42' r='.75'%3E%3Cstop offset='0' stop-color='%231a2d5c'/%3E%3Cstop offset='.7' stop-color='%230d1530'/%3E%3Cstop offset='1' stop-color='%230a1022'/%3E%3C/radialGradient%3E %3ClinearGradient id='rim' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%235fb4ff' stop-opacity='.55'/%3E%3Cstop offset='1' stop-color='%235fb4ff' stop-opacity='0'/%3E%3C/linearGradient%3E %3C/defs%3E %3CclipPath id='c'%3E%3Crect width='108' height='108' rx='18'/%3E%3C/clipPath%3E %3Cg clip-path='url(%23c)'%3E%3Crect width='108' height='108' fill='url(%23sky)'/%3E%3Cellipse cx='54' cy='174.96' rx='102.6' ry='86.4' fill='%230f1f45' stroke='url(%23rim)' stroke-width='1.296'/%3E%3Cg transform='translate(54 53.073) scale(14.5)'%3E%3Cg stroke='%230a1022' stroke-width='.07' stroke-linejoin='round'%3E%3Cpolygon points='0%2C-3 -2.4%2C1.6 -0.85%2C1.35 0%2C0.55' fill='%23eadfc9'/%3E%3Cpolygon points='0%2C-3 0%2C0.55 0.85%2C1.35 2.4%2C1.6' fill='%23f8f0de'/%3E%3Cpolygon points='0%2C-3 -1.776%2C0.4039999999999999 -1.7279999999999998%2C1.306' fill='%23eadfc9'/%3E%3Cpolygon points='0%2C-3 -1.7279999999999998%2C1.306 0%2C0.55' fill='%23eadfc9'/%3E%3Cpolygon points='-1.776%2C0.4039999999999999 -2.4%2C1.6 -1.7279999999999998%2C1.306' fill='%23e2532a'/%3E%3Cpolygon points='-2.4%2C1.6 -1.7799999999999998%2C1.5 -1.7279999999999998%2C1.306' fill='%23e2532a'/%3E%3Cpolygon points='-1.7799999999999998%2C1.5 -0.85%2C1.35 0%2C0.55' fill='%239a9088'/%3E%3Cpolygon points='-1.7799999999999998%2C1.5 0%2C0.55 -1.7279999999999998%2C1.306' fill='%239a9088'/%3E%3Cpolygon points='0%2C-3 0%2C0.55 1.7279999999999998%2C1.306' fill='%23f8f0de'/%3E%3Cpolygon points='0%2C-3 1.7279999999999998%2C1.306 1.776%2C0.4039999999999999' fill='%23f8f0de'/%3E%3Cpolygon points='1.7279999999999998%2C1.306 2.4%2C1.6 1.776%2C0.4039999999999999' fill='%23ff6a3a'/%3E%3Cpolygon points='1.7799999999999998%2C1.5 2.4%2C1.6 1.7279999999999998%2C1.306' fill='%23ff6a3a'/%3E%3Cpolygon points='0.85%2C1.35 1.7799999999999998%2C1.5 1.7279999999999998%2C1.306' fill='%23b4aa9f'/%3E%3Cpolygon points='0.85%2C1.35 1.7279999999999998%2C1.306 0%2C0.55' fill='%23b4aa9f'/%3E%3Cpolygon points='-0.85%2C1.35 0.85%2C1.35 0%2C0.55' fill='%23b4aa9f'/%3E%3C/g%3E%3Cpolygon points='0%2C-1.15 -0.38%2C0.1 0%2C0.35 0.38%2C0.1' fill='%2310303f'/%3E%3Cpolygon points='0%2C-1.05 0.3%2C0.05 0.08%2C0.05' fill='%233f7f8f'/%3E%3Ccircle cx='-.45' cy='1.45' r='.62' fill='url(%23jet)'/%3E%3Ccircle cx='.45' cy='1.45' r='.62' fill='url(%23jet)'/%3E%3Ccircle cx='-2.33' cy='1.55' r='.16' fill='%23ff3b30'/%3E%3Ccircle cx='2.33' cy='1.55' r='.16' fill='%233dff8b'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=B612:wght@400;700&family=B612+Mono:wght@400;700&display=swap">
@@ -141,6 +142,11 @@
             <h3>Sonido</h3>
             <div class="seg" data-key="sound"><button id="optSndY" type="button" data-val="true">Sí</button><button id="optSndN" type="button" data-val="false">No</button></div>
           </section>
+          <section class="opt wide" id="statsOpt" hidden>
+            <h3>Datos anónimos de uso</h3>
+            <div class="seg" data-key="stats"><button type="button" data-val="true">Mandar</button><button type="button" data-val="false">No mandar</button></div>
+            <p>Qué modos jugás, cuánto duran las partidas, cuántos cuadros por segundo da tu equipo y los errores. Nada que te identifique. Sirve para mejorar la demo.</p>
+          </section>
           <section class="opt wide">
             <h3>Botón Blanco</h3>
             <div class="seg" data-key="tgtCam"><button id="optTgtCam" type="button" data-val="camara">La cámara lo sigue</button><button id="optTgtMark" type="button" data-val="marca">Solo lo marca</button></div>
@@ -185,8 +191,15 @@
     <div id="menu" role="dialog" aria-label="Elegir modo de juego" hidden>
       <div id="menuBody">
         <div id="menuHead">
-          <h1>Delta Uno</h1>
-          <button id="menuGear" type="button">Ajustes</button>
+          <h1>Delta Uno <span id="ver"></span></h1>
+          <div id="menuTools">
+            <button id="feedbackBtn" class="feedback" type="button" hidden>Dar tu opinión</button>
+            <button id="menuGear" type="button">Ajustes</button>
+          </div>
+        </div>
+        <div id="statsNote" hidden>
+          <p>Esta demo manda datos anónimos de uso (modos, duración de las partidas, rendimiento y errores) para mejorarla. Se apaga en Ajustes.</p>
+          <button id="statsOk" type="button">Entendido</button>
         </div>
         <div id="modeList">
           <button class="mode" type="button" data-mode="conquista">Conquista<small></small></button>
@@ -218,6 +231,7 @@
         <div id="endBtns">
           <button id="againBtn" class="endGo" type="button">Jugar de nuevo</button>
           <button id="endMenu" type="button">Menú</button>
+          <button id="endFeedback" class="feedback" type="button" hidden>Dar tu opinión</button>
         </div>
       </div>
     </div>

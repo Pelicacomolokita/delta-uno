@@ -1,0 +1,37 @@
+DELTA UNO - demo para computadora
+==================================
+
+Cómo jugar
+----------
+1. Descomprimí este archivo en cualquier carpeta.
+2. Abrí "Delta Uno.html" con doble clic. Se abre en tu navegador; no hace falta
+   instalar nada ni estar conectado a internet.
+   Funciona en Chrome, Edge y Firefox actualizados. Si se ve todo negro, probá con
+   otro navegador o activá la aceleración por hardware en sus ajustes.
+
+Teclas (se pueden cambiar en Ajustes > Teclado y mouse)
+-------------------------------------------------------
+  W / S            Trompa arriba / abajo
+  Q / E            Doblar a la izquierda / derecha
+  A / D            Rotar; dos toques seguidos esquivan
+  Clic izquierdo   Disparar
+  Clic derecho     Misil: mantené para fijar el blanco y soltá para disparar
+  Espacio          Elegir o cambiar el blanco; mantener lo suelta
+  Shift            Turbo mientras lo mantenés
+  Rueda del mouse  Más o menos empuje
+  R                Reparar
+  C                Cámara: sigue al blanco o normal
+  Esc              Pausa y ajustes
+
+También se juega con mando de Xbox o PlayStation: conectalo y apretá cualquier botón.
+
+Tu opinión
+----------
+Es una demo en desarrollo. En el menú está el botón "Dar tu opinión"; nos sirve
+mucho saber qué te gustó, qué no y en qué equipo jugaste.
+
+Datos de uso
+------------
+Si tenés internet, la demo manda datos anónimos de uso (modos jugados, duración de
+las partidas, rendimiento y errores) para mejorarla. Nada que te identifique.
+Se apaga en Ajustes > Datos anónimos de uso.

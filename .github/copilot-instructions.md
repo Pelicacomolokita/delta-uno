@@ -7,3 +7,5 @@
 - **Valores para ajustar:** viven en constantes al principio de cada sección (`TUNE`, `AIM`, `ZONE_KIND`, `ENEMY_DEF`, `DIFF`). Si cambiás uno, actualizá `docs/decisiones.md`.
 - **Pruebas:** antes de dar algo por terminado, corré `npm test` (o la prueba del tema: `npm test -- combate`). Las pruebas usan `window.DeltaUno`, la interfaz de depuración que está al final de `src/main.js`. Si cambiás algo que exponga, mantené los nombres.
 - **Rendimiento:** el juego corre en teléfonos. Nada de trabajo pesado por cuadro. Reutilizá vectores temporales (`_v`, `_eA` y similares) en lugar de crear objetos nuevos en cada cuadro.
+- **Datos de uso:** los eventos de PostHog se mandan con `stats.track('nombre', {...})` (ver `src/stats.js`). Nombres en español y en minúscula con guion bajo. Si agregás o cambiás uno, actualizá `docs/decisiones.md` y la lista de `docs/prompt-difusion.md`. Nunca mandes nada que identifique a la persona.
+- **Versión:** sale de `package.json` y la usan el menú y el APK. Para publicar una versión nueva, subí el número y creá la etiqueta `vX.Y.Z`: GitHub arma el APK y el zip para PC (`.github/workflows/demo.yml`).

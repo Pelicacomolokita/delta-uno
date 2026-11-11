@@ -2,7 +2,34 @@
 
 Juego de naves en 3D para teléfono, en horizontal, sobre un planeta esférico. Tiene cuatro modos (Conquista, Supervivencia, Vuelo libre y Carrera), seis tipos de enemigos y una nave nodriza. La Historia está en diseño.
 
-Está hecho con [three.js](https://threejs.org) 0.128 y se arma con [Vite](https://vitejs.dev). El resultado es **un solo archivo HTML** que trae adentro el código, los estilos y la librería 3D. Ese mismo archivo sirve para publicarlo como página, para abrirlo sin servidor y, más adelante, para meterlo en un APK.
+Está hecho con [three.js](https://threejs.org) 0.128 y se arma con [Vite](https://vitejs.dev). El resultado es **un solo archivo HTML** que trae adentro el código, los estilos y la librería 3D. Ese mismo archivo sirve para publicarlo como página, para abrirlo sin servidor y para la app de Android, que lo envuelve con [Capacitor](https://capacitorjs.com).
+
+**Versión actual: 0.12.0 (demo).** Se baja de [Releases](https://github.com/Pelicacomolokita/delta-uno/releases): el APK para Android y un zip para jugar en la computadora.
+
+## La demo: APK, versión para PC y datos de uso
+
+GitHub arma todo solo (`.github/workflows/demo.yml`), así que no hace falta instalar Android Studio:
+
+- **Cada vez que se sube algo a `main`:** arma el APK y el zip para PC. Quedan en **Actions → la última corrida → Artifacts** (se borran a los 90 días).
+- **Con una etiqueta de versión** (`v0.12.0`, `v0.13.0`…): además publica la versión en **Releases**, que es el enlace para compartir.
+- **Versión:** sale de `package.json`. Se ve en el menú del juego y en el APK. Para una versión nueva hay que subir el número; si no, Android no la instala encima de la anterior.
+- **Firma del APK:** usa una clave de pruebas que está en el repositorio (`android/app/delta-uno-pruebas.jks`), así cada APK nuevo se instala encima del anterior. Para Google Play hace falta otra clave, privada.
+- **Identificador de la app:** `io.github.pelicacomolokita.deltauno`, provisorio. Está en `capacitor.config.json`, `android/app/build.gradle` (`namespace` y `applicationId`), `android/app/src/main/res/values/strings.xml` y la carpeta de `MainActivity.java`. Cambiarlo hace que sea otra app: quien tenga la anterior va a tener las dos.
+- **Ícono y pantalla de carga:** `node scripts/iconos.mjs` los arma con la nave del juego.
+
+### Datos de uso (PostHog) y botón de opinión
+
+Se configuran en GitHub, sin tocar el código: **Settings → Secrets and variables → Actions → Variables**.
+
+| Variable | Qué va |
+|---|---|
+| `POSTHOG_KEY` | La "Project API key" de PostHog (empieza con `phc_`). Es pública: solo sirve para mandar datos. |
+| `POSTHOG_HOST` | Solo si el proyecto está en Europa: `https://eu.i.posthog.com`. |
+| `FEEDBACK_URL` | El enlace al formulario de opiniones. Con él aparece "Dar tu opinión" en el menú y al terminar la partida. |
+
+Después de cargarlas, hay que volver a armar: **Actions → Armar la demo → Run workflow**, o una versión nueva. Sin clave, el juego no manda nada; en `npm run dev` tampoco, salvo que las pongas en un archivo `.env.local` (`VITE_POSTHOG_KEY=...`).
+
+Qué se mide y cómo está hecho: `src/stats.js` y `docs/decisiones.md`. Para publicar en foros y juntar opiniones con otra IA: `docs/prompt-difusion.md`.
 
 ## Lo que necesitás instalar (una sola vez)
 
@@ -26,6 +53,7 @@ code .
 | `npm run dev` | Abre el juego en <http://localhost:5173>. Cada vez que guardás un cambio, la página se recarga sola. |
 | `npm run dev:telefono` | Lo mismo, pero accesible desde el teléfono. Con el teléfono en la misma red Wi‑Fi que la PC, abrí la dirección **Network** que aparece en la terminal (algo como `http://192.168.1.20:5173`). |
 | `npm run build` | Arma la versión final en `dist/index.html`, con todo adentro y comprimido. También arma `dist/delta-uno-artifact.html`, que es la versión para publicar en claude.ai. |
+| `npm run android:preparar` | Arma el juego y lo copia al proyecto Android (`android/`). Solo hace falta si vas a abrirlo en Android Studio; el APK lo arma GitHub. |
 | `npm test` | Corre todas las pruebas automáticas y muestra un resumen. Tarda alrededor de media hora. |
 | `npm test -- combate` | Corre solo las pruebas que tienen "combate" en el nombre. |
 | `npm run medir:punteria` | Mide cuántos tiros enemigos pegan según cómo volás. Imprime números; no es una prueba de sí o no. |
@@ -57,13 +85,21 @@ Todo se puede cambiar en **Ajustes → Teclado y mouse**. Con un mando de Xbox o
 ```
 index.html                  pantalla: botones, paneles, menú de inicio
 src/main.js                 todo el juego (por ahora en un solo archivo, ver "Próximos pasos")
+src/stats.js                datos anónimos de uso (PostHog)
+src/config.js               clave de PostHog y enlace del formulario (salen de las variables de GitHub)
 src/style.css               estilos
+android/                    la app de Android (Capacitor): pantalla completa, horizontal, ícono
+capacitor.config.json       nombre e identificador de la app
+.github/workflows/demo.yml  arma el APK y el zip para PC en GitHub
 scripts/artifact.mjs        arma la versión para publicar en claude.ai
+scripts/iconos.mjs          arma el ícono y la pantalla de carga de la app
 tests/helpers.js            ayudas comunes de las pruebas (teléfono simulado, toques, tiempos)
 tests/suites/               las pruebas, por tema
 tests/herramientas/         mediciones que no son pruebas de sí o no
 docs/decisiones.md          qué se decidió y por qué: controles, puntería, zonas, modos, campaña
 docs/prompt-historia.md     el prompt para que una IA escriba la historia
+docs/prompt-difusion.md     el prompt para que una IA ayude a publicar la demo y juntar opiniones
+docs/version/               textos que van con cada versión (notas, instrucciones del zip para PC)
 ```
 
 ### Partes de `src/main.js`
@@ -97,13 +133,13 @@ Las pruebas abren el juego en un Chromium con pantalla táctil simulada (horizon
 | `08-modos-y-enemigos` | Menú de inicio, ajustes que se deslizan, los cuatro modos, torretas, nodriza, drones |
 | `09-teclado-mouse-mando` | Controles de PC, mando simulado, asignar teclas y botones, botones en pantalla |
 | `10-defensas-mar-camara` | Defensas sobre torres, lanzamisiles, misiles que se esquivan, cámara de Blanco |
+| `11-datos-de-uso` | Eventos de PostHog, aviso y opción para apagarlos, envíos sin conexión, versión en el menú, botón de opinión |
 
 **Pendiente:** la prueba del planeta (biomas, vuelta completa, choques con el suelo) es de una versión vieja y hay que actualizarla.
 
 ## Próximos pasos
 
-1. Separar `src/main.js` en módulos (planeta, vuelo, combate, enemigos, zonas, modos y pantalla), de a uno por vez y con las pruebas pasando después de cada separación.
-2. Pulir la demo: errores que aparezcan jugando.
+1. Juntar opiniones de la demo y corregir lo que aparezca.
+2. Gráficos: texturas por bioma en formato KTX2 y efectos con el pack de partículas de Kenney (licencia CC0).
 3. Campaña 1 (ver `docs/decisiones.md`).
-4. Texturas por bioma en formato KTX2 y efectos con el pack de partículas de Kenney (licencia CC0).
-5. APK con Capacitor.
+4. Separar `src/main.js` en módulos (planeta, vuelo, combate, enemigos, zonas, modos y pantalla), de a uno por vez y con las pruebas pasando después de cada separación.

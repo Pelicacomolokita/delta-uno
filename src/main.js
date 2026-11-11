@@ -1,6 +1,8 @@
 // Delta Uno: todo el juego. Se va a separar en módulos por partes (ver README).
 import * as THREE from 'three';
 import './style.css';
+import { stats } from './stats.js';
+import { APP_VERSION, FEEDBACK_URL } from './config.js';
 window.THREE = THREE; // las pruebas lo usan para armar matrices
 
 (function(){
@@ -72,13 +74,16 @@ const ZONE_ORDER=['dispersa','normal','densa','dispersa','normal','densa'];
 
 const STORE='delta-uno-ajustes-v3';
 // v3: "lateral" cambió de significado, así que de los ajustes viejos se conserva todo menos eso
-const settings=Object.assign({mode:'asistido',invert:true,invertX:false,lateral:'dobla',sens:'media',sound:true,flip:false,tgtCam:'camara',diff:'medio',lastMode:'conquista',touchUI:'auto',vibrate:true},(()=>{
+const settings=Object.assign({mode:'asistido',invert:true,invertX:false,lateral:'dobla',sens:'media',sound:true,flip:false,tgtCam:'camara',diff:'medio',lastMode:'conquista',touchUI:'auto',vibrate:true,stats:true,statsSeen:false},(()=>{
   try{
     const cur=localStorage.getItem(STORE);if(cur)return JSON.parse(cur)||{};
     const old=JSON.parse(localStorage.getItem('delta-uno-ajustes-v2'))||{};delete old.lateral;return old;
   }catch(e){return {};}
 })());
 function saveSettings(){try{localStorage.setItem(STORE,JSON.stringify(settings));}catch(e){}}
+// Datos anónimos de uso: solo si el jugador no los apagó (ver src/stats.js)
+stats.allow(()=>settings.stats!==false);
+stats.watchErrors();
 
 const reduceMotion=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
@@ -1088,6 +1093,8 @@ let warning=false,thinWarn=false,warnT=0,beepT=0,puffT=0;
 function crash(kind){
   if(dead>0||inv>0)return;
   dead=CRASH_TIME;
+  run.crashes++;
+  stats.track('caida',{causa:kind,t_partida:Math.round(run.t),cerca_de:curZone?curZone.kind.name:undefined});
   const at=ship.pos.clone();
   explode(at,24);burst(at,60,70,1.3,1,.8,.55);
   shipGroup.visible=false;
@@ -1731,8 +1738,18 @@ function keysLine(stickWord,word){
     keyName(k('fire'))+': disparar · '+keyName(k('missile'))+': misil · '+keyName(k('target'))+': blanco · '+keyName(k('turbo'))+': turbo · '+
     pair('faster','slower')+': empuje · '+keyName(k('repair'))+': reparar · '+keyName(k('camera'))+': cámara · Esc: pausa';
 }
-function openSheet(){releaseAll();dropKeys();sheet.hidden=false;syncSheet();$('#sheetBody').scrollTop=0;scrollHints();if(sfx.ctx&&sfx.ctx.state==='running')sfx.ctx.suspend();}
-function closeSheet(){stopCapture(true);sheet.hidden=true;if(!overlayOpen()&&sfx.ctx&&sfx.ctx.state==='suspended')sfx.ctx.resume();}
+// Al cerrar los ajustes se avisa qué cambió (sin el modo elegido en el menú, que se mide al despegar)
+let settingsSnap=null;
+function noteSettings(){
+  if(!settingsSnap)return;
+  const before=settingsSnap;settingsSnap=null;
+  const ch={};
+  for(const k in settings)if(!['lastMode','diff','statsSeen'].includes(k)&&String(settings[k])!==String(before.s[k]))ch[k]=settings[k];
+  const keys=JSON.stringify(binds)!==before.b;
+  if(Object.keys(ch).length||keys)stats.track('ajustes',Object.assign({teclas_cambiadas:keys},ch));
+}
+function openSheet(){if(!settingsSnap)settingsSnap={s:Object.assign({},settings),b:JSON.stringify(binds)};releaseAll();dropKeys();sheet.hidden=false;syncSheet();$('#sheetBody').scrollTop=0;scrollHints();if(sfx.ctx&&sfx.ctx.state==='running')sfx.ctx.suspend();}
+function closeSheet(){stopCapture(true);sheet.hidden=true;if(menuEl.hidden)noteSettings();if(!overlayOpen()&&sfx.ctx&&sfx.ctx.state==='suspended')sfx.ctx.resume();}
 $('#gear').addEventListener('click',()=>{unlock();openSheet();});
 $('#resume').addEventListener('click',closeSheet);
 document.querySelectorAll('.seg').forEach(seg=>{
@@ -1741,6 +1758,7 @@ document.querySelectorAll('.seg').forEach(seg=>{
     const k=seg.dataset.key;let v=b.dataset.val;
     if(v==='true')v=true;else if(v==='false')v=false;
     settings[k]=v;saveSettings();syncSheet();
+    if(k==='stats'&&!v)stats.optOut();
     if(!menuEl.hidden)syncMenu();
   });
 });
@@ -1759,7 +1777,7 @@ function straighten(){
 $('#straighten').addEventListener('click',()=>{straighten();closeSheet();});
 $('#flipBtn').addEventListener('click',()=>{settings.flip=!settings.flip;saveSettings();layout();});
 const fsBtn=$('#fsBtn');
-fsBtn.hidden=!(document.fullscreenEnabled||document.webkitFullscreenEnabled);
+fsBtn.hidden=stats.native()||!(document.fullscreenEnabled||document.webkitFullscreenEnabled);
 fsBtn.addEventListener('click',()=>{
   try{
     const r=(stage.requestFullscreen||stage.webkitRequestFullscreen).call(stage);
@@ -2917,7 +2935,18 @@ const MODES={
   libre:{name:'Vuelo libre',diff:false,desc:'Recorré el planeta sin objetivo. De vez en cuando aparecen escuadrones al azar. Vidas infinitas.'},
   carrera:{name:'Carrera',diff:false,desc:'Doce anillos contra reloj, siempre el mismo recorrido. Si te estrellás, volvés al último anillo con 5 segundos de castigo.'}
 };
-const run={mode:null,diff:'medio',lives:Infinity,assist:true,t:0,wave:0,waveT:0,queue:[],randT:0,ring:0,raceT:0,over:null,endT:0,stepT:0,prev:new V3()};
+const run={mode:null,diff:'medio',lives:Infinity,assist:true,t:0,wave:0,waveT:0,queue:[],randT:0,ring:0,raceT:0,over:null,endT:0,stepT:0,prev:new V3(),live:false,crashes:0,count:0};
+// Cada evento de uso lleva el modo y la dificultad de la partida en curso, y con qué se está jugando
+stats.context(()=>Object.assign({entrada:inputDev},run.live?{modo:run.mode,dificultad:MODES[run.mode].diff?run.diff:undefined}:{}));
+function endRunStats(res){
+  if(!run.live)return;
+  const p={resultado:res,duracion_s:Math.round(run.t),puntos:score,derribos:ship.kills,caidas:run.crashes,fps_prom:perf.runT>3?Math.round(perf.runF/perf.runT):undefined};
+  if(run.mode==='conquista'){p.zonas_libres=zones.filter(z=>z.state==='libre').length;p.vidas=run.lives===Infinity?'inf':run.lives;}
+  if(run.mode==='supervivencia')p.oleada=run.wave;
+  if(run.mode==='carrera'){p.anillos=run.ring;p.tiempo_carrera=Math.round(run.raceT*10)/10;}
+  stats.track('partida_fin',p);
+  run.live=false;
+}
 // Zonas "de mentira" para los enemigos que no son de una zona fija: los que aparecen al azar, las oleadas y la nodriza
 function pseudoZone(name,patrol,link){return {kind:{name,patrol,form:1,link},r:1e9,dir:new V3(0,1,0),e1:new V3(1,0,0),e2:new V3(0,0,1),seen:false,state:'pseudo'};}
 const roamZone=pseudoZone('Al azar',300,700),waveZone=pseudoZone('Oleada',300,4000),carrierZone=pseudoZone('Nodriza',300,1500);
@@ -2949,6 +2978,8 @@ function setupZones(on){
   curZone=null;
 }
 function startRun(mode,diff){
+  if(run.live)endRunStats('reinicio');
+  noteSettings();
   run.mode=mode;run.diff=MODES[mode].diff?(diff||'medio'):'medio';
   const D=DIFF[run.diff];
   Object.assign(AIM,D.aim);
@@ -2973,6 +3004,8 @@ function startRun(mode,diff){
   if(sfx.ctx&&sfx.ctx.state==='suspended')sfx.ctx.resume();
   last=performance.now();
   toast({conquista:'Conquista · liberá las 6 zonas',supervivencia:'Supervivencia · preparate',libre:'Vuelo libre',carrera:'Carrera · pasá por los anillos'}[mode],2.5);
+  run.live=true;run.crashes=0;run.count++;perfReset();
+  stats.track('partida_inicio',{numero:run.count});
 }
 // Lo que pasa al caer, según el modo. Devuelve el texto de la tarjeta.
 function onCrash(){
@@ -3210,14 +3243,18 @@ function syncMenu(){
   $('#diffNote').textContent=sel==='supervivencia'?(settings.diff==='extremo'?'Sin ayudas para apuntar. ':'')+'La dificultad cambia la puntería enemiga y el tamaño de las oleadas.':D.note;
   const rt=recText(sel);
   $('#modeRec').textContent=rt?rt+(M.diff?' en '+D.name.toLowerCase():''):'Todavía sin récord';
+  syncStatsNote();
   scrollHints();
 }
 function openMenu(){
+  if(run.live)endRunStats('abandono');
+  noteSettings();
   releaseAll();dropKeys();sheet.hidden=true;endEl.hidden=true;crashMsg.hidden=true;
   menuEl.hidden=false;hud.classList.add('off');syncMenu();
   if(sfx.ctx&&sfx.ctx.state==='running')sfx.ctx.suspend();
 }
 function showEnd(kind){
+  endRunStats(run.mode==='carrera'?'terminada':kind==='victoria'?'victoria':'derrota');
   releaseAll();dropKeys();
   const rows=[];let isNew=false,title='';
   if(run.mode==='carrera'){
@@ -3251,6 +3288,19 @@ $('#menuGear').addEventListener('click',()=>{unlock();openSheet();});
 $('#againBtn').addEventListener('click',()=>{unlock();startRun(run.mode,run.diff);});
 $('#endMenu').addEventListener('click',openMenu);
 $('#toMenu').addEventListener('click',openMenu);
+// Versión, aviso de datos de uso y "Dar tu opinión"
+$('#ver').textContent='v'+APP_VERSION;
+$('#statsOpt').hidden=!stats.configured;
+function syncStatsNote(){$('#statsNote').hidden=!stats.configured||settings.statsSeen||settings.stats===false;}
+$('#statsOk').addEventListener('click',()=>{settings.statsSeen=true;saveSettings();syncStatsNote();scrollHints();});
+const feedbackUrl=(window.DELTA_UNO_STATS&&window.DELTA_UNO_STATS.feedback)||FEEDBACK_URL;
+function openFeedback(from){
+  stats.track('opinion_click',{desde:from});
+  stats.flush(false);
+  // en la app, Capacitor abre los enlaces de afuera en el navegador del teléfono
+  if(stats.native())location.href=feedbackUrl;else window.open(feedbackUrl,'_blank','noopener');
+}
+['#feedbackBtn','#endFeedback'].forEach(s=>{const b=$(s);b.hidden=!feedbackUrl;b.addEventListener('click',()=>openFeedback(s==='#feedbackBtn'?'menu':'fin'));});
 
 /* Deslizar los paneles con el dedo, también con la pantalla girada (el navegador solo no sabe hacerlo bien) */
 function dragScroll(el){
@@ -3419,6 +3469,20 @@ function updateCombatHud(dt){
 const maxPR=Math.min(window.devicePixelRatio||1,2);
 let pr=maxPR,last=performance.now(),ema=16,prT=0;
 renderer.setPixelRatio(pr);
+// Cuadros por segundo para los datos de uso: promedio y el peor segundo de cada minuto jugado
+const perf={f:0,t:0,secF:0,secT:0,min:999,runF:0,runT:0};
+function perfReset(){perf.f=perf.t=perf.secF=perf.secT=perf.runF=perf.runT=0;perf.min=999;}
+function perfStep(raw){
+  perf.f++;perf.t+=raw;perf.runF++;perf.runT+=raw;perf.secF++;perf.secT+=raw;
+  if(perf.secT>=1){perf.min=Math.min(perf.min,perf.secF/perf.secT);perf.secF=perf.secT=0;}
+  if(perf.t>=60){
+    stats.track('rendimiento',{fps_prom:Math.round(perf.f/perf.t),fps_min:Math.round(perf.min),resolucion:pr,enemigos:enemies.length,pantalla:gw+'x'+gh});
+    perf.f=perf.t=0;perf.min=999;
+  }
+}
+function gpuName(){
+  try{const gl=renderer.getContext(),x=gl.getExtension('WEBGL_debug_renderer_info');return String(gl.getParameter(x?x.UNMASKED_RENDERER_WEBGL:gl.RENDERER)).slice(0,120);}catch(e){return '';}
+}
 function frame(now){
   requestAnimationFrame(frame);
   const raw=(now-last)/1000;last=now;
@@ -3453,6 +3517,7 @@ function frame(now){
     updateCombatHud(dt);
     updateThreat(dt);
     sfxEngine();
+    if(run.live&&raw<.5)perfStep(raw);
   }
   renderer.render(scene,camera);
   // Si el teléfono no da abasto, baja la resolución en vez de trabar el vuelo
@@ -3487,10 +3552,16 @@ function boot(data){
   try{if(window.claude&&window.claude.hot&&window.claude.hot.snapshot)window.claude.hot.snapshot(()=>({ship:{world:'esfera',pos:ship.pos.toArray(),q:ship.q.toArray(),throttle:ship.throttle,rocks:ship.rocks}}));}catch(e){}
   $('#loading').hidden=true;
   openMenu();
+  // Primer dato de uso: con qué equipo se juega y de dónde vino el jugador
+  const ini={primera_vez:stats.firstTime,gpu:gpuName(),dpr:window.devicePixelRatio||1,memoria_gb:navigator.deviceMemory,nucleos:navigator.hardwareConcurrency,idioma:navigator.language,carga_ms:Math.round(buildMs),resolucion:pr};
+  try{ini.$referrer=document.referrer||'$direct';ini.$referring_domain=document.referrer?new URL(document.referrer).hostname:'$direct';}catch(e){}
+  try{const q=new URLSearchParams(location.search);['utm_source','utm_medium','utm_campaign'].forEach(k=>{if(q.get(k))ini[k]=q.get(k);});}catch(e){}
+  stats.track('sesion_inicio',ini);
+  window.addEventListener('pagehide',()=>{endRunStats('cierre');stats.track('sesion_fin',{duracion_s:stats.sessionSecs(),partidas:run.count});stats.flush(true);});
   window.DeltaUno={renderer,ship,input,settings,TUNE,rocks,activeRocks,rings,chart,chartDir,straighten,terrain,heightAt,S,BIOMES,PLANET_R,CEIL:{CEIL_WARN,CEIL_PUSH,CEIL_MAX},buildMs,flags:()=>({dead,inv,warning,thinWarn}),
     zones,groups,enemies,lost,drops,DROP_KIND,damage,spawnDrop,dodge,tryDodge,rockets,lockCancel,AIM,seenVel,ZONE_KIND,eBolts,boltHitsShip,
     tgt:()=>camTarget,camBlend:()=>camBlend,camera,
-    binds,turbo,inputDev:()=>inputDev,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
+    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
     vit:()=>({hull,shield,heat,overheat,score,record,combo,curZone:curZone&&zones.indexOf(curZone),target:!!target,fov:camera.fov,missiles,missileT,lockOn,lockP,hasLock:!!lockTarget,repairT,repairCool})};
   last=performance.now();
   requestAnimationFrame(frame);
