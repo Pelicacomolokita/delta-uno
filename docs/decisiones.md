@@ -181,6 +181,10 @@ Al principio pilota un caza básico. Más adelante habrá más naves para elegir
 - **Progreso:** se guarda en el navegador o la app, con las medallas ganadas y el mejor tiempo.
 - **Aliados:** vuelan en formación (dos adelante, dos a los costados y Faro atrás, cerrando) o en círculo arriba del sector. Todavía no combaten ni pueden caer.
 - **Estilo visual:** a futuro va hacia lo industrial desgastado. Lo eligió Santiago.
+- **Munición y estado al empezar una parte:** según la historia de cada misión (por ejemplo, arrancar con pocos misiles si el escuadrón no se pudo reabastecer). Lo decidió Santiago; el campo `inicio` de cada parte ya lo permite.
+- **Choques contra estructuras** (pórticos, puentes, edificios): rebote con daño, como las rocas. Decidido por Santiago; se programa con las estructuras.
+- **El mapa se rehace** a partir de la historia (reporte 0.3): regiones, estructuras y despliegues pensados por misión. Antes de construirlo se escriben las misiones y la relación de cada lugar con la historia. Los récords actuales se pueden perder.
+- **Vuelo libre:** se va a poder elegir la región donde arrancar.
 - **Formato de las misiones:** está en `docs/historia/formato.md`.
 
 ### Lo que falta programar para la campaña

@@ -577,6 +577,7 @@ let horiz=1;
 let dead=0,inv=0; // dead: segundos hasta reaparecer. inv: segundos sin poder chocar.
 let heat=0,overheat=0,hull=HULL_MAX,shield=SHIELD_MAX,shieldWait=0,bounceT=0,hitInv=0;
 const dodge={t:0,cool:0,dir:0,side:new V3()};
+let missileRegen=true; // las misiones pueden arrancar sin que los misiles se recarguen solos
 let missiles=MISSILE_MAX,missileT=0,lockOn=false,lockTarget=null,lockP=0,lockBeep=0,repairT=0,repairCool=0,repairFxT=0;
 let camTarget=null,camBlend=0,tgtTimer=0,tgtHint=false; // camTarget: el enemigo elegido con el botón Blanco
 const TGT_RANGE=1800,TGT_HOLD=450;
@@ -1135,6 +1136,7 @@ function respawn(){
     }
   }
   resetVitals();
+  if(run.mode==='historia'&&mis.P)histApplyStart(mis.P); // la parte puede arrancar con menos, según la historia
   if(run.mode==='libre'){score=0;combo=0;} // en Conquista y Supervivencia los puntos se conservan entre vidas
   shipAt(U,_hf,75);
   ship.speed=Math.max(ship.speed,25);ship.vel.copy(fwd).multiplyScalar(ship.speed);
@@ -2619,7 +2621,7 @@ const rockets=Array.from({length:6},()=>{
 function launchMissile(t){
   const m=rockets.find(x=>!x.on);if(!m)return;
   missiles--;
-  if(missileT<=0)missileT=MISSILE_RELOAD;
+  if(missileT<=0&&missileRegen)missileT=MISSILE_RELOAD;
   const side=ship.side=1-ship.side;
   m.pos.copy(side?muzzleR:muzzleL).applyQuaternion(ship.q).add(ship.pos).addScaledVector(up,-.5);
   m.prev.copy(m.pos);m.dir.copy(fwd);m.speed=ship.speed+25;m.life=MISSILE_LIFE;m.target=t;m.on=true;m.smokeT=0;m.warned=false;
@@ -2691,7 +2693,7 @@ function stepMissiles(dt){
 function stepCombat(dt){
   stepHeat(dt);
   stepRepair(dt);
-  if(missiles<MISSILE_MAX&&missileT>0){
+  if(missileRegen&&missiles<MISSILE_MAX&&missileT>0){
     missileT-=dt;
     if(missileT<=0){missiles++;missileT=missiles<MISSILE_MAX?MISSILE_RELOAD:0;}
   }
@@ -3370,6 +3372,7 @@ function histStart(def){
   stats.track('mision_inicio',{mision:def.id});
 }
 function histStop(){
+  missileRegen=true;
   if(mis.wall){scene.remove(mis.wall);mis.wall.geometry.dispose();mis.wall.material.dispose();mis.wall=null;}
   clearMisRings();removeAllies();
   mis.def=null;mis.sector=null;mis.state='off';mis.part=-1;mis.P=null;mis.warn='';mis.out=false;
@@ -3401,6 +3404,7 @@ function histPart(i,restart){
     g.members.forEach(e=>practice(e,P));mis.spawned=g.members.length;
   }
   allies.forEach(a=>{a.mode=P.aliados||'formacion';});
+  histApplyStart(P);
   if(!restart&&i>0){toast('Prueba '+(i+1)+' de '+def.partes.length+' · '+P.objetivo,3);}
   // la posición para repetir esta parte: segura y mirando hacia el centro del sector
   if(!restart&&i>0){
@@ -3413,6 +3417,17 @@ function histPart(i,restart){
     mis.pose.u.copy(z.dir).multiplyScalar(Math.cos(a)).addScaledVector(_hB,Math.sin(a)).normalize();
     mis.pose.f.copy(z.dir).addScaledVector(mis.pose.u,-z.dir.dot(mis.pose.u)).normalize();
   }
+}
+/* Estado de la nave al empezar la parte (al llegar o al repetirla), si la misión lo define según la historia:
+   inicio: { misiles: 0 a 4, casco: 1 a 100, escudo: 0 a 100, recargaMisiles: false }.
+   Sin "inicio": al llegar seguís con lo que tenías y al repetir arrancás con todo lleno. */
+function histApplyStart(P){
+  const s=P.inicio;
+  missileRegen=!(s&&s.recargaMisiles===false);
+  if(!s)return;
+  if(s.misiles!==undefined){missiles=clamp(s.misiles,0,MISSILE_MAX);missileT=0;}
+  if(s.casco!==undefined)hull=clamp(s.casco,1,100);
+  if(s.escudo!==undefined)shield=clamp(s.escudo,0,100);
 }
 function practice(e,P){
   e.misPart=mis.part;e.practice=true;e.dmgK=P.danio||1;

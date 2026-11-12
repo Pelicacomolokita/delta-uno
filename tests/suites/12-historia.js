@@ -107,12 +107,16 @@ H.autostart = false;
   await simWait(page, 9);
   const chispa = await page.evaluate(() => window.DeltaUno.radio.log.some(r => r.who === 'CHISPA' && /firma/.test(r.text)));
   check('después de la firma, Chispa la comenta', chispa, '');
+  // la prueba 2 arranca, por historia, con 1 misil que no se recarga y el casco a 60
+  await page.evaluate(() => { window.DeltaUno.MISIONES[0].partes[1].inicio = { misiles: 1, casco: 60, recargaMisiles: false }; });
   for (let k = 2; k < 6; k++) { await passRing(); await simWait(page, .3); }
   await faceCenter();
   await simWait(page, 5.5);
   const p2 = await page.evaluate(() => { const D = window.DeltaUno, m = D.mis; const t = D.enemies.filter(e => e.misPart === 1); return { part: m.part, state: m.state, n: t.length, practice: t.every(e => e.practice && e.dmgK === .5 && e.kind === 'torreta'), orbit: D.allies.every(a => a.mode === 'orbita') }; });
   check('con los 6 anillos pasa a la prueba 2: tres torretas de práctica', p2.part === 1 && p2.state === 'jugando' && p2.n === 3 && p2.practice, f(p2));
   check('en la prueba 2 los aliados miran desde arriba', p2.orbit, '');
+  const ini = await page.evaluate(() => { const v = window.DeltaUno.vit(); return { m: v.missiles, t: v.missileT, hull: v.hull }; });
+  check('la parte puede arrancar con lo que dice la historia: 1 misil sin recarga y casco a 60', ini.m === 1 && ini.t === 0 && ini.hull === 60, f(ini));
 
   /* ---------- Caer repite la parte ---------- */
   await page.evaluate(() => { const D = window.DeltaUno; D.enemies.filter(e => e.misPart === 1).slice(0, 2).forEach(e => D.hitEnemyForTest(e)); });
@@ -122,9 +126,9 @@ H.autostart = false;
   await page.evaluate(() => { const D = window.DeltaUno; D.setInv(0); D.damage(500); });
   await page.waitForFunction(() => window.DeltaUno.flags().dead <= 0, null, { timeout: 20000 });
   await simWait(page, .5);
-  const rs = await page.evaluate(() => { const D = window.DeltaUno, m = D.mis, u = D.ship.pos.clone().normalize(); return { part: m.part, kills: m.kills, n: D.enemies.filter(e => e.misPart === 1).length, falls: m.falls, hull: D.vit().hull, arc: Math.round(Math.acos(Math.min(1, u.dot(m.sector.dir))) * D.PLANET_R), r: m.sector.r, alt: Math.round(D.ship.alt), q: D.radio.q.map(x => x.who) }; });
+  const rs = await page.evaluate(() => { const D = window.DeltaUno, m = D.mis, u = D.ship.pos.clone().normalize(); return { part: m.part, kills: m.kills, n: D.enemies.filter(e => e.misPart === 1).length, falls: m.falls, hull: D.vit().hull, msl: D.vit().missiles, arc: Math.round(Math.acos(Math.min(1, u.dot(m.sector.dir))) * D.PLANET_R), r: m.sector.r, alt: Math.round(D.ship.alt), q: D.radio.q.map(x => x.who) }; });
   check('al caer se repite la misma prueba desde el principio', rs.part === 1 && rs.kills === 0 && rs.n === 3 && rs.falls === 1, f(rs));
-  check('se reaparece reparado, adentro del sector y con altura', rs.hull === 100 && rs.arc < rs.r && rs.alt > 40, f(rs));
+  check('se reaparece con el estado de inicio de la parte, adentro del sector y con altura', rs.hull === 60 && rs.msl === 1 && rs.arc < rs.r && rs.alt > 40, f(rs));
   check('al repetir, la radio se vacía y Ferreyra avisa', rs.q.length >= 1 && rs.q[0] === 'FERREYRA', rs.q.join(','));
 
   /* ---------- Salir del sector: aviso y se pierde la parte ---------- */

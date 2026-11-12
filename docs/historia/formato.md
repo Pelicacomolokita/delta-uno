@@ -36,6 +36,7 @@ Después de cambiar algo, correr `npm test -- historia`: controla que los mensaj
 | `tipo` | `'anillos'` (con `anillos`: cuántos), `'torretas'` (con `torretas`: cuántas) o `'naves'` (con `naves`: lista de tipos de enemigo: `caza`, `pesada`, `interceptor`, `dron`). |
 | `danio` | Multiplica el daño enemigo. `0.5` es munición de práctica. |
 | `aliados` | `'formacion'` (vuelan con el jugador) u `'orbita'` (miran desde arriba del centro del sector). |
+| `inicio` | Opcional. Con qué arranca la nave esta parte, según la historia: `{ misiles: 0 a 4, casco: 1 a 100, escudo: 0 a 100, recargaMisiles: false }`. Se aplica al llegar a la parte y cada vez que se repite. Sin `inicio`, al llegar seguís con lo que tenías y al repetir arrancás con todo lleno. |
 | `eventos` | Qué pasa y cuándo. |
 
 ## Eventos
@@ -72,7 +73,8 @@ Cada evento se dispara una sola vez por intento de la parte.
   - Cerca del borde avisa "Límite del sector".
   - Afuera cuenta 8 segundos ("Volvé al sector · 8"). Si no volvés, se pierde la parte y se repite.
   - Decidido por Santiago: aviso y derrota.
-- **Al caer o perder la parte:** se repite desde su comienzo, con casco, escudo y misiles llenos. Se reaparece adentro del sector, mirando al centro. Esto es provisorio (el reporte lo deja por definir).
+- **Al caer o perder la parte:** se repite desde su comienzo, con el estado que diga su `inicio` (si no tiene, con todo lleno). Se reaparece adentro del sector, mirando al centro.
+- **Munición según la historia:** decidido por Santiago, cada misión define con qué arranca según lo que le pasó al escuadrón. Hoy solo los misiles son limitados (hasta 4); el cañón no se agota. Un cañón con munición limitada sería **[MECÁNICA NUEVA]**.
 - **Entre partes:** hay una pausa de 4,5 segundos con el cartel "Prueba completa".
 - **Blancos de práctica:** son amarillos y su marca en pantalla también.
 - **Aliados:** todavía no combaten ni pueden morir. Eso llega con la misión 2.
