@@ -7,3 +7,6 @@ tests/capturas/
 
 # Página de descarga armada (scripts/pagina.mjs)
 dist-pagina/
+
+# Visor de naves armado
+dist-hangar/
