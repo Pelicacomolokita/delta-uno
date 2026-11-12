@@ -1672,6 +1672,8 @@ const MODE_NOTE={
   manual_rota:'La palanca gira la nave sobre su eje como un alerón y queda inclinada hasta que la corrijas. Los botones son el timón.'
 };
 function syncSheet(){
+  // la nave se elige antes de salir: en plena partida no se cambia
+  document.querySelectorAll('.shipPick').forEach(el=>{el.hidden=run.live;});$('#shipLocked').hidden=!run.live;
   document.querySelectorAll('.seg').forEach(seg=>{
     const cur=String(settings[seg.dataset.key]);
     seg.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.val===cur?'true':'false'));
@@ -1718,6 +1720,7 @@ document.querySelectorAll('.seg').forEach(seg=>{
   seg.addEventListener('click',e=>{
     const b=e.target.closest('button');if(!b)return;
     const k=seg.dataset.key;let v=b.dataset.val;
+    if((k==='shipModel'||k==='shipPaint')&&run.live)return;
     if(v==='true')v=true;else if(v==='false')v=false;
     settings[k]=v;saveSettings();syncSheet();
     if(k==='stats'&&!v)stats.optOut();

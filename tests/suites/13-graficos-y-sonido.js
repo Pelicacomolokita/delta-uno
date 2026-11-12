@@ -24,6 +24,8 @@ H.autostart = true;
     return { visible: !p.hidden, q: [...p.querySelectorAll('.seg[data-key="quality"] button')].map(b => b.dataset.val).join(','), on: p.querySelector('.seg[data-key="quality"] [aria-pressed="true"]')?.dataset.val, note: document.querySelector('#qualityNote').textContent, models: p.querySelectorAll('.seg[data-key="shipModel"] button').length };
   });
   check('la pestaña Gráficos muestra calidad, diseño y colores de la nave', r.visible && r.q === 'auto,baja,media,alta' && r.models === 4, f(r));
+  const lock = await page.evaluate(() => ({ pick: [...document.querySelectorAll('.shipPick')].every(e => e.hidden), aviso: !document.querySelector('#shipLocked').hidden }));
+  check('en plena partida no se puede cambiar de nave', lock.pick && lock.aviso, f(lock));
   check('la calidad arranca en Automática y dice cuál eligió', r.on === 'auto' && /^Automática: en este equipo usa (Baja|Media|Alta)\.$/.test(r.note), r.note);
 
   /* ---------- Calidad ---------- */

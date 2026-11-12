@@ -189,12 +189,16 @@
               <p id="qualityNote"></p>
               <p>Cambia la resolución, la cantidad de fuego, humo y restos de las explosiones, y el detalle de la nave. El suavizado de bordes se apaga en Baja y cambia al volver a abrir el juego.</p>
             </section>
-            <section class="opt wide">
+            <section class="opt wide" id="shipLocked" hidden>
+              <h3>Nave</h3>
+              <p>La nave se elige en el menú, antes de salir. En vuelo no se puede cambiar.</p>
+            </section>
+            <section class="opt wide shipPick">
               <h3>Diseño de la nave</h3>
               <div class="seg" data-key="shipModel"><button type="button" data-val="actual">Actual</button><button type="button" data-val="guardia">Guardia</button><button type="button" data-val="interceptor">Interceptor</button><button type="button" data-val="blindado">Blindado</button></div>
-              <p>Para probar los diseños nuevos en vuelo. Todos tienen la misma silueta, así que se juega igual.</p>
+              <p>Por ahora todos vuelan igual: son diseños de prueba. Las clases con diferencias reales llegan con la campaña 2.</p>
             </section>
-            <section class="opt wide">
+            <section class="opt wide shipPick">
               <h3>Colores de la nave</h3>
               <div class="seg" data-key="shipPaint"><button type="button" data-val="actual">Actuales</button><button type="button" data-val="guardia">Guardia</button></div>
             </section>
