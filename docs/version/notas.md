@@ -24,6 +24,8 @@ En Brasil, Indonesia, Singapur y Tailandia, Android puede no dejar instalarla to
 - Cuatro dificultades: Fácil, Medio, Difícil y Extremo.
 - Enemigos: cazas, pesadas, interceptores, drones, torretas, lanzamisiles y una nave nodriza.
 - Controles táctiles, teclado y mouse, y mando, todos configurables.
+- Intro de Cebado Producciones al abrir el juego (se puede saltar, y apagar en Ajustes).
+- Pantalla para preparar la salida: misión, nave, equipo y diseño antes de despegar.
 - Modo Historia: misión 1 (entrenamiento), con radio y compañeros de escuadrón.
 - Gráficos: calidad Automática, Baja, Media o Alta; explosiones con fuego, humo y restos; escudo que se ilumina donde pega el tiro; cuatro diseños de nave para probar.
 - Sonido nuevo: motor, viento, cañón, explosiones que suenan según dónde pasan y radio con estática.

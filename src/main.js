@@ -7,6 +7,7 @@ import { REPARTO, MISIONES, PROXIMAS } from './historia/campana1.js';
 import { NAVES, PALETAS, naveGeometria, naveMaterial } from './nave.js';
 import { createEffects, createShield } from './efectos.js';
 import { createSound } from './sonido.js';
+import { runIntro } from './intro.js';
 import { CLASES, STAT_NOMBRE, ARMAS, RANURA_NOMBRE, PINTURAS, EQUIPO_INICIAL } from './hangar/catalogo.js';
 window.THREE = THREE; // las pruebas lo usan para armar matrices
 
@@ -80,7 +81,7 @@ const ZONE_ORDER=['dispersa','normal','densa','dispersa','normal','densa'];
 
 const STORE='delta-uno-ajustes-v3';
 // v3: "lateral" cambió de significado, así que de los ajustes viejos se conserva todo menos eso
-const settings=Object.assign({mode:'asistido',invert:true,invertX:false,lateral:'dobla',sens:'media',sound:true,flip:false,tgtCam:'camara',diff:'medio',lastMode:'conquista',touchUI:'auto',vibrate:true,stats:true,statsSeen:false,quality:'auto',shipModel:'actual',shipPaint:'actual'},(()=>{
+const settings=Object.assign({mode:'asistido',invert:true,invertX:false,lateral:'dobla',sens:'media',sound:true,intro:true,flip:false,tgtCam:'camara',diff:'medio',lastMode:'conquista',touchUI:'auto',vibrate:true,stats:true,statsSeen:false,quality:'auto',shipModel:'actual',shipPaint:'actual'},(()=>{
   try{
     const cur=localStorage.getItem(STORE);if(cur)return JSON.parse(cur)||{};
     const old=JSON.parse(localStorage.getItem('delta-uno-ajustes-v2'))||{};delete old.lateral;return old;
@@ -1231,7 +1232,7 @@ function applySound(){sfx.apply();}
 /* ---------- Pantalla: siempre en horizontal, aunque el teléfono tenga bloqueada la rotación ---------- */
 let rot=0,gw=1,gh=1,viewW=1,viewH=1;
 const coarse=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
-let cueDone=false;
+let cueDone=false,introOn=false;
 function hideCue(){$('#turnCue').hidden=true;}
 function dismissCue(){cueDone=true;hideCue();}
 function layout(){
@@ -1246,7 +1247,7 @@ function layout(){
   renderer.setSize(gw,gh,false);
   camera.aspect=gw/gh;camera.updateProjectionMatrix();
   $('#flipBtn').hidden=!rot;
-  if(!rot)hideCue();else if(!cueDone)$('#turnCue').hidden=false;
+  if(!rot||introOn)hideCue();else if(!cueDone)$('#turnCue').hidden=false;
   if(rot!==prevRot)releaseAll();
 }
 function toGame(cx,cy){
@@ -4187,7 +4188,9 @@ function boot(data){
   try{if(window.claude&&window.claude.hot&&window.claude.hot.snapshot)window.claude.hot.snapshot(()=>({ship:{world:'esfera',pos:ship.pos.toArray(),q:ship.q.toArray(),throttle:ship.throttle,rocks:ship.rocks}}));}catch(e){}
   $('#loading').hidden=true;
   autoQ=autoQuality();applyQuality();
-  openMenu();
+  // La intro de la productora va antes del menú, una sola vez por sesión
+  if(window.__sinIntro||settings.intro===false)openMenu();
+  else{introOn=true;layout();runIntro({root:document,sound:settings.sound!==false,unlock,done:info=>{introOn=false;layout();stats.track('intro',info);openMenu();}});}
   // Primer dato de uso: con qué equipo se juega y de dónde vino el jugador
   const ini={calidad:GQ.name,calidad_elegida:settings.quality,primera_vez:stats.firstTime,gpu:gpuName(),dpr:window.devicePixelRatio||1,memoria_gb:navigator.deviceMemory,nucleos:navigator.hardwareConcurrency,idioma:navigator.language,carga_ms:Math.round(buildMs),resolucion:pr};
   try{ini.$referrer=document.referrer||'$direct';ini.$referring_domain=document.referrer?new URL(document.referrer).hostname:'$direct';}catch(e){}

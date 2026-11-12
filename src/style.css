@@ -328,3 +328,10 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--bolt);outl
 #prepFoot{position:sticky;bottom:0;display:grid;gap:8px;padding:8px 0 12px;background:#0d1530;border-top:1px solid var(--line);z-index:1}
 #prepFoot #prepSummary{border-top:0;padding-top:0}
 #brief .scrollHint{display:none}
+
+/* Intro de la productora: proporción intacta, con el fondo de la marca en los costados */
+#intro{position:fixed;inset:0;z-index:8;display:grid;place-items:center;background:#201e1b}
+/* absoluto, no grid: con place-items el alto en % no resuelve y el video se desborda */
+#introVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#201e1b}
+#introStart{min-height:48px;padding:0 26px;background:var(--paper);color:var(--void);border-radius:3px;font:700 15px/1 var(--font-label);letter-spacing:.06em;text-transform:uppercase}
+#introSkip{position:absolute;right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));min-height:40px;padding:0 14px;border:1px solid rgba(246,234,214,.5);border-radius:3px;background:rgba(32,30,27,.6);color:#f6ead6;font:700 12px/1 var(--font-label);letter-spacing:.08em;text-transform:uppercase}

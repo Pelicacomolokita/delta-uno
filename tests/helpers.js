@@ -33,6 +33,7 @@ async function open(browser, viewport, opts = {}) {
   const errs = [];
   page.on('pageerror', e => errs.push('pageerror: ' + e.message + ' ' + (e.stack || '').split('\n').slice(1, 3).join(' ')));
   page.on('console', m => { if ((m.type() === 'error' || /THREE\.WebGL|GLSL|shader/i.test(m.text())) && !/fonts\.g|ERR_|Failed to load resource/.test(m.text())) errs.push('console: ' + m.text().slice(0, 500)); });
+  if (!opts.intro) await page.addInitScript(() => { window.__sinIntro = true; }); // la intro tiene su propia prueba (15)
   if (opts.init) await page.addInitScript(opts.init);
   const html = pageHtml();
   await page.route('**/fonts.g*/**', r => r.abort());

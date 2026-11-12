@@ -206,6 +206,14 @@ Al principio pilota un caza básico. Más adelante habrá más naves para elegir
   - Radio: clic y estática al abrir, crujidos bajitos mientras dura el mensaje y el "chsss" del final.
 - **Packs gratuitos** (decidido por Santiago: calidad completa, con crédito a los autores si la licencia lo pide): texturas, cielo HDRI, partículas, sonidos y música. Los sitios de packs no se pueden descargar desde el entorno de trabajo, así que los baja Santiago y los adjunta. Con los packs llega una pantalla de Créditos.
 
+## Intro de la productora
+
+- El juego abre con la intro de Cebado Producciones (8 segundos), antes del menú. Detalle en `docs/intro-cebado.md`.
+- Primero una pantalla con "Comenzar": el navegador solo deja sonar después de un toque, y ese mismo toque habilita el audio del juego.
+- Se puede saltar con el botón, un toque, Escape, cualquier tecla o cualquier botón del mando.
+- Una vez por sesión. Se apaga en Ajustes → Intro de la productora.
+- Si el video no se puede reproducir, se entra al menú igual: nunca deja al jugador trabado.
+
 ## Preparar la salida (decidido por Santiago)
 
 - La nave no se elige en Ajustes ni se cambia en vuelo. Se elige antes de despegar, en una pantalla alineada con el selector de misión.

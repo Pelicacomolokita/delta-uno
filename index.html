@@ -142,6 +142,10 @@
             <div class="seg" data-key="sens"><button id="optSensS" type="button" data-val="suave">Suave</button><button id="optSensM" type="button" data-val="media">Media</button><button id="optSensF" type="button" data-val="rapida">Rápida</button></div>
           </section>
           <section class="opt">
+            <h3>Intro de la productora</h3>
+            <div class="seg" data-key="intro"><button type="button" data-val="true">Sí</button><button type="button" data-val="false">No</button></div>
+          </section>
+          <section class="opt">
             <h3>Sonido</h3>
             <div class="seg" data-key="sound"><button id="optSndY" type="button" data-val="true">Sí</button><button id="optSndN" type="button" data-val="false">No</button></div>
           </section>
@@ -309,6 +313,11 @@
 
     <div id="loading">Generando el planeta…</div>
     <div id="fatal" hidden><p></p></div>
+  </div>
+  <div id="intro" hidden>
+    <video id="introVideo" playsinline preload="none" hidden></video>
+    <button id="introStart" type="button">Comenzar</button>
+    <button id="introSkip" type="button" hidden>Saltar</button>
   </div>
   <div id="turnCue" hidden>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M11 18.5h2"/></svg>
