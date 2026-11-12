@@ -187,6 +187,25 @@ Al principio pilota un caza básico. Más adelante habrá más naves para elegir
 - **Vuelo libre:** se va a poder elegir la región donde arrancar.
 - **Formato de las misiones:** está en `docs/historia/formato.md`.
 
+## Gráficos y sonido
+
+- **Calidad:** Automática, Baja, Media o Alta, en Ajustes → Gráficos.
+  - **Baja:** resolución 1, sin suavizado de bordes, nave lisa, menos fuego y restos, sin onda expansiva.
+  - **Media:** resolución 1,5 y nave con paneles.
+  - **Alta:** resolución 2 y todos los efectos.
+  - **Automática:** elige según el equipo. Computadoras: Alta, o Media con placa de video débil. Teléfonos: Baja si son viejos, Media los comunes y Alta los de gama alta de los últimos años (Adreno 7xx, Mali-G7xx, Immortalis, Apple).
+  - Si en Automática el juego no llega a 30 cuadros por segundo durante 10 segundos (después de bajar la resolución), baja un escalón solo. Queda en los datos de uso como `calidad_auto`.
+- **Explosiones:** destello, fuego que pasa de amarillo a naranja y rojo, humo oscuro que sube, restos de chapa que caen dejando humo, y una onda expansiva. Todo hecho en código; el pack de partículas de Kenney lo va a reemplazar.
+- **Escudo:** cuando te pegan con escudo, se ilumina la cáscara del lado del tiro y se abre una onda desde ese punto.
+- **Diseños de la nave:** Actual, Guardia, Interceptor y Blindado, elegibles en Ajustes → Gráficos para probarlos en vuelo. Todos tienen la misma silueta para los choques y los tiros, así que se juega igual. Los compañeros usan el mismo diseño, con el color de sus puntas de ala. Falta que Santiago elija uno (visor: herramientas/hangar).
+- **Sonido sintetizado** (sin archivos, en `src/sonido.js`):
+  - Motor con dos tonos graves, silbido de turbina según el empuje y rugido con el turbo. Viento según la velocidad.
+  - Cañón con chasquido, cuerpo y golpe grave, un poco distinto en cada tiro.
+  - Explosiones en capas: estruendo grave, ruido, chasquido si está cerca y restos que repiquetean. Suenan según dónde pasan: más lejos, más bajas, más apagadas, con un poco de demora y del lado que corresponde. Como máximo 4 a la vez.
+  - Escudo (zumbido eléctrico) y casco (chapa golpeada) suenan distinto.
+  - Radio: clic y estática al abrir, crujidos bajitos mientras dura el mensaje y el "chsss" del final.
+- **Packs gratuitos** (decidido por Santiago: calidad completa, con crédito a los autores si la licencia lo pide): texturas, cielo HDRI, partículas, sonidos y música. Los sitios de packs no se pueden descargar desde el entorno de trabajo, así que los baja Santiago y los adjunta. Con los packs llega una pantalla de Créditos.
+
 ### Lo que falta programar para la campaña
 
 Aliados que combaten y pueden caer, bombarderos, el convoy, derribos guionados (el líder alcanzado por un misil), la retirada de un enemigo por un punto de salida, y más tipos de sector.

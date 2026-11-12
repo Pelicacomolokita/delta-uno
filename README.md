@@ -92,6 +92,9 @@ Todo se puede cambiar en **Ajustes → Teclado y mouse**. Con un mando de Xbox o
 index.html                  pantalla: botones, paneles, menú de inicio
 src/main.js                 todo el juego (por ahora en un solo archivo, ver "Próximos pasos")
 src/historia/               las misiones como datos (textos, partes, eventos de radio); formato en docs/historia/formato.md
+src/nave.js                 los diseños de la nave (Actual, Guardia, Interceptor, Blindado) y su textura de paneles
+src/efectos.js              fuego, humo, restos, onda expansiva y escudo
+src/sonido.js               todos los sonidos, sintetizados en el momento (motor, cañón, explosiones, radio)
 src/stats.js                datos anónimos de uso (PostHog)
 src/config.js               clave de PostHog y enlace del formulario (salen de las variables de GitHub)
 src/style.css               estilos
@@ -102,6 +105,7 @@ scripts/artifact.mjs        arma la versión para publicar en claude.ai
 scripts/iconos.mjs          arma el ícono y la pantalla de carga de la app
 scripts/pagina.mjs          arma la página de descarga (pagina/ → dist-pagina/)
 scripts/capturas.cjs        saca las capturas de la página jugando
+herramientas/hangar/        visor 3D para comparar los diseños de la nave (npx vite build --config herramientas/hangar/vite.config.mjs)
 pagina/                     la página de descarga y sus capturas
 tests/helpers.js            ayudas comunes de las pruebas (teléfono simulado, toques, tiempos)
 tests/suites/               las pruebas, por tema
@@ -146,11 +150,13 @@ Las pruebas abren el juego en un Chromium con pantalla táctil simulada (horizon
 | `10-defensas-mar-camara` | Defensas sobre torres, lanzamisiles, misiles que se esquivan, cámara de Blanco |
 | `11-datos-de-uso` | Eventos de PostHog, aviso y opción para apagarlos, envíos sin conexión, versión en el menú, botón de opinión |
 | `12-historia` | Misión 1: reglas de los textos, instrucciones, anillos, firma de Rastro, torretas y blancos de práctica, repetir la parte al caer o salir del sector, resumen y medallas |
+| `13-graficos-y-sonido` | Calidad Baja, Media y Alta, los cuatro diseños de la nave, explosiones, escudo y sonidos |
 
 **Pendiente:** la prueba del planeta (biomas, vuelta completa, choques con el suelo) es de una versión vieja y hay que actualizarla.
 
 ## Próximos pasos
 
 1. Modo Historia: misión 2 (emboscada), con aliados que combaten, bombarderos y derribos guionados.
-2. Gráficos con estilo industrial desgastado: texturas por bioma en formato KTX2 y efectos con el pack de partículas de Kenney (licencia CC0).
-3. Separar `src/main.js` en módulos (planeta, vuelo, combate, enemigos, zonas, modos y pantalla), de a uno por vez y con las pruebas pasando después de cada separación.
+2. Gráficos con estilo industrial desgastado: texturas por bioma, cielo HDRI, partículas y sonidos de packs gratuitos (con pantalla de Créditos). Ya están la calidad Baja/Media/Alta, los efectos nuevos y los sonidos sintetizados; los packs reemplazan las texturas y sonidos hechos en código.
+3. Versión web en `/jugar` (en la misma página de descarga), para PC, en lugar del zip: así se pueden cargar los archivos de los packs.
+4. Separar `src/main.js` en módulos (planeta, vuelo, combate, enemigos, zonas, modos y pantalla), de a uno por vez y con las pruebas pasando después de cada separación.

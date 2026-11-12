@@ -102,7 +102,7 @@ export const PROXIMAS = [
   { campana: 1, numero: 2, titulo: 'Primera salida' },
   { campana: 1, numero: 3, titulo: 'Carga importante' },
   { campana: 1, numero: 4, titulo: 'Mantener la posición' },
-  { campana: 1, numero: 5, titulo: 'Abrir el paso' },
+  { campana: 1, numero: 5, titulo: 'Por debajo' },
   { campana: 1, numero: 6, titulo: 'Emboscada' },
   { campana: 1, numero: 7, titulo: 'Los que quedan' }
 ];

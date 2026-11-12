@@ -291,3 +291,5 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--bolt);outl
 #briefBtns{display:flex;flex-wrap:wrap;gap:8px}
 #briefBtns button{min-height:44px;padding:0 16px;border:1px solid var(--line);border-radius:3px;font-size:14px}
 
+#gfxGrid{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+#qualityNote{color:var(--paper);font-weight:700}

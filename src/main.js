@@ -4,6 +4,9 @@ import './style.css';
 import { stats } from './stats.js';
 import { APP_VERSION, FEEDBACK_URL } from './config.js';
 import { REPARTO, MISIONES, PROXIMAS } from './historia/campana1.js';
+import { NAVES, PALETAS, naveGeometria, naveMaterial } from './nave.js';
+import { createEffects, createShield } from './efectos.js';
+import { createSound } from './sonido.js';
 window.THREE = THREE; // las pruebas lo usan para armar matrices
 
 (function(){
@@ -18,7 +21,8 @@ if(typeof THREE==='undefined'){sizeFallback();fatal('No se pudo cargar el motor 
 const T=THREE,V3=T.Vector3,Q=T.Quaternion;
 
 let renderer;
-try{renderer=new T.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});}
+const AA=(()=>{try{return (JSON.parse(localStorage.getItem('delta-uno-ajustes-v3'))||{}).quality!=='baja';}catch(e){return true;}})();
+try{renderer=new T.WebGLRenderer({canvas,antialias:AA,powerPreference:'high-performance'});}
 catch(e){sizeFallback();fatal('Este navegador no pudo abrir los gráficos 3D. Probá con Chrome o Safari actualizados.');return;}
 renderer.setClearColor(0x0a1022);
 canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();fatal('El teléfono cerró los gráficos 3D. Recargá la página para seguir.');});
@@ -75,7 +79,7 @@ const ZONE_ORDER=['dispersa','normal','densa','dispersa','normal','densa'];
 
 const STORE='delta-uno-ajustes-v3';
 // v3: "lateral" cambió de significado, así que de los ajustes viejos se conserva todo menos eso
-const settings=Object.assign({mode:'asistido',invert:true,invertX:false,lateral:'dobla',sens:'media',sound:true,flip:false,tgtCam:'camara',diff:'medio',lastMode:'conquista',touchUI:'auto',vibrate:true,stats:true,statsSeen:false},(()=>{
+const settings=Object.assign({mode:'asistido',invert:true,invertX:false,lateral:'dobla',sens:'media',sound:true,flip:false,tgtCam:'camara',diff:'medio',lastMode:'conquista',touchUI:'auto',vibrate:true,stats:true,statsSeen:false,quality:'auto',shipModel:'actual',shipPaint:'actual'},(()=>{
   try{
     const cur=localStorage.getItem(STORE);if(cur)return JSON.parse(cur)||{};
     const old=JSON.parse(localStorage.getItem('delta-uno-ajustes-v2'))||{};delete old.lateral;return old;
@@ -87,6 +91,17 @@ stats.allow(()=>settings.stats!==false);
 stats.watchErrors();
 
 const reduceMotion=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches);
+
+/* ---------- Calidad gráfica ----------
+   pr: resolución máxima (sobre la del equipo); fx: cantidad de partículas; debris: restos por explosión;
+   shock: onda expansiva; ship: material de la nave (con textura de paneles o liso). El suavizado de bordes
+   se apaga en Baja y se aplica al volver a abrir el juego. "auto" elige según el equipo y baja sola si no da. */
+const QUALITY={
+  baja:{name:'baja',label:'Baja',pr:1,fx:.45,debris:6,shock:false,ship:'lisa'},
+  media:{name:'media',label:'Media',pr:1.5,fx:.75,debris:12,shock:true,ship:'paneles'},
+  alta:{name:'alta',label:'Alta',pr:2,fx:1,debris:20,shock:true,ship:'paneles'}
+};
+let GQ=QUALITY.media,autoQ='media';
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const smooth01=x=>{x=clamp(x,0,1);return x*x*(3-2*x);};
 const sstep=(a,b,x)=>smooth01((x-a)/(b-a));
@@ -523,36 +538,21 @@ const glow=(color,scale)=>{const s=new T.Sprite(new T.SpriteMaterial({map:softTe
 /* ---------- La nave: un triángulo delta. Lomo claro y panza azul para leer al toque si está dada vuelta ---------- */
 const WING_L=new V3(-2.4,-.1,1.6),WING_R=new V3(2.4,-.1,1.6),TAIL=new V3(0,.05,1.7);
 const shipGroup=new T.Group();scene.add(shipGroup);
-// mark: color de las puntas de ala (los aliados llevan el suyo; la del jugador es coral)
-function shipGeometry(mark){
-  const N=[0,0,-3],L=[-2.4,-.1,1.6],R=[2.4,-.1,1.6],Sp=[0,.62,.55],B=[0,-.34,.7],TL=[-.85,.06,1.35],TR=[.85,.06,1.35];
-  const ivory=[.96,.92,.84],shade=[.72,.68,.64],belly=[.16,.28,.56],bellyD=[.10,.17,.38],coral=mark||[1,.40,.22],glass=[.06,.16,.22],glassD=[.03,.08,.12];
-  const lerp=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t];
-  const pos=[],col=[];
-  const tri=(a,b,c,k)=>{pos.push(...a,...b,...c);col.push(...k,...k,...k);};
-  const P1=lerp(N,L,.74),Q1=lerp(L,Sp,.28),P2=lerp(L,TL,.4);
-  const P3=lerp(N,R,.74),Q2=lerp(R,Sp,.28),P4=lerp(R,TR,.4);
-  // lomo izquierdo
-  tri(P1,L,Q1,coral);tri(N,P1,Q1,ivory);tri(N,Q1,Sp,ivory);
-  tri(L,P2,Q1,coral);tri(P2,TL,Sp,shade);tri(P2,Sp,Q1,shade);
-  // lomo derecho
-  tri(Q2,R,P3,coral);tri(N,Sp,Q2,ivory);tri(N,Q2,P3,ivory);
-  tri(P4,R,Q2,coral);tri(TR,P4,Q2,shade);tri(TR,Q2,Sp,shade);
-  tri(TL,TR,Sp,shade);
-  // panza
-  tri(N,B,L,belly);tri(N,R,B,belly);tri(L,B,TL,bellyD);tri(TL,B,TR,bellyD);tri(TR,B,R,bellyD);
-  // cabina
-  const C1=[0,.335,-1.15],C2=[-.38,.42,.1],C3=[.38,.42,.1],C4=[0,.78,.35];
-  tri(C1,C2,C4,glass);tri(C1,C4,C3,glass);tri(C2,C3,C4,glassD);
-  const g=new T.BufferGeometry();
-  g.setAttribute('position',new T.Float32BufferAttribute(pos,3));
-  g.setAttribute('color',new T.Float32BufferAttribute(col,3));
-  g.computeVertexNormals();
-  return g;
+// La nave del jugador: modelo y colores salen de Ajustes → Gráficos (src/nave.js). Todos tienen la misma silueta.
+let shipMesh=null;
+function shipMat(fog){
+  return GQ.ship==='lisa'?new T.MeshLambertMaterial({vertexColors:true,fog,emissive:0x15151c,side:T.DoubleSide}):naveMaterial(T,{fog});
+}
+function buildPlayerShip(){
+  if(shipMesh){shipGroup.remove(shipMesh);shipMesh.geometry.dispose();shipMesh.material.dispose();}
+  const model=NAVES[settings.shipModel]?settings.shipModel:'actual',paint=PALETAS[settings.shipPaint]?settings.shipPaint:'actual';
+  shipMesh=new T.Mesh(naveGeometria(T,model,paint),shipMat(false));
+  shipGroup.add(shipMesh);
+  const N=NAVES[model];
+  if(typeof flames!=='undefined')flames.forEach((f,i)=>{const e=N.engines[i]||N.engines[0];f.cone.position.set(e[0],e[1],e[2]);f.glow.position.set(e[0],e[1],e[2]+.08);});
+  muzzleL.fromArray(N.muzzles[0]);muzzleR.fromArray(N.muzzles[1]);flashL.position.copy(muzzleL);flashR.position.copy(muzzleR);
 }
 (function buildShip(){
-  const m=new T.Mesh(shipGeometry(),new T.MeshLambertMaterial({vertexColors:true,fog:false,emissive:0x15151c}));
-  shipGroup.add(m);
   // luces de navegación: rojo a babor, verde a estribor
   const nl=glow(0xff3b30,.6);nl.position.copy(WING_L);shipGroup.add(nl);
   const nr=glow(0x3dff8b,.6);nr.position.copy(WING_R);shipGroup.add(nr);
@@ -568,6 +568,7 @@ const muzzleL=new V3(-1.55,-.02,.3),muzzleR=new V3(1.55,-.02,.3);
 const flashL=glow(0xbafff5,1.8),flashR=glow(0xbafff5,1.8);
 flashL.position.copy(muzzleL);flashR.position.copy(muzzleR);flashL.material.opacity=flashR.material.opacity=0;
 shipGroup.add(flashL,flashR);
+buildPlayerShip();
 
 /* ---------- Estado ---------- */
 const ship={pos:new V3(),q:new Q(),vel:new V3(0,0,-65),speed:65,w:new V3(),throttle:CRUISE,pull:0,turn:0,bank:0,pitchA:0,heading:0,cool:0,side:0,rocks:0,kills:0,alt:100,biome:2,thin:0,tf:0,turnBtn:0,t:0};
@@ -1061,13 +1062,15 @@ function burst(at,n,speed,life,r,g,b){
 }
 const flashes=Array.from({length:5},()=>{const s=glow(0xffc48a,1);s.material.opacity=0;scene.add(s);return {s,t:1,size:1};});
 let flashNext=0;
+const FX=createEffects(T,scene,camera,()=>GQ); // fuego, humo, restos y onda expansiva (src/efectos.js)
 function explode(at,radius){
   const c=at.clone();
-  burst(c,Math.min(90,34+radius*3|0),30+radius*5,1.1,1,.66,.34);
-  burst(c,Math.min(40,16+radius|0),14+radius*2.6,1.5,.9,.86,.82);
+  burst(c,Math.round(Math.min(60,20+radius*2)*GQ.fx),30+radius*5,1.1,1,.66,.34);
+  burst(c,Math.round(Math.min(24,8+radius)*GQ.fx),14+radius*2.6,1.5,.9,.86,.82);
+  FX.explode(c,radius);
   const f=flashes[flashNext];flashNext=(flashNext+1)%flashes.length;
   f.s.position.copy(c);f.t=0;f.size=radius*5+10;
-  sfxBoom(radius);
+  sfxBoom(radius,c);
   shake=reduceMotion?0:Math.max(shake,Math.min(1.4,radius*.05*(120/(40+c.distanceTo(ship.pos)))));
 }
 function stepParticles(dt){
@@ -1206,71 +1209,23 @@ function groundCheck(dt){
   if(warning||thinWarn||mis.out){beepT-=dt;if(beepT<=0){beepT=.45;blip(920,920,.07,.03,'square');}}else beepT=0;
 }
 
-/* ---------- Sonido ---------- */
-const sfx={ctx:null,master:null,engGain:null,osc1:null,osc2:null,filter:null,noise:null};
-function audioInit(){
-  if(sfx.ctx)return;
-  const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
-  try{
-    const c=new AC();sfx.ctx=c;
-    sfx.master=c.createGain();sfx.master.gain.value=settings.sound?.85:0;sfx.master.connect(c.destination);
-    sfx.filter=c.createBiquadFilter();sfx.filter.type='lowpass';sfx.filter.frequency.value=260;
-    sfx.engGain=c.createGain();sfx.engGain.gain.value=.03;
-    sfx.osc1=c.createOscillator();sfx.osc1.type='sawtooth';sfx.osc1.frequency.value=52;
-    sfx.osc2=c.createOscillator();sfx.osc2.type='triangle';sfx.osc2.frequency.value=78;
-    sfx.osc1.connect(sfx.filter);sfx.osc2.connect(sfx.filter);sfx.filter.connect(sfx.engGain);sfx.engGain.connect(sfx.master);
-    sfx.osc1.start();sfx.osc2.start();
-    const b=c.createBuffer(1,c.sampleRate,c.sampleRate),d=b.getChannelData(0);
-    for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
-    sfx.noise=b;
-    if(c.state==='suspended')c.resume();
-  }catch(e){sfx.ctx=null;}
-}
-function sfxEngine(){
-  if(!sfx.ctx)return;
-  const th=ship.speed/TUNE.vmax,t=sfx.ctx.currentTime;
-  sfx.osc1.frequency.setTargetAtTime(44+th*62,t,.15);
-  sfx.osc2.frequency.setTargetAtTime(66+th*94,t,.15);
-  sfx.filter.frequency.setTargetAtTime(170+th*620+contrail*280,t,.15);
-  sfx.engGain.gain.setTargetAtTime(dead>0?0:.022+th*.04,t,.2);
-}
-function blip(from,to,dur,vol,type){
-  if(!sfx.ctx)return;
-  const c=sfx.ctx,t=c.currentTime,o=c.createOscillator(),g=c.createGain();
-  o.type=type;o.frequency.setValueAtTime(from,t);o.frequency.exponentialRampToValueAtTime(to,t+dur);
-  g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0008,t+dur);
-  o.connect(g);g.connect(sfx.master);o.start(t);o.stop(t+dur+.02);
-}
-function sfxShot(){blip(1250,240,.09,.045,'square');}
-function sfxTick(){blip(1900,700,.05,.035,'triangle');}
-function sfxEnemyShot(){blip(520,180,.1,.016,'sawtooth');}
-function sfxShieldHit(){blip(1500,850,.09,.05,'sine');}
-function sfxHullHit(){blip(190,70,.16,.09,'square');}
-function sfxPickup(){blip(660,1320,.16,.05,'triangle');}
-function sfxDodge(){blip(280,1100,.2,.035,'sine');}
-function sfxMissile(){
-  blip(180,620,.34,.06,'sawtooth');
-  if(!sfx.ctx||!sfx.noise)return;
-  const c=sfx.ctx,t=c.currentTime,s=c.createBufferSource(),f=c.createBiquadFilter(),g=c.createGain();
-  s.buffer=sfx.noise;f.type='bandpass';f.Q.value=1;f.frequency.setValueAtTime(700,t);f.frequency.exponentialRampToValueAtTime(2400,t+.45);
-  g.gain.setValueAtTime(.16,t);g.gain.exponentialRampToValueAtTime(.0008,t+.55);
-  s.connect(f);f.connect(g);g.connect(sfx.master);s.start(t);s.stop(t+.6);
-}
-function sfxWhoosh(){
-  if(!sfx.ctx||!sfx.noise)return;
-  const c=sfx.ctx,t=c.currentTime,s=c.createBufferSource(),f=c.createBiquadFilter(),g=c.createGain();
-  s.buffer=sfx.noise;f.type='bandpass';f.Q.value=.8;f.frequency.setValueAtTime(240,t);f.frequency.exponentialRampToValueAtTime(2600,t+.28);f.frequency.exponentialRampToValueAtTime(400,t+.7);
-  g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.2,t+.2);g.gain.exponentialRampToValueAtTime(.0008,t+.75);
-  s.connect(f);f.connect(g);g.connect(sfx.master);s.start(t);s.stop(t+.8);
-}
-function sfxBoom(r){
-  if(!sfx.ctx||!sfx.noise)return;
-  const c=sfx.ctx,t=c.currentTime,s=c.createBufferSource(),f=c.createBiquadFilter(),g=c.createGain();
-  s.buffer=sfx.noise;f.type='lowpass';f.frequency.setValueAtTime(1100,t);f.frequency.exponentialRampToValueAtTime(90,t+.7);
-  g.gain.setValueAtTime(Math.min(.34,.14+r*.01),t);g.gain.exponentialRampToValueAtTime(.0008,t+.75);
-  s.connect(f);f.connect(g);g.connect(sfx.master);s.start(t);s.stop(t+.8);
-}
-function applySound(){if(sfx.master)sfx.master.gain.value=settings.sound?.85:0;}
+/* ---------- Sonido (src/sonido.js) ---------- */
+const sfx=createSound(T,camera,()=>settings.sound);
+const audioInit=()=>sfx.init();
+// El motor: empuje pedido, velocidad y turbo. Callado si la nave cayó o no hay partida.
+function sfxEngine(){sfx.engine(ship.throttle,clamp(ship.speed/TUNE.vmax,0,1),ship.tf||0,dead>0||!run.live);}
+const blip=(from,to,dur,vol,type)=>sfx.blip(from,to,dur,vol,type);
+function sfxShot(){sfx.shot();}
+function sfxTick(){sfx.tick();}
+function sfxEnemyShot(at){sfx.enemyShot(at);}
+function sfxShieldHit(){sfx.shieldHit();}
+function sfxHullHit(){sfx.hullHit();}
+function sfxPickup(){sfx.pickup();}
+function sfxDodge(){sfx.dodge();}
+function sfxMissile(){sfx.missile();}
+function sfxWhoosh(){sfx.whoosh();}
+function sfxBoom(r,at){sfx.boom(r,at);}
+function applySound(){sfx.apply();}
 
 /* ---------- Pantalla: siempre en horizontal, aunque el teléfono tenga bloqueada la rotación ---------- */
 let rot=0,gw=1,gh=1,viewW=1,viewH=1;
@@ -1766,6 +1721,8 @@ document.querySelectorAll('.seg').forEach(seg=>{
     if(v==='true')v=true;else if(v==='false')v=false;
     settings[k]=v;saveSettings();syncSheet();
     if(k==='stats'&&!v)stats.optOut();
+    if(k==='quality')applyQuality();
+    if(k==='shipModel'||k==='shipPaint'){buildPlayerShip();restyleAllies();}
     if(!menuEl.hidden)syncMenu();
   });
 });
@@ -2114,7 +2071,7 @@ function alertGroup(g){g.alert=true;g.lostT=0;}
 function hitEnemy(e,at,n){
   e.hp-=n||1;hitFlash=.14;
   alertGroup(e.group); // el que recibe un tiro te descubre, y avisa a los grupos cercanos
-  burst(at,10,40,.4,1,.72,.35);sfxTick();
+  burst(at,10,40,.4,1,.72,.35);FX.sparks(at,5,26);sfxTick();
   if(e.hp<=0)killEnemy(e,true);
 }
 function stepZones(dt){
@@ -2367,7 +2324,7 @@ function fireEnemyBolt(e,dP){
   b.v.copy(_eA).multiplyScalar(speed);
   b.life=1.7;b.dmg=e.def.dmg*(e.dmgK||1);b.on=true; // dmgK: munición de práctica en las misiones
   if(dP+80>speed*1.7)b.life=(dP+80)/speed; // las torretas tiran más lejos
-  sfxEnemyShot();
+  sfxEnemyShot(b.p);
 }
 // ¿La bala tocó la nave? Primero una bola grande (barato) y después la forma real:
 // el triángulo de la nave visto desde arriba y su poco espesor.
@@ -2408,7 +2365,7 @@ function stepEnemyBolts(dt){
 /* ---------- Daño, escudo y recalentamiento ---------- */
 const elBarShield=$('#barShield'),elBarHull=$('#barHull'),elBarDodge=$('#barDodge'),elVitals=$('#vitals'),elHeat=$('#heatBar'),elFx=$('#speedFx'),elHurt=$('#hurt'),elDmg=$('#dmgDir'),elToast=$('#toast'),elLead=$('#lead'),elZoneMk=$('#zoneMk'),elZoneDist=$('#zoneDist');
 let hurtA=0,dmgA=0,toastT=0,hitFlash=0,smokeT=0,sparkT=0,alarmT=0,wasTurbo=false,vitT=0,zoneMkT=0;
-const shieldFx=glow(0x86f2e4,8);shieldFx.material.opacity=0;shipGroup.add(shieldFx);
+const shieldFx=createShield(T,shipGroup),_shD=new V3(); // se ilumina más donde pegó el tiro
 function toast(text,secs){elToast.textContent=text;elToast.hidden=false;toastT=secs||1.2;}
 function damage(n,dir){
   if(dead>0||inv>0)return;
@@ -2420,7 +2377,11 @@ function damage(n,dir){
   if(settings.vibrate&&navigator.vibrate)try{navigator.vibrate(n>=20?60:30);}catch(e){}
   elHurt.classList.toggle('shield',n-onShield<=0);
   hurtA=n-onShield<=0?.55:1;
-  if(n-onShield<=0){shieldFx.material.opacity=.5;sfxShieldHit();}
+  if(n-onShield<=0){
+    // de dónde vino, en coordenadas de la nave
+    if(dir)_shD.copy(dir).negate().applyQuaternion(_q.copy(ship.q).invert());else _shD.set(0,0,-1);
+    shieldFx.hit(_shD);sfxShieldHit();
+  }
   else{sfxHullHit();if(!reduceMotion)shake=Math.max(shake,1.1);}
   if(dir){ // arco que marca de dónde vino el golpe
     _eA.copy(ship.pos).sub(_v.copy(dir).normalize().multiplyScalar(60)).applyMatrix4(camera.matrixWorldInverse);
@@ -2704,7 +2665,7 @@ function stepCombat(dt){
   if(bounceT>0)bounceT-=dt;
   if(hitInv>0)hitInv-=dt;
   if(hitFlash>0)hitFlash-=dt;
-  shieldFx.material.opacity*=Math.exp(-7*dt);
+  shieldFx.step(dt);
   if(dead<=0){
     if(shieldWait>0)shieldWait-=dt;
     else if(shield<SHIELD_MAX)shield=Math.min(SHIELD_MAX,shield+SHIELD_REGEN*dt);
@@ -2854,6 +2815,11 @@ const smoke=new T.Points(smGeo,new T.ShaderMaterial({uniforms:smU,transparent:tr
 smoke.frustumCulled=false;scene.add(smoke);
 // grey: tono del humo. drift: si arrastra parte de la velocidad de la nave.
 function emitSmoke(at,size,life,grey,drift){
+  // el humo nuevo (bocanadas con forma irregular) está en src/efectos.js
+  const dv=drift===false?0:.25;
+  FX.puff(at,ship.vel.x*dv+(Math.random()-.5)*5,ship.vel.y*dv+(Math.random()-.5)*5,ship.vel.z*dv+(Math.random()-.5)*5,size,life*(.7+Math.random()*.5),grey===undefined?.13:grey,.85);
+}
+function emitSmokeOld(at,size,life,grey,drift){
   const k=smNext;smNext=(smNext+1)%SMOKE_N;
   const j=k*3,dv=drift===false?0:.25;
   smPos[j]=at.x;smPos[j+1]=at.y;smPos[j+2]=at.z;
@@ -3359,7 +3325,7 @@ function histStart(def){
   mis.wall=zoneWall(mis.sector,[.25,.62,.95]);
   mis.sites=sectorSites(mis.sector,Math.max(0,...def.partes.map(p=>p.torretas||0)));
   mis.th0=0;mis.t=0;mis.falls=0;mis.dmg=0;mis.result=null;mis.state='jugando';mis.part=-1;
-  radio.q.length=0;radio.heard.clear();radio.cur=null;radio.gapT=0;elRadio.hidden=true;
+  radio.q.length=0;radio.heard.clear();radio.cur=null;radio.gapT=0;elRadio.hidden=true;sfx.radioClose(true);
   histPart(0,false);
   // posición de partida: sobre el círculo de los anillos, mirando al primero
   misRingAt(-1.2,_hA);misRingAt(0,_hB);
@@ -3376,7 +3342,7 @@ function histStop(){
   if(mis.wall){scene.remove(mis.wall);mis.wall.geometry.dispose();mis.wall.material.dispose();mis.wall=null;}
   clearMisRings();removeAllies();
   mis.def=null;mis.sector=null;mis.state='off';mis.part=-1;mis.P=null;mis.warn='';mis.out=false;
-  radio.q.length=0;radio.cur=null;elRadio.hidden=true;
+  radio.q.length=0;radio.cur=null;elRadio.hidden=true;sfx.radioClose(true);
 }
 // Arma la parte i. restart: se repite después de caer o de salir del sector.
 function histPart(i,restart){
@@ -3438,7 +3404,7 @@ function practice(e,P){
 function histRestart(u,f){
   if(!mis.def)return;
   mis.partFalls++;
-  radio.q.length=0;radio.cur=null;elRadio.hidden=true;
+  radio.q.length=0;radio.cur=null;elRadio.hidden=true;sfx.radioClose(true);
   u.copy(mis.pose.u);f.copy(mis.pose.f);
   histPart(mis.part,true);
   placeAllies(u,f);
@@ -3569,7 +3535,7 @@ function say(who,text,prio){
   radio.q.push({who,text,prio:prio||'alta',part:mis.part,fin:!!mis.won,at:ship.t});
 }
 function stepRadio(dt){
-  if(radio.showT>0){radio.showT-=dt;if(radio.showT<=0){elRadio.hidden=true;radio.cur=null;}}
+  if(radio.showT>0){radio.showT-=dt;if(radio.showT<=0){elRadio.hidden=true;radio.cur=null;sfx.radioClose();}}
   radio.gapT-=dt;
   if(radio.gapT>0||!radio.q.length)return;
   // fuera lo de partes anteriores (salvo el cierre de la parte) y los comentarios viejos
@@ -3583,14 +3549,13 @@ function stepRadio(dt){
   elRadio.style.setProperty('--who',R.marca?'rgb('+R.marca.map(v=>Math.round(v*255)).join(',')+')':'var(--paper)');
   elRadio.hidden=false;
   radio.showT=clamp(2.4+m.text.length*.05,3.6,6.5);radio.gapT=RADIO_GAP;
-  blip(1500,1150,.05,.025,'square');
+  sfx.radioOpen();
 }
 
 /* Aliados: vuelan solos en formación atrás del jugador, o en círculo arriba del sector mirando la prueba.
    Por ahora no combaten (llega con la misión 2). Rastro tiene su maniobra: la "firma". */
 // x: a la derecha, y: arriba, z: atrás (negativo: adelante). Los de adelante se ven desde la cámara.
 const ALLY_SLOTS=[[-34,0,-42],[34,0,-42],[-46,3,-24],[46,3,-24],[0,12,60],[0,18,90]];
-const allyMat=new T.MeshLambertMaterial({vertexColors:true,emissive:0x15151c});
 const practiceMat=new T.MeshLambertMaterial({color:0xe2c24a,emissive:0x2a2006});
 const allies=[];
 const allyMarks=Array.from({length:ALLY_SLOTS.length},()=>{
@@ -3603,15 +3568,25 @@ function makeAllies(ids){
   ids.forEach((id,i)=>{
     const R=REPARTO[id]||{radio:id};
     const mesh=new T.Group();
-    mesh.add(new T.Mesh(shipGeometry(R.marca),allyMat));
+    // misma nave que el jugador, con el color de marca de cada uno
+    mesh.add(new T.Mesh(naveGeometria(T,NAVES[settings.shipModel]?settings.shipModel:'actual',PALETAS[settings.shipPaint]?settings.shipPaint:'actual',R.marca),shipMat(true)));
     const flames=[-.55,.55].map(x=>{const g=glow(0x7ff0e1,1.7);g.position.set(x,.04,1.6);mesh.add(g);return g;});
     scene.add(mesh);
     allies.push({id,name:R.radio,mesh,flames,pos:new V3(),fwd:new V3(),speed:60,bank:0,roll:0,lat:0,mode:(mis.P&&mis.P.aliados)||'formacion',slot:ALLY_SLOTS[i%ALLY_SLOTS.length],orbitA:i/ids.length*Math.PI*2,man:null,seen:0});
   });
   placeAllies(U,fwd);
 }
+// Cambia el diseño o el material de los compañeros sin sacarlos de donde están (ni cortarles la maniobra)
+function restyleAllies(){
+  allies.forEach(a=>{
+    const m=a.mesh.children[0],R=REPARTO[a.id]||{};
+    m.geometry.dispose();m.material.dispose();
+    m.geometry=naveGeometria(T,NAVES[settings.shipModel]?settings.shipModel:'actual',PALETAS[settings.shipPaint]?settings.shipPaint:'actual',R.marca);
+    m.material=shipMat(true);
+  });
+}
 function removeAllies(){
-  allies.forEach(a=>{scene.remove(a.mesh);a.mesh.children[0].geometry.dispose();a.flames.forEach(f=>f.material.dispose());});
+  allies.forEach(a=>{scene.remove(a.mesh);a.mesh.children[0].geometry.dispose();a.mesh.children[0].material.dispose();a.flames.forEach(f=>f.material.dispose());});
   allies.length=0;allyMarks.forEach(m=>{m.el.hidden=true;});
 }
 // Los pone en su lugar de la formación alrededor de la nave (en u, mirando hacia f)
@@ -4023,9 +3998,29 @@ function updateCombatHud(dt){
 }
 
 /* ---------- Bucle ---------- */
-const maxPR=Math.min(window.devicePixelRatio||1,2);
-let pr=maxPR,last=performance.now(),ema=16,prT=0;
+let maxPR=Math.min(window.devicePixelRatio||1,2);
+let pr=maxPR,last=performance.now(),ema=16,prT=0,slowT=0;
 renderer.setPixelRatio(pr);
+// Calidad automática: según el equipo. Teléfono flojo → Baja; teléfono → Media; computadora → Alta (Media si la placa es flojita)
+function autoQuality(){
+  const gpu=gpuName(),mobile=/Android|iPhone|iPad|Mobile/i.test(navigator.userAgent||''),mem=navigator.deviceMemory||4,cores=navigator.hardwareConcurrency||4;
+  const weakGpu=/Mali-4|Mali-T[0-7]|Adreno \(TM\) [2-5]\d\d|PowerVR|SGX|Intel\(R\) HD Graphics [2-5]|SwiftShader|llvmpipe/i.test(gpu);
+  // teléfonos de gama alta de los últimos años (Adreno 7xx, Mali-G7xx, Immortalis, Apple): arrancan en Alta;
+  // si después no llegan a 30 cuadros por segundo, la calidad automática baja sola
+  const strongGpu=/Adreno \(TM\) [7-9]\d\d|Immortalis|Mali-G7\d\d|Mali-G[6-9]\d\b|Apple GPU|Xclipse/i.test(gpu);
+  if(mobile)return weakGpu||mem<=3||cores<=4?'baja':strongGpu&&mem>=6?'alta':'media';
+  return weakGpu||mem<=4?'media':'alta';
+}
+function applyQuality(){
+  const want=settings.quality==='auto'?autoQ:settings.quality;
+  const prev=GQ;
+  GQ=QUALITY[want]||QUALITY.media;
+  maxPR=Math.min(window.devicePixelRatio||1,GQ.pr);
+  pr=maxPR;renderer.setPixelRatio(pr);renderer.setSize(gw,gh,false);ema=16;
+  if(prev.ship!==GQ.ship){buildPlayerShip();restyleAllies();}
+  const note=$('#qualityNote');
+  if(note)note.textContent=settings.quality==='auto'?'Automática: en este equipo usa '+QUALITY[autoQ].label+'.':'Elegida a mano: '+GQ.label+'.';
+}
 // Cuadros por segundo para los datos de uso: promedio y el peor segundo de cada minuto jugado
 const perf={f:0,t:0,secF:0,secT:0,min:999,runF:0,runT:0};
 function perfReset(){perf.f=perf.t=perf.secF=perf.secT=perf.runF=perf.runT=0;perf.min=999;}
@@ -4033,7 +4028,7 @@ function perfStep(raw){
   perf.f++;perf.t+=raw;perf.runF++;perf.runT+=raw;perf.secF++;perf.secT+=raw;
   if(perf.secT>=1){perf.min=Math.min(perf.min,perf.secF/perf.secT);perf.secF=perf.secT=0;}
   if(perf.t>=60){
-    stats.track('rendimiento',{fps_prom:Math.round(perf.f/perf.t),fps_min:Math.round(perf.min),resolucion:pr,enemigos:enemies.length,pantalla:gw+'x'+gh});
+    stats.track('rendimiento',{calidad:GQ.name,fps_prom:Math.round(perf.f/perf.t),fps_min:Math.round(perf.min),resolucion:pr,enemigos:enemies.length,pantalla:gw+'x'+gh});
     perf.f=perf.t=0;perf.min=999;
   }
 }
@@ -4067,6 +4062,7 @@ function frame(now){
     stepRocks(dt);
     stepParticles(dt);
     stepSmoke(dt);
+    FX.step(dt,canvas.height*.9);
     stepTrails(dt);
     stepTerrain(false);
     stepCamera(dt,ship.t);
@@ -4083,6 +4079,9 @@ function frame(now){
   // Si el teléfono no da abasto, baja la resolución en vez de trabar el vuelo
   ema+=(raw*1000-ema)*.06;prT+=raw;
   if(prT>1.4){prT=0;if(ema>25&&pr>1){pr=Math.max(1,pr-.25);renderer.setPixelRatio(pr);renderer.setSize(gw,gh,false);ema=16;}}
+  // en automático, si ya bajó la resolución al mínimo y sigue lento 10 segundos, baja un escalón de calidad
+  if(settings.quality==='auto'&&pr<=1&&ema>30&&autoQ!=='baja'){slowT+=raw;if(slowT>10){slowT=0;autoQ=autoQ==='alta'?'media':'baja';applyQuality();stats.track('calidad_auto',{nueva:autoQ});}}
+  else slowT=Math.max(0,slowT-raw*.5);
 }
 
 document.addEventListener('visibilitychange',()=>{
@@ -4111,9 +4110,10 @@ function boot(data){
   stepTerrain(true);
   try{if(window.claude&&window.claude.hot&&window.claude.hot.snapshot)window.claude.hot.snapshot(()=>({ship:{world:'esfera',pos:ship.pos.toArray(),q:ship.q.toArray(),throttle:ship.throttle,rocks:ship.rocks}}));}catch(e){}
   $('#loading').hidden=true;
+  autoQ=autoQuality();applyQuality();
   openMenu();
   // Primer dato de uso: con qué equipo se juega y de dónde vino el jugador
-  const ini={primera_vez:stats.firstTime,gpu:gpuName(),dpr:window.devicePixelRatio||1,memoria_gb:navigator.deviceMemory,nucleos:navigator.hardwareConcurrency,idioma:navigator.language,carga_ms:Math.round(buildMs),resolucion:pr};
+  const ini={calidad:GQ.name,calidad_elegida:settings.quality,primera_vez:stats.firstTime,gpu:gpuName(),dpr:window.devicePixelRatio||1,memoria_gb:navigator.deviceMemory,nucleos:navigator.hardwareConcurrency,idioma:navigator.language,carga_ms:Math.round(buildMs),resolucion:pr};
   try{ini.$referrer=document.referrer||'$direct';ini.$referring_domain=document.referrer?new URL(document.referrer).hostname:'$direct';}catch(e){}
   try{const q=new URLSearchParams(location.search);['utm_source','utm_medium','utm_campaign'].forEach(k=>{if(q.get(k))ini[k]=q.get(k);});}catch(e){}
   stats.track('sesion_inicio',ini);
@@ -4121,7 +4121,7 @@ function boot(data){
   window.DeltaUno={renderer,ship,input,settings,TUNE,rocks,activeRocks,rings,chart,chartDir,straighten,terrain,heightAt,S,BIOMES,PLANET_R,CEIL:{CEIL_WARN,CEIL_PUSH,CEIL_MAX},buildMs,flags:()=>({dead,inv,warning,thinWarn}),
     zones,groups,enemies,lost,drops,DROP_KIND,damage,spawnDrop,dodge,tryDodge,rockets,lockCancel,AIM,seenVel,ZONE_KIND,eBolts,boltHitsShip,
     tgt:()=>camTarget,camBlend:()=>camBlend,camera,
-    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
+    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
     vit:()=>({hull,shield,heat,overheat,score,record,combo,curZone:curZone&&zones.indexOf(curZone),target:!!target,fov:camera.fov,missiles,missileT,lockOn,lockP,hasLock:!!lockTarget,repairT,repairCool})};
   last=performance.now();
   requestAnimationFrame(frame);

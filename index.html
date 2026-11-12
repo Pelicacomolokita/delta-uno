@@ -115,6 +115,7 @@
           <button class="tab" type="button" role="tab" data-tab="kb" aria-selected="false">Teclado y mouse</button>
           <button class="tab" type="button" role="tab" data-tab="pad" aria-selected="false">Mando</button>
           <button class="tab" type="button" role="tab" data-tab="touch" aria-selected="false">Pantalla táctil</button>
+          <button class="tab" type="button" role="tab" data-tab="gfx" aria-selected="false">Gráficos</button>
         </div>
         <div id="sheetGrid" data-panel="vuelo">
           <section class="opt">
@@ -177,6 +178,25 @@
               <h3>Vibrar al recibir daño</h3>
               <div class="seg" data-key="vibrate"><button type="button" data-val="true">Sí</button><button type="button" data-val="false">No</button></div>
               <p>Solo en los teléfonos que lo permiten, como la mayoría de los Android.</p>
+            </section>
+          </div>
+        </div>
+        <div class="panel" data-panel="gfx" hidden>
+          <div id="gfxGrid">
+            <section class="opt wide">
+              <h3>Calidad</h3>
+              <div class="seg" data-key="quality"><button type="button" data-val="auto">Automática</button><button type="button" data-val="baja">Baja</button><button type="button" data-val="media">Media</button><button type="button" data-val="alta">Alta</button></div>
+              <p id="qualityNote"></p>
+              <p>Cambia la resolución, la cantidad de fuego, humo y restos de las explosiones, y el detalle de la nave. El suavizado de bordes se apaga en Baja y cambia al volver a abrir el juego.</p>
+            </section>
+            <section class="opt wide">
+              <h3>Diseño de la nave</h3>
+              <div class="seg" data-key="shipModel"><button type="button" data-val="actual">Actual</button><button type="button" data-val="guardia">Guardia</button><button type="button" data-val="interceptor">Interceptor</button><button type="button" data-val="blindado">Blindado</button></div>
+              <p>Para probar los diseños nuevos en vuelo. Todos tienen la misma silueta, así que se juega igual.</p>
+            </section>
+            <section class="opt wide">
+              <h3>Colores de la nave</h3>
+              <div class="seg" data-key="shipPaint"><button type="button" data-val="actual">Actuales</button><button type="button" data-val="guardia">Guardia</button></div>
             </section>
           </div>
         </div>
