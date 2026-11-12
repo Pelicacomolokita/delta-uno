@@ -50,11 +50,13 @@ Entonces: de cada material, **Color y NormalGL**. El resto ocupa lugar y no hace
 
 | Dónde se usa | Resolución | Por qué |
 |---|---|---|
-| Terreno | **512 px**, 1K como mucho | Se repite cientos de veces y se ve de lejos, en movimiento. A 2K no se nota la diferencia y pesa 16 veces más. |
+| Terreno | **512 px** | Se repite cientos de veces y se ve de lejos, en movimiento. A 2K no se nota la diferencia y pesa 16 veces más. |
 | Estructuras que se pasan cerca | **1K** | Ahí sí se ve el detalle. |
 | Nunca | 2K, 4K, 8K | Es material para cine. En un teléfono llena la memoria de video y el juego se traba. |
 
-**El cuello de botella no es la calidad: es el peso.** Hoy el juego es un solo archivo HTML de 1,27 MB y todo viaja adentro. Antes de meter texturas hay que separar los archivos (es la versión web en `/jugar` que ya está planeada). Con eso, un presupuesto sano es:
+**Corrección (12/11):** el peso de la descarga no es el problema más serio; la **memoria de video** sí. Una textura de 1024×1024 sin comprimir ocupa 5,6 MB en la placa de video con sus mipmaps; la misma a 512 ocupa 1,4 MB. Con 14 texturas, eso es la diferencia entre 78 MB y 20 MB. Por eso el plan arranca en **512**, y sube a 1024 solo si pasamos a texturas comprimidas (KTX2). El detalle está en `docs/naves/respuesta-mundo.md`.
+
+**El otro cuello de botella es el peso de descarga.** Hoy el juego es un solo archivo HTML de 1,27 MB y todo viaja adentro. Antes de meter texturas hay que separar los archivos (es la versión web en `/jugar` que ya está planeada). Con eso, un presupuesto sano es:
 
 - unos 12 materiales (Color + Normal) ≈ **6 a 10 MB** en total, convertidos a JPG o WebP;
 - cargan de a poco y quedan guardados en el teléfono después de la primera vez.
@@ -120,3 +122,14 @@ No te asustes con el peso de la descarga: el 90 % se descarta.
 3. Mandámelos. Yo los recorto, los achico, los convierto y armo la pantalla de Créditos.
 
 No hace falta que elijas el más lindo de cada categoría: con uno por tipo alcanza para probar cómo queda. Si después uno no funciona, se cambia.
+
+
+## Lo que ya está preparado
+
+Santiago bajó 15 materiales y 3 cielos nocturnos. Ya están convertidos en `assets/texturas/`, en WebP, a 1024 y 512, con solo el color y el normal: **9,8 MB en total**.
+
+Para preparar más, alcanza con dejar los `.zip` de ambientCG en una carpeta y correr:
+
+```
+node scripts/texturas.mjs <carpeta-con-los-zips>
+```
