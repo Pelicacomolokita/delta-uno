@@ -15,7 +15,7 @@ function mover(d, anim) {
     let p = [d.pos[v * 3], d.pos[v * 3 + 1], d.pos[v * 3 + 2]];
     const piv = d.bis.slice(v * 4, v * 4 + 3), canal = d.bis[v * 4 + 3], k = d.eje.slice(v * 4, v * 4 + 3), mx = d.eje[v * 4 + 3];
     if (canal > -0.5) {
-      const val = anim[canal]; let q = p.map((x, i) => x - piv[i]);
+      const val = canal === 7 ? anim[2] + anim[0] * Math.sign(piv[0]) : anim[canal]; let q = p.map((x, i) => x - piv[i]); // 7: elevón
       const dt = k[0] * q[0] + k[1] * q[1] + k[2] * q[2];
       if (canal === 4) { const ax = k.map(x => x * dt); q = q.map((x, i) => ax[i] + (x - ax[i]) * (1 + val * mx)); }
       else {
@@ -29,8 +29,8 @@ function mover(d, anim) {
   return out;
 }
 // desplazamiento medio de las piezas de un canal, por lado (izquierda x<0, derecha x>0)
-function desplaz(d, canal) {
-  const anim = [0, 0, 0, 0, 0, 0, 0]; anim[canal] = 1;
+function desplaz(d, canal, anim) {
+  if (!anim) { anim = [0, 0, 0, 0, 0, 0, 0]; anim[canal] = 1; }
   const m = mover(d, anim), acc = { izq: [0, 0, 0, 0], der: [0, 0, 0, 0] };
   for (let v = 0; v < d.n; v++) if (d.bis[v * 4 + 3] === canal) {
     const s = d.pos[v * 3] < 0 ? 'izq' : 'der';
@@ -67,13 +67,38 @@ function desplaz(d, canal) {
     const t = desplaz(d, 1); if (t.izq && t.der) ok.push(['timones hacia el mismo lado', Math.sign(t.izq[0]) === Math.sign(t.der[0])]);
     const e = desplaz(d, 2); if (e.izq && e.der) ok.push(['elevadores juntos', Math.sign(e.izq[1]) === Math.sign(e.der[1])]);
     const fr = desplaz(d, 3); for (const lado of ['izq', 'der']) if (fr[lado]) ok.push([`freno ${lado} se abre hacia afuera o arriba`, fr[lado][1] > 0.01 || (lado === 'izq' ? fr[lado][0] < -0.01 : fr[lado][0] > 0.01)]);
+    // elevones: con la palanca de costado van opuestos; con la palanca atrás, juntos
+    const ea = desplaz(d, 7, [1, 0, 0, 0, 0, 0, 0]), ee = desplaz(d, 7, [0, 0, 1, 0, 0, 0, 0]);
+    if (ea.izq && ea.der) ok.push(['elevones opuestos al rotar', Math.sign(ea.izq[1]) === -Math.sign(ea.der[1]) && Math.abs(ea.izq[1]) > 0.01]);
+    if (ee.izq && ee.der) ok.push(['elevones juntos al subir la trompa', Math.sign(ee.izq[1]) === Math.sign(ee.der[1]) && Math.abs(ee.izq[1]) > 0.01]);
+    // alerones y elevones giran para el mismo lado con la misma palanca
+    if (a.izq && ea.izq) ok.push(['alerones y elevones de acuerdo', Math.sign(a.izq[1]) === Math.sign(ea.izq[1])]);
     const cp = desplaz(d, 5); for (const lado of ['izq', 'der']) if (cp[lado]) ok.push([`compuerta ${lado} baja`, cp[lado][1] < -0.01]);
     const faltan = ok.filter(([, v]) => !v).map(([n]) => n);
     check(`${id}: las piezas giran hacia el lado correcto`, ok.length > 0 && !faltan.length, ok.length + ' comprobadas' + (faltan.length ? ' · mal: ' + faltan.join(', ') : ''));
+    // los dos lados de cada pieza espejada tienen que ser iguales: misma bisagra (con x opuesta) y mismo tamaño
+    const bis = {};
+    for (let v = 0; v < d.n; v++) { const c = d.bis[v * 4 + 3]; if (c < 0) continue; const k = c + ':' + [1, 2].map(i => d.bis[v * 4 + i].toFixed(2)).join(',') + ':' + Math.abs(d.bis[v * 4]).toFixed(2); (bis[k] = bis[k] || { izq: 0, der: 0 })[d.bis[v * 4] < 0 ? 'izq' : 'der']++; }
+    const desparejas = base.bando === 'desligados' ? [] : Object.entries(bis).filter(([k, v]) => !k.endsWith(':0.00') && v.izq !== v.der).map(([k]) => k);
+    check(`${id}: las piezas espejadas son iguales de los dos lados`, desparejas.length === 0, desparejas.join(' | '));
     const P = puntosDiseno(dis);
     check(`${id}: tiene salida de llamas, de tiros y luces de navegación`, P.motores.length >= 1 && P.bocas.length >= 1 && P.luces.length >= 3, f({ motores: P.motores.length, bocas: P.bocas.length, luces: P.luces.length }));
     check(`${id}: su pintura existe`, !!PINTURAS[base.pintura] && (base.pinturas || []).every(p => PINTURAS[p]));
   }
+  /* ---------- Mandos ---------- */
+  const { crearMandos, actualizarMandos } = await imp('src/naves/mandos.js');
+  let m = crearMandos(); m.roll = 1;
+  actualizarMandos(m, 0.1); const a01 = m.anim[0];
+  for (let i = 0; i < 20; i++) actualizarMandos(m, 0.05);
+  check('palanca a la derecha: el alerón se mueve de a poco (como un mando hidráulico) hasta el tope', a01 < 0 && a01 > -0.7 && m.anim[0] < -0.5 && m.anim[1] > 0, f({ a01, aleron: m.anim[0], timon: m.anim[1] }));
+  m = crearMandos(); m.pitch = 1; for (let i = 0; i < 20; i++) actualizarMandos(m, 0.05);
+  check('tirar de la palanca sube el borde de los elevadores', m.anim[2] < -0.5, f({ elevador: m.anim[2] }));
+  m = crearMandos(); m.empuje = 0; m.velocidad = 60; for (let i = 0; i < 30; i++) actualizarMandos(m, 0.05);
+  const fr = m.anim[3]; m.empuje = 1; m.turbo = true; for (let i = 0; i < 30; i++) actualizarMandos(m, 0.05);
+  check('cortar empuje saca los frenos; el turbo abre las toberas y guarda los frenos', fr > 0.95 && m.anim[4] > 0.95 && m.anim[3] < 0.05, f({ freno: fr, tobera: m.anim[4], frenoDespues: m.anim[3] }));
+  m = crearMandos(); m.roll = 1; m.velocidad = 300; for (let i = 0; i < 30; i++) actualizarMandos(m, 0.05);
+  check('a mucha velocidad las superficies se mueven menos', m.anim[0] > -0.7, f({ aleron: m.anim[0] }));
+
   check('el Caza A tiene dos pinturas para elegir', (DISENOS.A.pinturas || []).length >= 2, (DISENOS.A.pinturas || []).join(', '));
 
   /* ---------- Hangar ---------- */
@@ -88,17 +113,24 @@ function desplaz(d, canal) {
   let r = await page.evaluate(() => ({ disenos: document.querySelectorAll('#models button').length, pinturas: [...document.querySelectorAll('#palettes button')].map(b => b.textContent), info: document.getElementById('info').textContent }));
   check('el Hangar muestra las naves nuevas, con sus diseños y pinturas', r.disenos >= 6 && r.pinturas.includes('Guardia nocturna') && /Delta compacto/.test(r.info), f({ disenos: r.disenos, pinturas: r.pinturas.join('|') }));
   await page.evaluate(() => document.getElementById('tab-piezas').click());
-  r = await page.evaluate(() => [...document.querySelectorAll('#sliders label span')].map(s => s.textContent));
-  check('el Caza A tiene controles para sus piezas', ['Alerones', 'Timones', 'Elevadores', 'Frenos de aire', 'Toberas (turbo)'].every(n => r.includes(n)), r.join(', '));
-  // mover un control mueve la nave: cambia lo que llega a la placa de video
+  r = await page.evaluate(() => ({ palanca: !!document.getElementById('palanca'), botones: [...document.querySelectorAll('#toggles button')].map(b => b.textContent), maniobras: [...document.querySelectorAll('#maniobras [data-man]')].map(b => b.textContent) }));
+  check('la pestaña Piezas es un simulador: palanca, botones de la nave y maniobras', r.palanca && r.botones.includes('Turbo') && r.botones.includes('Freno de aire') && r.maniobras.includes('Tonel') && r.maniobras.includes('Looping'), f({ botones: r.botones.join('|'), maniobras: r.maniobras.join('|') }));
+  // la palanca mueve la nave: lo que llega a la placa de video sigue al mando, de a poco
   r = await page.evaluate(async () => {
-    const H = window.__hangar, inp = document.getElementById('sl-aleron');
-    inp.value = '0.8'; inp.dispatchEvent(new Event('input'));
-    await new Promise(res => setTimeout(res, 300));
-    const g = H.flota.dis.A.lods[0].mesh.geometry;
-    return { animar: H.state.animar, valor: g.attributes.iAnimA.array[0], count: H.flota.dis.A.lods[0].mesh.count };
+    const H = window.__hangar, pad = document.getElementById('palanca'), q = pad.getBoundingClientRect();
+    pad.dispatchEvent(new PointerEvent('pointerdown', { clientX: q.right - 2, clientY: q.top + q.height / 2, pointerId: 1, bubbles: true }));
+    await new Promise(res => setTimeout(res, 600));
+    const g = H.flota.dis.A.lods[0].mesh.geometry, v = g.attributes.iAnimA.array[0];
+    pad.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, bubbles: true }));
+    return { auto: H.state.auto, roll: H.mandos.roll, aleron: v, lect: document.getElementById('lecturas').textContent };
   });
-  check('mover el control de alerones llega a la nave', r.animar === false && Math.abs(r.valor - 0.8) < 1e-6 && r.count === 1, f(r));
+  check('palanca a la derecha: llega a la nave como alerón y se ve en las lecturas', r.auto === false && r.aleron < -0.3 && /Alerón -\d+°/.test(r.lect), f(r));
+  // la maniobra cuenta tiempo de juego: en una máquina lenta tarda más en el reloj, por eso se espera a que termine
+  r = await page.evaluate(async () => { const H = window.__hangar; H.empezar('tonel'); const t0 = Date.now(); while (H.state.maniobra && Date.now() - t0 < 30000) await new Promise(res => setTimeout(res, 200)); return { maniobra: H.state.maniobra }; });
+  check('una maniobra termina sola', r.maniobra === null, f(r));
+  await page.evaluate(() => window.__hangar.ponerVista('lejos')); await new Promise(res => setTimeout(res, 500));
+  r = await page.evaluate(() => { const F = window.__hangar.flota; return { naves: window.__hangar.naves.length, luces: F.ptsGeo.drawRange.count, marcas: new Set(window.__hangar.naves.map(n => n.marca && n.marca.join())).size }; });
+  check('"De lejos": seis naves con seis marcas distintas y su luz de identificación', r.naves === 6 && r.marcas === 6 && r.luces === 6, f(r));
   for (const v of ['planta', 'perfil', 'trasera', 'juego', 'fila']) await page.evaluate(v => window.__hangar.ponerVista(v), v);
   r = await page.evaluate(() => ({ naves: window.__hangar.naves.length, etiquetas: document.querySelectorAll('.etq').length }));
   check('"Todas a escala" pone los 6 diseños uno al lado del otro', r.naves === 6 && r.etiquetas === 6, f(r));

@@ -8,8 +8,9 @@
 
 export const ZONA = { base: 0, base2: 1, acento: 2, panza: 3, marca: 4, oscuro: 5, vidrio: 6, parche: 7 };
 // canales de animación: los valores llegan por nave, de -1 a 1 (o de 0 a 1)
-export const CANAL = { ninguno: -1, aleron: 0, timon: 1, elevador: 2, freno: 3, tobera: 4, compuertas: 5, camuflaje: 6 };
-const MAX = { 0: 0.42, 1: 0.45, 2: 0.4, 3: 0.95, 4: 0.28, 5: 1.25, 6: 0.5 }; // ángulo máximo (rad) o apertura de tobera
+// elevón (7): la misma superficie hace de alerón y de elevador (alas delta, estabilizadores de cola)
+export const CANAL = { ninguno: -1, aleron: 0, timon: 1, elevador: 2, freno: 3, tobera: 4, compuertas: 5, camuflaje: 6, elevon: 7 };
+const MAX = { 0: 0.42, 1: 0.45, 2: 0.4, 3: 0.95, 4: 0.28, 5: 1.25, 6: 0.5, 7: 0.4 }; // ángulo máximo (rad) o apertura de tobera
 
 // por nivel de detalle: lados de los tubos, cortes extra entre estaciones, subdivisión de superficies, piezas chicas
 export const LOD_PARAM = [
@@ -86,7 +87,8 @@ function fuselaje(m, P, pz) {
     for (let j = 0; j < N; j++) {
       const k = (j + 1) % N, c = lerp3(lerp3(A[j], A[k], 0.5), lerp3(B[j], B[k], 0.5), 0.5);
       let z = pz.zona ?? ZONA.base;
-      if (c[1] < yb + (yt - yb) * 0.3) z = ZONA.panza;
+      if (pz.anillo && c[2] > pz.anillo[0] && c[2] < pz.anillo[1]) z = ZONA.marca; // anillo de marca
+      else if (c[1] < yb + (yt - yb) * 0.3) z = ZONA.panza;
       else if (lfr && c[2] > lz0 && c[2] < lz1 && Math.abs(c[0] - x0) < w * lfr && c[1] > (yt + yb) / 2) z = ZONA.acento;
       const holl = c[2] > zCola - 0.45 ? 0.74 + 0.26 * (zCola - c[2]) / 0.45 : 1; // hollín cerca de las toberas
       m.quad(A[j], B[j], B[k], A[k], z, undefined, holl);
@@ -145,7 +147,7 @@ function superficie(m, P, pz, lado) {
   for (let i = 0; i < ss.length - 1; i++) for (let j = 0; j < cs.length - 1; j++) {
     const sm = (ss[i] + ss[i + 1]) / 2, cm = (cs[j] + cs[j + 1]) / 2;
     let z = fillZ, mov = movTodo || undefined;
-    for (const { r, canal: cn } of movs) if (sm > r[0] && sm < r[1] && cm > 1 - r[2]) { mov = bisagra(r, cn); z = cn === CANAL.elevador ? ZONA.acento : ZONA.base2; }
+    for (const { r, canal: cn } of movs) if (sm > r[0] && sm < r[1] && cm > 1 - r[2]) { mov = bisagra(r, cn); z = cn === CANAL.elevador || cn === CANAL.elevon ? ZONA.acento : ZONA.base2; }
     if (marca && sm > 1 - marca) z = ZONA.marca;
     const [s0, s1, c0, c1] = [ss[i], ss[i + 1], cs[j], cs[j + 1]];
     const raiz = 0.8 + 0.2 * Math.min(1, sm / 0.22); // sombra en la unión con el fuselaje
@@ -265,9 +267,9 @@ export function armarDiseno(dis, lod = 0) {
 }
 
 function espejar(pz) {
-  const f = v => Array.isArray(v) && v.length === 3 && typeof v[0] === 'number' ? [-v[0], v[1], v[2]] : v;
+  // solo se dan vuelta los puntos (no los rangos como mov, que también tienen 3 números)
   const o = { ...pz };
-  for (const k of Object.keys(o)) o[k] = f(o[k]);
+  for (const k of ['rle', 'tle']) if (o[k]) o[k] = [-o[k][0], o[k][1], o[k][2]];
   if ('x' in o && typeof o.x === 'number') o.x = -o.x;
   if ('x0' in o && 'x1' in o && pz.tipo !== 'freno') { o.x0 = -pz.x1; o.x1 = -pz.x0; }
   if (pz.tipo === 'freno') { if (pz.lateral !== undefined) o.lateral = -pz.lateral; else { o.x0 = -pz.x1; o.x1 = -pz.x0; } }
@@ -280,7 +282,7 @@ export function puntosDiseno(dis) {
   const k = dis.escala || 1, motores = [], bocas = [], luces = [];
   let cola = null;
   for (const pz of dis.piezas) {
-    if (pz.tipo === 'superficie' && pz.canal === 0) {
+    if (pz.tipo === 'superficie' && (pz.canal === 0 || pz.canal === 7) && pz.mov !== 'todo') {
       // punta del ala: luz de navegación, roja a la izquierda y verde a la derecha
       const p = [pz.tle[0], pz.tle[1], pz.tle[2] + pz.ct * 0.5];
       for (const s of pz.espejo === false ? [1] : [1, -1]) {

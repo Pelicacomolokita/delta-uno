@@ -8,7 +8,15 @@ import * as T from 'three';
 import { armarDiseno, puntosDiseno } from './generador.js';
 import { DISENOS, PINTURAS, ESCALA_CLASE } from './disenos.js';
 
-export const LOD_DIST = [80, 300, 900]; // metros para un Caza; se multiplica por la escala de la clase
+export const LOD_DIST = [80, 300, 900];
+
+// punto redondo con borde oscuro, para que se lea sobre cielo claro y sobre terreno
+function puntoTex() {
+  const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d');
+  g.beginPath(); g.arc(16, 16, 14, 0, Math.PI * 2); g.fillStyle = 'rgba(10,14,20,0.85)'; g.fill();
+  g.beginPath(); g.arc(16, 16, 10, 0, Math.PI * 2); g.fillStyle = '#fff'; g.fill();
+  return new T.CanvasTexture(c);
+} // metros para un Caza; se multiplica por la escala de la clase
 const HISTERESIS = 0.12;
 
 export function tablaPinturas() {
@@ -47,6 +55,8 @@ if (canal > -0.5) {
   // valor de su canal: alerón, timón, elevador, freno | tobera, compuertas, camuflaje
   float v = dot(iAnimA, vec4(equal(vec4(canal), vec4(0.0, 1.0, 2.0, 3.0))))
           + dot(vec4(iAnimB.xyz, 0.0), vec4(equal(vec4(canal), vec4(4.0, 5.0, 6.0, 7.0))));
+  // elevón: elevador más alerón, con el alerón al revés de cada lado
+  if (canal > 6.5) v = iAnimA.z + iAnimA.x * sign(aBis.x);
   vec3 p = transformed - aBis.xyz;
   vec3 k = aEje.xyz;
   if (canal > 3.5 && canal < 4.5) {
@@ -63,7 +73,7 @@ vec3 colZ = texture2D(uPaleta, vec2((aZona + 0.5) / 8.0, (iAnimB.w + 0.5) / 64.0
 if (aZona > 3.5 && aZona < 4.5 && iMarca.r >= 0.0) colZ = iMarca;
 vColor = colZ * aTono;`);
   };
-  mat.customProgramCacheKey = () => 'flota-v1' + (detalleTex ? '-d' : '');
+  mat.customProgramCacheKey = () => 'flota-v2' + (detalleTex ? '-d' : '');
   return mat;
 }
 
@@ -105,12 +115,13 @@ export class Flota {
       this.dis[id] = { dis, lods, radio: lods[0].mesh.geometry.boundingSphere.radius, puntos: puntosDiseno(dis) };
     }
     this.msArmado = performance.now() - t0;
-    // nivel 3: un punto por nave lejana, todas en una sola llamada
-    const n = max * ids.length;
+    // nivel 3: un punto por nave lejana; y desde el nivel 1, la luz de identificación de las naves con marca.
+    // Todo en una sola llamada de dibujo, de tamaño fijo en pantalla.
+    const n = max * ids.length * 2;
     this.ptsGeo = new T.BufferGeometry();
     this.ptsGeo.setAttribute('position', new T.BufferAttribute(new Float32Array(n * 3), 3).setUsage(T.DynamicDrawUsage));
     this.ptsGeo.setAttribute('color', new T.BufferAttribute(new Float32Array(n * 3), 3).setUsage(T.DynamicDrawUsage));
-    this.pts = new T.Points(this.ptsGeo, new T.PointsMaterial({ size: 3, sizeAttenuation: false, vertexColors: true, fog: false }));
+    this.pts = new T.Points(this.ptsGeo, new T.PointsMaterial({ size: 8 * Math.min((typeof devicePixelRatio !== 'undefined' && devicePixelRatio) || 1, 2), sizeAttenuation: false, vertexColors: true, fog: false, map: puntoTex(), transparent: true, depthWrite: false, alphaTest: 0.05 }));
     this.pts.frustumCulled = false;
     scene.add(this.pts);
     this._m = new T.Matrix4(); this._s = new T.Vector3(1, 1, 1); this._sph = new T.Sphere(); this._fr = new T.Frustum(); this._pm = new T.Matrix4();
@@ -138,9 +149,13 @@ export class Flota {
       n.lod = lod; this.porNivel[lod]++;
       if (lod === 3) {
         pp[np * 3] = n.pos.x; pp[np * 3 + 1] = n.pos.y; pp[np * 3 + 2] = n.pos.z;
-        const c = PINTURAS[n.pintura] ? new T.Color(PINTURAS[n.pintura].zonas[4]) : new T.Color(1, 1, 1);
+        const c = n.marca ? new T.Color(n.marca[0], n.marca[1], n.marca[2]) : PINTURAS[n.pintura] ? new T.Color(PINTURAS[n.pintura].zonas[4]) : new T.Color(1, 1, 1);
         pc[np * 3] = c.r; pc[np * 3 + 1] = c.g; pc[np * 3 + 2] = c.b; np++;
         continue;
+      }
+      if (lod >= 1 && n.marca) { // luz de identificación: el color de marca del piloto, visible de lejos
+        pp[np * 3] = n.pos.x; pp[np * 3 + 1] = n.pos.y + D.radio * 0.7; pp[np * 3 + 2] = n.pos.z; // un poco arriba de la nave, como una baliza
+        pc[np * 3] = n.marca[0]; pc[np * 3 + 1] = n.marca[1]; pc[np * 3 + 2] = n.marca[2]; np++;
       }
       const L = D.lods[lod], mesh = L.mesh, i = mesh.count++;
       this._m.compose(n.pos, n.quat, this._s); mesh.setMatrixAt(i, this._m);

@@ -39,9 +39,15 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--ember);outline-
 button[aria-pressed="true"],button[aria-selected="true"]{background:var(--ember);border-color:var(--ember);color:var(--ink);font-weight:700}
 .swatch{width:40px;padding:0;display:inline-flex;align-items:center;justify-content:center}
 .swatch span{width:18px;height:18px;border-radius:50%;border:1px solid var(--line);display:block}
-#sliders{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px 16px}
-#sliders label{display:grid;grid-template-columns:96px 1fr 38px;align-items:center;gap:8px;font:12px/1.2 var(--data);color:var(--dim)}
-#sliders output{text-align:right;color:var(--paper)}
+/* simulador de mandos: palanca con resorte, pedales, empuje y lo que la nave tenga */
+.sim{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}
+.palanca-box{display:grid;justify-items:center;gap:4px}
+.palanca-box small{color:var(--dim);font:11px/1 var(--data);letter-spacing:.08em;text-transform:uppercase}
+#palanca{width:120px;height:120px;border:1px solid var(--line);border-radius:10px;background:radial-gradient(circle,rgba(246,234,214,.08) 0 2px,transparent 3px),repeating-linear-gradient(0deg,transparent 0 59px,var(--line) 59px 60px),repeating-linear-gradient(90deg,transparent 0 59px,var(--line) 59px 60px);display:grid;place-items:center;touch-action:none;cursor:grab}
+#palanca-b{width:36px;height:36px;border-radius:50%;background:var(--ember);box-shadow:0 0 0 4px rgba(255,107,61,.25);transition:transform .15s ease-out;pointer-events:none}
+.ejes{display:grid;gap:6px;flex:1;min-width:180px}
+.ejes label{display:grid;grid-template-columns:70px 1fr;align-items:center;gap:8px;font:12px/1.2 var(--data);color:var(--dim)}
+#lecturas{margin:0;font:12px/1.4 var(--data);color:var(--paper)}
 input[type=range]{width:100%;accent-color:var(--ember);min-height:32px}
 #desc{margin:0;color:var(--dim);font-size:13.5px;max-width:64ch;min-width:0}
 .etq{position:fixed;transform:translate(-50%,0);font:12px/1.2 var(--data);color:var(--paper);background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:2px 6px;pointer-events:none;white-space:nowrap}
@@ -49,8 +55,7 @@ input[type=range]{width:100%;accent-color:var(--ember);min-height:32px}
 /* teléfono acostado: los controles van en una columna a la izquierda y la nave ocupa el resto */
 @media (max-height:520px) and (orientation:landscape){
   #ui{top:0;right:auto;width:min(360px,44vw);align-content:start;overflow-y:auto;padding-top:calc(46px + env(safe-area-inset-top,0px));padding-right:12px;background:var(--panel);border-right:1px solid var(--line)}
-  #sliders{grid-template-columns:1fr}
-  #sliders label{grid-template-columns:84px 1fr 34px}
+  #palanca{width:104px;height:104px}
 }
 .swatch[data-v="ninguna"] span{border-style:dashed}
 </style>
@@ -75,8 +80,19 @@ input[type=range]{width:100%;accent-color:var(--ember);min-height:32px}
     <div class="row" id="marcas"><small>Marca</small></div>
   </div>
   <div class="panel" id="p-piezas" role="tabpanel" aria-labelledby="tab-piezas" hidden>
-    <div id="sliders"></div>
-    <div class="row" id="acciones"><small>Mover</small></div>
+    <div class="sim">
+      <div class="palanca-box">
+        <div id="palanca" role="slider" tabindex="0" aria-label="Palanca: a los costados rota, adelante y atrás sube o baja la trompa. Flechas del teclado." aria-valuetext="centro"><span id="palanca-b"></span></div>
+        <small>Palanca</small>
+      </div>
+      <div class="ejes">
+        <label for="pedales"><span>Pedales</span><input type="range" id="pedales" min="-1" max="1" step="0.01" value="0"></label>
+        <label for="empuje"><span>Empuje</span><input type="range" id="empuje" min="0" max="1" step="0.01" value="0.5"></label>
+        <div class="row" id="toggles"></div>
+        <p id="lecturas" aria-live="off"></p>
+      </div>
+    </div>
+    <div class="row" id="maniobras"><small>Maniobra</small></div>
   </div>
   <div class="panel" id="p-vista" role="tabpanel" aria-labelledby="tab-vista" hidden>
     <div class="row" id="views"><small>Vista</small></div>
