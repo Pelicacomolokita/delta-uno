@@ -94,6 +94,7 @@ src/main.js                 todo el juego (por ahora en un solo archivo, ver "Pr
 src/historia/               las misiones como datos (textos, partes, eventos de radio); formato en docs/historia/formato.md
 src/nave.js                 los diseños de la nave (Actual, Guardia, Interceptor, Blindado) y su textura de paneles
 src/hangar/catalogo.js       clases de nave, armas y pinturas que muestra la pantalla Preparar la salida
+src/naves/                  naves nuevas por piezas: generador (malla y niveles de detalle), diseños, flota instanciada
 src/intro.js                 la intro de la productora (el video está en src/intro/)
 src/efectos.js              fuego, humo, restos, onda expansiva y escudo
 src/sonido.js               todos los sonidos, sintetizados en el momento (motor, cañón, explosiones, radio)
@@ -108,6 +109,7 @@ scripts/iconos.mjs          arma el ícono y la pantalla de carga de la app
 scripts/pagina.mjs          arma la página de descarga (pagina/ → dist-pagina/)
 scripts/capturas.cjs        saca las capturas de la página jugando
 herramientas/hangar/        visor 3D para comparar los diseños de la nave (npx vite build --config herramientas/hangar/vite.config.mjs)
+herramientas/rendimiento/   prueba de rendimiento con hasta 40 naves (npx vite build --config herramientas/rendimiento/vite.config.mjs)
 pagina/                     la página de descarga y sus capturas
 tests/helpers.js            ayudas comunes de las pruebas (teléfono simulado, toques, tiempos)
 tests/suites/               las pruebas, por tema
