@@ -108,7 +108,7 @@ scripts/artifact.mjs        arma la versión para publicar en claude.ai
 scripts/iconos.mjs          arma el ícono y la pantalla de carga de la app
 scripts/pagina.mjs          arma la página de descarga (pagina/ → dist-pagina/)
 scripts/capturas.cjs        saca las capturas de la página jugando
-herramientas/hangar/        visor 3D para comparar los diseños de la nave (npx vite build --config herramientas/hangar/vite.config.mjs)
+herramientas/hangar/        visor 3D de las naves: las nuevas por piezas (piezas móviles, pinturas, vistas de plano, todas a escala) y las actuales (npx vite build --config herramientas/hangar/vite.config.mjs)
 herramientas/rendimiento/   prueba de rendimiento con hasta 40 naves (npx vite build --config herramientas/rendimiento/vite.config.mjs)
 pagina/                     la página de descarga y sus capturas
 tests/helpers.js            ayudas comunes de las pruebas (teléfono simulado, toques, tiempos)

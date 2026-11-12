@@ -8,7 +8,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=B612:wght@400;700&family=B612+Mono&display=swap">
 <style>
-/* Hangar oscuro a propósito (es el mismo azul noche del juego): un solo tema. Lienzo 3D a pantalla completa y controles abajo. */
+/* Hangar oscuro a propósito (es el mismo azul noche del juego): un solo tema. Lienzo 3D a pantalla completa,
+   datos de la nave arriba a la derecha y controles abajo, en pestañas para que entren en un teléfono acostado. */
 :root{
   color-scheme:dark;
   --bg:#0a1022;--panel:rgba(10,16,34,.86);--paper:#f6ead6;--dim:rgba(246,234,214,.68);--line:rgba(246,234,214,.2);--ember:#ff6b3d;--ink:#1a0d06;
@@ -21,26 +22,66 @@ body{margin:0;background:var(--bg);color:var(--paper);font:15px/1.45 var(--label
 header{position:fixed;top:0;left:0;right:0;padding-top:calc(14px + env(safe-area-inset-top,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;pointer-events:none}
 header b{letter-spacing:.16em;text-transform:uppercase;font-size:15px}
 header span{color:var(--dim);font-size:13px}
-#hint{position:fixed;top:calc(44px + env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));color:var(--dim);font:12px/1.4 var(--data);pointer-events:none}
-#ui{position:fixed;left:0;right:0;bottom:0;padding-top:28px;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:10px;background:linear-gradient(rgba(10,16,34,0),var(--panel) 34%)}
-.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;min-width:0}
+#hint{position:fixed;top:calc(40px + env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left,0px));color:var(--dim);font:12px/1.4 var(--data);pointer-events:none;max-width:46ch}
+#info{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font:12px/1.5 var(--data);min-width:200px;pointer-events:none}
+#info b{font:700 14px/1.3 var(--label);display:block}
+#info .k{color:var(--dim)}
+#ui{position:fixed;left:0;right:0;bottom:0;padding-top:24px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px));display:grid;gap:8px;background:linear-gradient(rgba(10,16,34,0),var(--panel) 30%)}
+.tabs{display:flex;gap:6px}
+.tabs button{border-radius:4px 4px 0 0}
+.panel{display:grid;gap:8px}
+.panel[hidden]{display:none}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0}
 .row small{color:var(--dim);font:11px/1 var(--data);letter-spacing:.08em;text-transform:uppercase;min-width:64px}
-button{font:inherit;font-size:14px;color:var(--paper);background:rgba(246,234,214,.06);border:1px solid var(--line);border-radius:4px;padding:8px 12px;cursor:pointer;min-height:40px}
+button{font:inherit;font-size:14px;color:var(--paper);background:rgba(246,234,214,.06);border:1px solid var(--line);border-radius:4px;padding:7px 11px;cursor:pointer;min-height:40px}
 button:hover{background:rgba(246,234,214,.12)}
-button:focus-visible{outline:2px solid var(--ember);outline-offset:2px}
-button[aria-pressed="true"]{background:var(--ember);border-color:var(--ember);color:var(--ink);font-weight:700}
-#desc{margin:0;color:var(--dim);font-size:13.5px;max-width:56ch;min-width:0}
+button:focus-visible,input:focus-visible{outline:2px solid var(--ember);outline-offset:2px}
+button[aria-pressed="true"],button[aria-selected="true"]{background:var(--ember);border-color:var(--ember);color:var(--ink);font-weight:700}
+.swatch{width:40px;padding:0;display:inline-flex;align-items:center;justify-content:center}
+.swatch span{width:18px;height:18px;border-radius:50%;border:1px solid var(--line);display:block}
+#sliders{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px 16px}
+#sliders label{display:grid;grid-template-columns:96px 1fr 38px;align-items:center;gap:8px;font:12px/1.2 var(--data);color:var(--dim)}
+#sliders output{text-align:right;color:var(--paper)}
+input[type=range]{width:100%;accent-color:var(--ember);min-height:32px}
+#desc{margin:0;color:var(--dim);font-size:13.5px;max-width:64ch;min-width:0}
+.etq{position:fixed;transform:translate(-50%,0);font:12px/1.2 var(--data);color:var(--paper);background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:2px 6px;pointer-events:none;white-space:nowrap}
+@media (max-height:520px){button{min-height:36px;padding:5px 9px;font-size:13px}#hint{display:none}#info{font-size:11px;min-width:170px;padding:6px 8px}#desc{display:none}.row small{min-width:0}}
+/* teléfono acostado: los controles van en una columna a la izquierda y la nave ocupa el resto */
+@media (max-height:520px) and (orientation:landscape){
+  #ui{top:0;right:auto;width:min(360px,44vw);align-content:start;overflow-y:auto;padding-top:calc(46px + env(safe-area-inset-top,0px));padding-right:12px;background:var(--panel);border-right:1px solid var(--line)}
+  #sliders{grid-template-columns:1fr}
+  #sliders label{grid-template-columns:84px 1fr 34px}
+}
+.swatch[data-v="ninguna"] span{border-style:dashed}
 </style>
 </head>
 <body>
-<canvas id="view"></canvas>
-<header><b>Delta Uno</b><span>Hangar · diseños de la nave</span></header>
+<canvas id="view" aria-label="La nave en 3D"></canvas>
+<header><b>Delta Uno</b><span>Hangar</span></header>
 <div id="hint">Arrastrá para girarla · pellizcá o usá la rueda para acercar</div>
+<div id="info" aria-live="polite"></div>
+<div id="etiquetas"></div>
 <div id="ui">
-  <p id="desc"></p>
-  <div class="row" id="models"><small>Diseño</small></div>
-  <div class="row" id="palettes"><small>Colores</small></div>
-  <div class="row" id="views"><small>Vista</small></div>
+  <div class="tabs" role="tablist" aria-label="Controles">
+    <button type="button" role="tab" id="tab-nave" aria-controls="p-nave" aria-selected="true">Nave</button>
+    <button type="button" role="tab" id="tab-piezas" aria-controls="p-piezas" aria-selected="false">Piezas</button>
+    <button type="button" role="tab" id="tab-vista" aria-controls="p-vista" aria-selected="false">Vista</button>
+  </div>
+  <div class="panel" id="p-nave" role="tabpanel" aria-labelledby="tab-nave">
+    <p id="desc"></p>
+    <div class="row" id="sistema"><small>Naves</small></div>
+    <div class="row" id="models"><small>Diseño</small></div>
+    <div class="row" id="palettes"><small>Pintura</small></div>
+    <div class="row" id="marcas"><small>Marca</small></div>
+  </div>
+  <div class="panel" id="p-piezas" role="tabpanel" aria-labelledby="tab-piezas" hidden>
+    <div id="sliders"></div>
+    <div class="row" id="acciones"><small>Mover</small></div>
+  </div>
+  <div class="panel" id="p-vista" role="tabpanel" aria-labelledby="tab-vista" hidden>
+    <div class="row" id="views"><small>Vista</small></div>
+    <div class="row" id="lods"><small>Detalle</small></div>
+  </div>
 </div>
 <script type="module" src="./hangar.js"></script>
 </body>

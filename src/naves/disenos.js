@@ -15,7 +15,7 @@ const ala = (rle, cr, tle, ct, mov = [0.45, 0.95, 0.25], extra = {}) => ({ tipo:
 
 export const DISENOS = {
   A: {
-    nombre: 'Delta compacto', clase: 'caza', bando: 'guardia', pintura: 'guardia',
+    nombre: 'Delta compacto', clase: 'caza', bando: 'guardia', pintura: 'guardia', pinturas: ['guardia', 'guardiaNoche'],
     piezas: [
       { tipo: 'fuselaje', est: [[-2.9, 0, 0.02, -0.02], [-2.3, 0.28, 0.18, -0.15], [-1.5, 0.42, 0.32, -0.35], [-0.7, 0.55, 0.44, -0.45], [0.4, 0.62, 0.45, -0.45], [1.9, 0.62, 0.4, -0.32]], lomo: [-0.6, 1.9, 0.7] },
       { tipo: 'cabina', z0: -2.1, z1: -0.9, w: 0.22, yb: 0.3, yt: 0.72 },
@@ -24,7 +24,14 @@ export const DISENOS = {
       timon([0.5, 0.4, 0.95], 1.0, 0.8, 0.5, 0.6, 20),
       { tipo: 'motor', x: 0.3, y: 0.03, z0: 0.6, z1: 1.9, r: 0.26, tobera: 0.3, visible: false },
       { tipo: 'freno', x0: 0.06, x1: 0.34, z0: 0.05, z1: 0.7, y: 0.45 },
-      { tipo: 'canon', x: 0.8, y: -0.06, z0: -1.0, z1: -0.35 }
+      { tipo: 'canon', x: 0.8, y: -0.06, z0: -1.0, z1: -0.35 },
+      // detalle del piloto: armas a la vista, antena, sensor, rejillas y cercos de ala
+      { tipo: 'carga', x: 1.25, y: -0.22, z0: -0.35, z1: 0.95, r: 0.075, misil: true },
+      { tipo: 'caja', x0: -0.015, x1: 0.015, y0: 0.44, y1: 0.72, z0: -0.5, z1: -0.32, fill: 'oscuro', espejo: false },
+      { tipo: 'caja', x0: -0.13, x1: 0.13, y0: 0.42, y1: 0.5, z0: -0.85, z1: -0.05, fill: 'base2', espejo: false },
+      { tipo: 'caja', x0: -0.08, x1: 0.08, y0: -0.24, y1: -0.13, z0: -2.15, z1: -1.65, fill: 'oscuro', espejo: false },
+      { tipo: 'caja', x0: 0.6, x1: 0.645, y0: -0.05, y1: 0.22, z0: 1.0, z1: 1.55, fill: 'oscuro' },
+      { tipo: 'caja', x0: 1.15, x1: 1.17, y0: -0.03, y1: 0.09, z0: 0.15, z1: 1.25, fill: 'base2' }
     ]
   },
   I2: {
@@ -110,6 +117,7 @@ export const DISENOS = {
 // Pinturas: una fila por pintura, 8 zonas (base, base 2, acento, panza, marca, oscuro, vidrio, parche)
 export const PINTURAS = {
   guardia: { nombre: 'Guardia', zonas: ['#a2a9ae', '#8a949b', '#1f5869', '#1a4252', '#efeee6', '#34393e', '#10283a', '#7e878d'] },
+  guardiaNoche: { nombre: 'Guardia nocturna', zonas: ['#3c4651', '#2f3842', '#7d8b96', '#1d242c', '#d8dde2', '#1a1d21', '#0b1d2a', '#4a545e'] },
   directorio: { nombre: 'Directorio', zonas: ['#545961', '#454a51', '#d8d0bc', '#2c2f34', '#e8a33a', '#26292d', '#3a2a10', '#5e636b'] },
   desligados: { nombre: 'Desligados', zonas: ['#b8a887', '#9a8868', '#2e9c9a', '#6e4a34', '#5fcfc6', '#3b332b', '#123234', '#9c5a36'] },
   capturada: { nombre: 'Capturada', zonas: ['#545961', '#9c5a36', '#2e9c9a', '#2c2f34', '#5fcfc6', '#26292d', '#3a2a10', '#b8a887'] },

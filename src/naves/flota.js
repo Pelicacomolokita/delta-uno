@@ -116,7 +116,7 @@ export class Flota {
     this._m = new T.Matrix4(); this._s = new T.Vector3(1, 1, 1); this._sph = new T.Sphere(); this._fr = new T.Frustum(); this._pm = new T.Matrix4();
     this.porNivel = [0, 0, 0, 0, 0]; // 0..3 y ocultas (fuera de cámara)
   }
-  // nave: { id, pos, quat, anim:[aleron,timon,elevador,freno,tobera,compuertas,camuflaje], pintura, marca:[r,g,b]|null, propia, lod }
+  // nave: { id, pos, quat, anim:[aleron,timon,elevador,freno,tobera,compuertas,camuflaje], pintura, marca:[r,g,b]|null, propia, lod, lodFijo }
   actualizar(naves, camera) {
     for (const id in this.dis) for (const l of this.dis[id].lods) l.mesh.count = 0;
     this._pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); this._fr.setFromProjectionMatrix(this._pm);
@@ -128,7 +128,8 @@ export class Flota {
       if (!this._fr.intersectsSphere(this._sph)) { this.porNivel[4]++; continue; }
       const k = D.dis.escala, dist = n.pos.distanceTo(camera.position);
       let lod = n.lod ?? 0;
-      if (n.propia) lod = 0;
+      if (n.lodFijo !== undefined) lod = n.lodFijo;
+      else if (n.propia) lod = 0;
       else {
         // con margen: para subir de detalle hay que acercarse un poco más que para bajarlo
         while (lod < 3 && dist > LOD_DIST[lod] * k * (1 + HISTERESIS)) lod++;

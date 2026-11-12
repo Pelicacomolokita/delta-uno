@@ -31,8 +31,8 @@ function malla() {
   const NINGUNA = { piv: [0, 0, 0], canal: -1, eje: [0, 0, 1], max: 0 };
   const api = {
     // polígono convexo (en orden), con zona y pieza móvil opcional
-    poly(pts, z, mov = NINGUNA) {
-      const t = 1 + (hash(cara++) - 0.5) * 0.09; // cada placa con su tono
+    poly(pts, z, mov = NINGUNA, k = 1) {
+      const t = (1 + (hash(cara++) - 0.5) * 0.09) * k; // cada placa con su tono; k oscurece uniones y hollín
       const nf = cross(sub3(pts[1], pts[0]), sub3(pts[pts.length - 1], pts[0]));
       const ax = Math.abs(nf[0]), ay = Math.abs(nf[1]), az = Math.abs(nf[2]);
       // la textura de detalle se proyecta desde arriba, el costado o el frente, según hacia dónde mira la cara
@@ -46,7 +46,7 @@ function malla() {
         }
       }
     },
-    quad(a, b, c, d, z, mov) { api.poly([a, b, c, d], z, mov); },
+    quad(a, b, c, d, z, mov, k) { api.poly([a, b, c, d], z, mov, k); },
     datos: () => ({ pos, zona, tono, bis, eje, uv, n: pos.length / 3 })
   };
   return api;
@@ -79,6 +79,7 @@ function fuselaje(m, P, pz) {
   };
   const R = st.map(ring);
   const [lz0, lz1, lfr] = pz.lomo || [0, 0, 0];
+  const zCola = st[st.length - 1][0];
   for (let i = 0; i < R.length - 1; i++) {
     const A = R[i], B = R[i + 1], e0 = st[i], e1 = st[i + 1];
     const yb = (e0[3] + e1[3]) / 2, yt = (e0[2] + e1[2]) / 2, w = Math.max(e0[1], e1[1]);
@@ -87,7 +88,8 @@ function fuselaje(m, P, pz) {
       let z = pz.zona ?? ZONA.base;
       if (c[1] < yb + (yt - yb) * 0.3) z = ZONA.panza;
       else if (lfr && c[2] > lz0 && c[2] < lz1 && Math.abs(c[0] - x0) < w * lfr && c[1] > (yt + yb) / 2) z = ZONA.acento;
-      m.quad(A[j], B[j], B[k], A[k], z);
+      const holl = c[2] > zCola - 0.45 ? 0.74 + 0.26 * (zCola - c[2]) / 0.45 : 1; // hollín cerca de las toberas
+      m.quad(A[j], B[j], B[k], A[k], z, undefined, holl);
     }
   }
   // tapas: atrás oscura (si la última estación tiene ancho), adelante si no termina en punta
@@ -146,8 +148,9 @@ function superficie(m, P, pz, lado) {
     for (const { r, canal: cn } of movs) if (sm > r[0] && sm < r[1] && cm > 1 - r[2]) { mov = bisagra(r, cn); z = cn === CANAL.elevador ? ZONA.acento : ZONA.base2; }
     if (marca && sm > 1 - marca) z = ZONA.marca;
     const [s0, s1, c0, c1] = [ss[i], ss[i + 1], cs[j], cs[j + 1]];
-    m.quad(at(s0, c0, 1), at(s1, c0, 1), at(s1, c1, 1), at(s0, c1, 1), z, mov);
-    m.quad(at(s0, c1, -1), at(s1, c1, -1), at(s1, c0, -1), at(s0, c0, -1), z === ZONA.base && !vertical ? ZONA.panza : z, mov);
+    const raiz = 0.8 + 0.2 * Math.min(1, sm / 0.22); // sombra en la unión con el fuselaje
+    m.quad(at(s0, c0, 1), at(s1, c0, 1), at(s1, c1, 1), at(s0, c1, 1), z, mov, raiz);
+    m.quad(at(s0, c1, -1), at(s1, c1, -1), at(s1, c0, -1), at(s0, c0, -1), z === ZONA.base && !vertical ? ZONA.panza : z, mov, raiz);
     if (j === 0) m.quad(at(s0, 0, -1), at(s1, 0, -1), at(s1, 0, 1), at(s0, 0, 1), ZONA.oscuro, mov);
     if (j === cs.length - 2) m.quad(at(s0, 1, 1), at(s1, 1, 1), at(s1, 1, -1), at(s0, 1, -1), ZONA.oscuro, mov);
     if (i === ss.length - 2) m.quad(at(1, c0, 1), at(1, c0, -1), at(1, c1, -1), at(1, c1, 1), z, mov);
@@ -216,6 +219,18 @@ function compuertas(m, P, pz) {
   }
 }
 
+function carga(m, P, pz) {
+  const { x, y, z0, z1, r } = pz, N = lod => Math.max(6, P.lados >> 1);
+  caja(m, x - 0.02, x + 0.02, y + r * 0.8, y + r + 0.14, z0 + (z1 - z0) * 0.25, z1 - (z1 - z0) * 0.3, ZONA.oscuro); // pilón
+  if (pz.misil) {
+    tubo(m, x, y, z0 + r * 2.5, z1, r, r, N(), ZONA.base2, undefined, 1, 1, false);
+    tubo(m, x, y, z0, z0 + r * 2.5, 0.01, r, N(), ZONA.marca, undefined, 1, 1, false);
+    m.poly([[x, y, z1], ...Array.from({ length: N() }, (_, i) => [x + Math.cos(i / N() * 6.283) * r, y + Math.sin(i / N() * 6.283) * r, z1])], ZONA.oscuro);
+    for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) // aletas en cruz
+      m.poly([[x + dx * r, y + dy * r, z1 - r * 4], [x + dx * r * 2.6, y + dy * r * 2.6, z1 - r * 0.6], [x + dx * r * 2.6, y + dy * r * 2.6, z1], [x + dx * r, y + dy * r, z1]], ZONA.oscuro);
+  } else tubo(m, x, y, z0, z1, r, r * 0.8, N(), ZONA.oscuro);
+}
+
 const ESPEJO = new Set(['superficie', 'motor', 'caja', 'canon', 'carga', 'freno', 'toma', 'placas']);
 
 /* Arma un diseño en un nivel de detalle. Devuelve arreglos listos para BufferGeometry. */
@@ -233,7 +248,7 @@ export function armarDiseno(dis, lod = 0) {
         case 'toma': caja(m, pz.x0, pz.x1, pz.y0, pz.y1, pz.z0, pz.z1, ZONA.oscuro); break;
         case 'caja': if (P.chicas || pz.grande) caja(m, pz.x0, pz.x1, pz.y0, pz.y1, pz.z0, pz.z1, ZONA[pz.fill || 'oscuro']); break;
         case 'canon': if (P.chicas) tubo(m, pz.x, pz.y, pz.z0, pz.z1, pz.r || 0.05, pz.r || 0.05, 6, ZONA.oscuro); break;
-        case 'carga': if (P.chicas) tubo(m, pz.x, pz.y, pz.z0, pz.z1, pz.r, pz.r * 0.8, 8, ZONA.oscuro); break;
+        case 'carga': if (P.chicas) carga(m, P, pz); break;
         case 'freno': if (P.moviles || lod < 2) freno(m, P, pz, lado); break;
         case 'compuertas': if (lod < 2) compuertas(m, P, pz); break;
         case 'placas': if (lod < 2) caja(m, pz.x0, pz.x1, pz.y - 0.01, pz.y + 0.02, pz.z0, pz.z1, ZONA.oscuro,
@@ -262,8 +277,18 @@ function espejar(pz) {
 
 /* Puntos útiles del diseño, ya escalados: salida de llamas y de tiros */
 export function puntosDiseno(dis) {
-  const k = dis.escala || 1, motores = [], bocas = [];
+  const k = dis.escala || 1, motores = [], bocas = [], luces = [];
+  let cola = null;
   for (const pz of dis.piezas) {
+    if (pz.tipo === 'superficie' && pz.canal === 0) {
+      // punta del ala: luz de navegación, roja a la izquierda y verde a la derecha
+      const p = [pz.tle[0], pz.tle[1], pz.tle[2] + pz.ct * 0.5];
+      for (const s of pz.espejo === false ? [1] : [1, -1]) {
+        const x = p[0] * s;
+        luces.push({ p: [x * k, p[1] * k, p[2] * k], color: x < 0 ? 0xff3b30 : 0x3dff7a });
+      }
+    }
+    if (pz.tipo === 'superficie' && pz.canal === 1 && (!cola || pz.tle[1] > cola[1])) cola = [pz.tle[0], pz.tle[1], pz.tle[2] + pz.ct];
     if (pz.tipo !== 'motor' && pz.tipo !== 'canon') continue;
     const lados = pz.espejo === false || pz.x === 0 ? [1] : [1, -1];
     for (const s of lados) {
@@ -271,5 +296,6 @@ export function puntosDiseno(dis) {
       else bocas.push([pz.x * s * k, pz.y * k, pz.z0 * k]);
     }
   }
-  return { motores, bocas };
+  if (cola) luces.push({ p: [cola[0] * k, cola[1] * k, cola[2] * k], color: 0xffffff, cola: true });
+  return { motores, bocas, luces };
 }
