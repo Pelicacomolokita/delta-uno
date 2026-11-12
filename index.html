@@ -189,19 +189,6 @@
               <p id="qualityNote"></p>
               <p>Cambia la resolución, la cantidad de fuego, humo y restos de las explosiones, y el detalle de la nave. El suavizado de bordes se apaga en Baja y cambia al volver a abrir el juego.</p>
             </section>
-            <section class="opt wide" id="shipLocked" hidden>
-              <h3>Nave</h3>
-              <p>La nave se elige en el menú, antes de salir. En vuelo no se puede cambiar.</p>
-            </section>
-            <section class="opt wide shipPick">
-              <h3>Diseño de la nave</h3>
-              <div class="seg" data-key="shipModel"><button type="button" data-val="actual">Actual</button><button type="button" data-val="guardia">Guardia</button><button type="button" data-val="interceptor">Interceptor</button><button type="button" data-val="blindado">Blindado</button></div>
-              <p>Por ahora todos vuelan igual: son diseños de prueba. Las clases con diferencias reales llegan con la campaña 2.</p>
-            </section>
-            <section class="opt wide shipPick">
-              <h3>Colores de la nave</h3>
-              <div class="seg" data-key="shipPaint"><button type="button" data-val="actual">Actuales</button><button type="button" data-val="guardia">Guardia</button></div>
-            </section>
           </div>
         </div>
         <div id="sheetFoot">
@@ -243,7 +230,7 @@
             <p id="diffNote"></p>
           </section>
           <p id="modeRec"></p>
-          <button id="goBtn" type="button">Despegar</button>
+          <div id="goRow"><button id="goBtn" type="button">Despegar</button><button id="loadoutBtn" type="button">Nave y equipo</button></div>
         </div>
         <div class="scrollHint" hidden>Deslizá para ver más</div>
       </div>
@@ -263,18 +250,58 @@
       </div>
     </div>
 
-    <div id="brief" role="dialog" aria-label="Instrucciones de la misión" hidden>
+    <div id="brief" role="dialog" aria-label="Preparar la salida" hidden>
       <div id="briefBody">
-        <small id="briefKicker"></small>
-        <h2 id="briefTitle"></h2>
-        <p id="briefText"></p>
-        <div class="briefCols">
-          <div><h3>Pruebas</h3><ol id="briefParts"></ol></div>
-          <div><h3>Medallas</h3><ul id="briefMedals"></ul></div>
+        <div id="prepTabs" role="tablist">
+          <button type="button" role="tab" data-step="mision">Misión</button>
+          <button type="button" role="tab" data-step="nave">Nave</button>
+          <button type="button" role="tab" data-step="equipo">Equipo</button>
+          <button type="button" role="tab" data-step="diseno">Diseño</button>
         </div>
-        <div id="briefBtns">
-          <button id="briefGo" class="endGo" type="button">Despegar</button>
-          <button id="briefBack" type="button">Volver</button>
+        <div class="prep" data-step="mision">
+          <div id="misList"></div>
+          <div id="misInfo">
+            <small id="briefKicker"></small>
+            <h2 id="briefTitle"></h2>
+            <p id="briefText"></p>
+            <dl id="briefFacts"></dl>
+            <div class="briefCols">
+              <div><h3>Pruebas</h3><ol id="briefParts"></ol></div>
+              <div><h3>Medallas</h3><ul id="briefMedals"></ul></div>
+            </div>
+          </div>
+        </div>
+        <div class="prep" data-step="nave" hidden>
+          <div id="classList" class="pickList"></div>
+          <div id="classInfo">
+            <small id="classSide"></small>
+            <h2 id="className"></h2>
+            <p id="classDesc"></p>
+            <div id="classStats"></div>
+          </div>
+        </div>
+        <div class="prep one" data-step="equipo" hidden>
+          <div id="gearSlots"></div>
+          <p class="prepNote">Las armas nuevas llegan con las campañas 2 y 3. Cada clase de nave va a aceptar las suyas.</p>
+        </div>
+        <div class="prep one" data-step="diseno" hidden>
+          <section class="opt wide">
+            <h3>Pintura</h3>
+            <div class="seg" data-key="shipPaint" id="paintSeg"><button type="button" data-val="actual">Clásica</button><button type="button" data-val="guardia">Guardia</button></div>
+            <p id="paintDesc"></p>
+          </section>
+          <section class="opt wide">
+            <h3>Carrocería de prueba</h3>
+            <div class="seg" data-key="shipModel"><button type="button" data-val="actual">Actual</button><button type="button" data-val="guardia">Guardia</button><button type="button" data-val="interceptor">Interceptor</button><button type="button" data-val="blindado">Blindado</button></div>
+            <p>Bocetos del caza mientras se hace el modelo definitivo. Todos vuelan igual.</p>
+          </section>
+        </div>
+        <div id="prepFoot">
+          <p id="prepSummary"></p>
+          <div id="briefBtns">
+            <button id="briefGo" class="endGo" type="button">Despegar</button>
+            <button id="briefBack" type="button">Volver</button>
+          </div>
         </div>
         <div class="scrollHint" hidden>Deslizá para ver más</div>
       </div>

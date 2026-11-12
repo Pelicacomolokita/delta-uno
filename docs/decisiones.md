@@ -197,7 +197,7 @@ Al principio pilota un caza básico. Más adelante habrá más naves para elegir
   - Si en Automática el juego no llega a 30 cuadros por segundo durante 10 segundos (después de bajar la resolución), baja un escalón solo. Queda en los datos de uso como `calidad_auto`.
 - **Explosiones:** destello, fuego que pasa de amarillo a naranja y rojo, humo oscuro que sube, restos de chapa que caen dejando humo, y una onda expansiva. Todo hecho en código; el pack de partículas de Kenney lo va a reemplazar.
 - **Escudo:** cuando te pegan con escudo, se ilumina la cáscara del lado del tiro y se abre una onda desde ese punto.
-- **Diseños de la nave:** Actual, Guardia, Interceptor y Blindado, elegibles en Ajustes → Gráficos para probarlos en vuelo. Todos tienen la misma silueta para los choques y los tiros, así que se juega igual. Los compañeros usan el mismo diseño, con el color de sus puntas de ala. Falta que Santiago elija uno (visor: herramientas/hangar).
+- **Diseños de la nave:** Actual, Guardia, Interceptor y Blindado, elegibles en Preparar la salida → Diseño. Todos tienen la misma silueta para los choques y los tiros, así que se juega igual. Los compañeros usan el mismo diseño, con el color de sus puntas de ala. Falta que Santiago elija uno (visor: herramientas/hangar).
 - **Sonido sintetizado** (sin archivos, en `src/sonido.js`):
   - Motor con dos tonos graves, silbido de turbina según el empuje y rugido con el turbo. Viento según la velocidad.
   - Cañón con chasquido, cuerpo y golpe grave, un poco distinto en cada tiro.
@@ -205,6 +205,16 @@ Al principio pilota un caza básico. Más adelante habrá más naves para elegir
   - Escudo (zumbido eléctrico) y casco (chapa golpeada) suenan distinto.
   - Radio: clic y estática al abrir, crujidos bajitos mientras dura el mensaje y el "chsss" del final.
 - **Packs gratuitos** (decidido por Santiago: calidad completa, con crédito a los autores si la licencia lo pide): texturas, cielo HDRI, partículas, sonidos y música. Los sitios de packs no se pueden descargar desde el entorno de trabajo, así que los baja Santiago y los adjunta. Con los packs llega una pantalla de Créditos.
+
+## Preparar la salida (decidido por Santiago)
+
+- La nave no se elige en Ajustes ni se cambia en vuelo. Se elige antes de despegar, en una pantalla alineada con el selector de misión.
+- La pantalla tiene cuatro pestañas: **Misión** (lista de la campaña, descripción, sector, compañeros, duración, mejor tiempo, pruebas y medallas), **Nave** (clases, con barras para comparar), **Equipo** (arma principal y secundaria) y **Diseño** (pintura).
+- Abajo queda siempre a la vista el resumen de lo elegido y el botón Despegar.
+- En Historia se entra por "Ver la misión". En los otros modos, por el botón "Nave y equipo" del menú; "Despegar" sigue saliendo directo.
+- Todo sale de `src/hangar/catalogo.js`. Hoy hay una sola nave disponible (Caza), un arma por ranura y dos pinturas. Las otras clases se ven, con la misión que las desbloquea, pero no se pueden elegir.
+- Las naves y las pinturas se desarrollan en otro chat (`docs/naves/prompt-naves.md`). Tienen que ser modificables: piezas y zonas de pintura separadas.
+- En Diseño queda "Carrocería de prueba" con los cuatro bocetos, hasta que esté el modelo definitivo.
 
 ### Lo que falta programar para la campaña
 

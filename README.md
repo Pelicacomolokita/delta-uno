@@ -93,6 +93,7 @@ index.html                  pantalla: botones, paneles, menú de inicio
 src/main.js                 todo el juego (por ahora en un solo archivo, ver "Próximos pasos")
 src/historia/               las misiones como datos (textos, partes, eventos de radio); formato en docs/historia/formato.md
 src/nave.js                 los diseños de la nave (Actual, Guardia, Interceptor, Blindado) y su textura de paneles
+src/hangar/catalogo.js       clases de nave, armas y pinturas que muestra la pantalla Preparar la salida
 src/efectos.js              fuego, humo, restos, onda expansiva y escudo
 src/sonido.js               todos los sonidos, sintetizados en el momento (motor, cañón, explosiones, radio)
 src/stats.js                datos anónimos de uso (PostHog)
@@ -151,6 +152,7 @@ Las pruebas abren el juego en un Chromium con pantalla táctil simulada (horizon
 | `11-datos-de-uso` | Eventos de PostHog, aviso y opción para apagarlos, envíos sin conexión, versión en el menú, botón de opinión |
 | `12-historia` | Misión 1: reglas de los textos, instrucciones, anillos, firma de Rastro, torretas y blancos de práctica, repetir la parte al caer o salir del sector, resumen y medallas |
 | `13-graficos-y-sonido` | Calidad Baja, Media y Alta, los cuatro diseños de la nave, explosiones, escudo y sonidos |
+| `14-preparar-salida` | Pantalla previa: misión con sus datos, nave, equipo, diseño y despegue |
 
 **Pendiente:** la prueba del planeta (biomas, vuelta completa, choques con el suelo) es de una versión vieja y hay que actualizarla.
 

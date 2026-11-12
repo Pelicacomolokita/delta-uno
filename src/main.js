@@ -7,6 +7,7 @@ import { REPARTO, MISIONES, PROXIMAS } from './historia/campana1.js';
 import { NAVES, PALETAS, naveGeometria, naveMaterial } from './nave.js';
 import { createEffects, createShield } from './efectos.js';
 import { createSound } from './sonido.js';
+import { CLASES, STAT_NOMBRE, ARMAS, RANURA_NOMBRE, PINTURAS, EQUIPO_INICIAL } from './hangar/catalogo.js';
 window.THREE = THREE; // las pruebas lo usan para armar matrices
 
 (function(){
@@ -1672,8 +1673,6 @@ const MODE_NOTE={
   manual_rota:'La palanca gira la nave sobre su eje como un alerón y queda inclinada hasta que la corrijas. Los botones son el timón.'
 };
 function syncSheet(){
-  // la nave se elige antes de salir: en plena partida no se cambia
-  document.querySelectorAll('.shipPick').forEach(el=>{el.hidden=run.live;});$('#shipLocked').hidden=!run.live;
   document.querySelectorAll('.seg').forEach(seg=>{
     const cur=String(settings[seg.dataset.key]);
     seg.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.val===cur?'true':'false'));
@@ -1725,7 +1724,7 @@ document.querySelectorAll('.seg').forEach(seg=>{
     settings[k]=v;saveSettings();syncSheet();
     if(k==='stats'&&!v)stats.optOut();
     if(k==='quality')applyQuality();
-    if(k==='shipModel'||k==='shipPaint'){buildPlayerShip();restyleAllies();}
+    if(k==='shipModel'||k==='shipPaint'){buildPlayerShip();restyleAllies();prepSummary();}
     if(!menuEl.hidden)syncMenu();
   });
 });
@@ -3511,21 +3510,94 @@ function histMenuDesc(){
   return 'Volá con el escuadrón Delta: anillos, torretas de práctica y blancos de simulación. Si caés, repetís la prueba. Próximamente: '+PROXIMAS.length+' misiones más de la campaña 1, empezando por "'+PROXIMAS[0].titulo+'".';
 }
 // Pantalla de instrucciones antes de despegar
-function openBrief(def){
-  releaseAll();dropKeys();
-  menuEl.hidden=true;endEl.hidden=true;
+/* Preparar la salida: misión → nave → equipo → diseño. Los datos salen de src/hangar/catalogo.js.
+   En Historia se abre en "Misión"; en los otros modos, en "Nave" (sin la pestaña de misión). */
+const prep={step:'mision',mission:null,mode:'historia'};
+const equipo=()=>{const e=settings.equipo||(settings.equipo=Object.assign({},EQUIPO_INICIAL));for(const k in EQUIPO_INICIAL)if(!e[k])e[k]=EQUIPO_INICIAL[k];return e;};
+const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n;};
+function pickBtn(item,on,sub){
+  const b=el('button','pick');b.type='button';b.dataset.id=item.id;
+  b.append(el('b',null,item.nombre),el('small',null,item.disponible?sub||'':item.desbloqueo||'Próximamente'));
+  b.setAttribute('aria-pressed',on?'true':'false');if(!item.disponible)b.classList.add('locked');
+  return b;
+}
+function prepStep(step){
+  prep.step=step;
+  document.querySelectorAll('#prepTabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.step===step?'true':'false'));
+  document.querySelectorAll('#brief .prep').forEach(p=>{p.hidden=p.dataset.step!==step;});
+  $('#briefBody').scrollTop=0;scrollHints();
+}
+function prepMission(def){
+  prep.mission=def;briefEl.dataset.mission=def.id;
   $('#briefKicker').textContent='Campaña '+def.campana+' · Misión '+def.numero+' · '+def.sector.nombre;
   $('#briefTitle').textContent=def.titulo;
   $('#briefText').textContent=def.instruccion;
+  const pr=progress[def.id]||{},got=pr.medals||[],tm=def.medallas.find(m=>m.seg);
+  const facts=[['Sector',def.sector.nombre],['Compañeros',def.aliados.map(id=>(REPARTO[id]||{radio:id}).radio).join(', ')],
+    ['Duración',tm?'unos '+Math.round(tm.seg/60)+' minutos':'sin medir'],['Tu mejor tiempo',pr.best?fmtTime(pr.best):'todavía sin jugar'],['Medallas',got.length+' de '+def.medallas.length]];
+  const dl=$('#briefFacts');dl.textContent='';
+  facts.forEach(([k,v])=>{const d=el('div');d.append(el('dt',null,k),el('dd',null,v));dl.append(d);});
   const ol=$('#briefParts');ol.textContent='';
-  def.partes.forEach(p=>{const li=document.createElement('li');li.textContent=p.objetivo;ol.append(li);});
-  const got=(progress[def.id]&&progress[def.id].medals)||[];
+  def.partes.forEach(p=>ol.append(el('li',null,p.objetivo)));
   const ul=$('#briefMedals');ul.textContent='';
-  def.medallas.forEach(m=>{const li=document.createElement('li');li.textContent=(got.includes(m.id)?'★ ':'☆ ')+m.texto;ul.append(li);});
-  briefEl.hidden=false;briefEl.dataset.mission=def.id;
-  hud.classList.add('off');scrollHints();
+  def.medallas.forEach(m=>ul.append(el('li',null,(got.includes(m.id)?'★ ':'☆ ')+m.texto)));
+  const list=$('#misList');list.textContent='';
+  MISIONES.forEach(m=>{const d=progress[m.id]&&progress[m.id].done;list.append(pickBtn({id:m.id,nombre:m.numero+'. '+m.titulo,disponible:true},m.id===def.id,d?'Completa':'Disponible'));});
+  PROXIMAS.forEach(m=>list.append(pickBtn({id:'',nombre:m.numero+'. '+m.titulo,desbloqueo:'Próximamente'},false)));
 }
-$('#briefGo').addEventListener('click',()=>{unlock();startRun('historia','medio',briefEl.dataset.mission);});
+function prepShip(){
+  const e=equipo(),list=$('#classList');list.textContent='';
+  CLASES.forEach(c=>list.append(pickBtn(c,c.id===prep.viewClass,c.id===e.clase?'Elegida':'Disponible')));
+  const c=CLASES.find(x=>x.id===prep.viewClass)||CLASES[0];
+  $('#classSide').textContent=c.bando+(c.disponible?'':' · se desbloquea en '+c.desbloqueo);
+  $('#className').textContent=c.nombre;$('#classDesc').textContent=c.desc;
+  const st=$('#classStats');st.textContent='';
+  Object.keys(STAT_NOMBRE).forEach(k=>{
+    const row=el('div','stat');row.append(el('span',null,STAT_NOMBRE[k]));
+    const bar=el('i');bar.style.setProperty('--v',c.stats[k]);bar.setAttribute('aria-label',c.stats[k]+' de 5');row.append(bar);st.append(row);
+  });
+}
+function prepGear(){
+  const e=equipo(),box=$('#gearSlots');box.textContent='';
+  Object.keys(RANURA_NOMBRE).forEach(slot=>{
+    const sec=el('section','opt wide');sec.append(el('h3',null,RANURA_NOMBRE[slot]));
+    const list=el('div','pickList');list.dataset.slot=slot;
+    ARMAS.filter(a=>a.ranura===slot).forEach(a=>list.append(pickBtn(a,a.id===e[slot],a.desc)));
+    sec.append(list);box.append(sec);
+  });
+}
+function prepSummary(){
+  const e=equipo(),n=(arr,id)=>(arr.find(x=>x.id===id)||arr[0]).nombre;
+  $('#prepSummary').textContent=n(CLASES,e.clase)+' · '+n(ARMAS,e.principal)+' · '+n(ARMAS,e.secundaria)+' · pintura '+n(PINTURAS,settings.shipPaint);
+  $('#paintDesc').textContent=(PINTURAS.find(p=>p.id===settings.shipPaint)||PINTURAS[0]).desc;
+}
+function prepSync(){prepShip();prepGear();prepSummary();}
+// def: la misión (Historia). Sin def: preparar la nave para el modo elegido en el menú.
+function openBrief(def){
+  releaseAll();dropKeys();
+  menuEl.hidden=true;endEl.hidden=true;
+  prep.mode=def?'historia':(settings.lastMode||'conquista');
+  $('#prepTabs [data-step="mision"]').hidden=!def;
+  prep.viewClass=equipo().clase;
+  if(def)prepMission(def);else delete briefEl.dataset.mission;
+  prepSync();
+  briefEl.hidden=false;hud.classList.add('off');
+  prepStep(def?'mision':'nave');
+}
+$('#prepTabs').addEventListener('click',e=>{const b=e.target.closest('button');if(b)prepStep(b.dataset.step);});
+$('#misList').addEventListener('click',e=>{const b=e.target.closest('.pick');if(!b||!b.dataset.id)return;const m=MISIONES.find(x=>x.id===b.dataset.id);if(m)prepMission(m);});
+$('#classList').addEventListener('click',e=>{
+  const b=e.target.closest('.pick');if(!b)return;
+  const c=CLASES.find(x=>x.id===b.dataset.id);prep.viewClass=c.id; // las bloqueadas se pueden mirar, no elegir
+  if(c.disponible){equipo().clase=c.id;saveSettings();}
+  prepSync();
+});
+$('#gearSlots').addEventListener('click',e=>{
+  const b=e.target.closest('.pick');if(!b)return;
+  const a=ARMAS.find(x=>x.id===b.dataset.id);if(!a||!a.disponible)return;
+  equipo()[a.ranura]=a.id;saveSettings();prepSync();
+});
+$('#briefGo').addEventListener('click',()=>{unlock();if(prep.mode==='historia')startRun('historia','medio',briefEl.dataset.mission);else startRun(prep.mode,settings.diff);});
 $('#briefBack').addEventListener('click',openMenu);
 
 /* Radio: un mensaje por vez, con al menos 4 segundos entre uno y otro. Primero los importantes;
@@ -3754,7 +3826,7 @@ function syncMenu(){
   $('#diffNote').textContent=sel==='supervivencia'?(settings.diff==='extremo'?'Sin ayudas para apuntar. ':'')+'La dificultad cambia la puntería enemiga y el tamaño de las oleadas.':D.note;
   const rt=recText(sel);
   $('#modeRec').textContent=rt?rt+(M.diff?' en '+D.name.toLowerCase():''):sel==='historia'?'Todavía sin jugar':'Todavía sin récord';
-  $('#goBtn').textContent=sel==='historia'?'Ver la misión':'Despegar';
+  $('#goBtn').textContent=sel==='historia'?'Ver la misión':'Despegar';$('#loadoutBtn').hidden=sel==='historia';
   syncStatsNote();
   scrollHints();
 }
@@ -3812,6 +3884,7 @@ $('#goBtn').addEventListener('click',()=>{
   else startRun(settings.lastMode||'conquista',settings.diff);
 });
 $('#menuGear').addEventListener('click',()=>{unlock();openSheet();});
+$('#loadoutBtn').addEventListener('click',()=>{unlock();openBrief(settings.lastMode==='historia'?MISIONES[0]:null);});
 $('#againBtn').addEventListener('click',()=>{unlock();if(run.mode==='historia')openBrief(mis.def||MISIONES[0]);else startRun(run.mode,run.diff);});
 $('#endMenu').addEventListener('click',openMenu);
 $('#toMenu').addEventListener('click',openMenu);
