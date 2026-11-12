@@ -85,9 +85,37 @@ ambientCG es todo **CC0**: se puede usar sin pedir permiso y sin dar crédito. I
 
 Si mirás otros sitios, fijate que diga **CC0** o **CC-BY**. Evitá "NC" (no comercial) y "Editorial".
 
+## Lista de candidatos en ambientCG
+
+Buscados por nombre y etiquetas, **sin verlos**: desde acá puedo leer el texto de la página (etiquetas, licencia, peso), pero no la imagen. Mirálos vos antes de bajar; si alguno no pega con el estilo, se cambia.
+
+| Para qué | Candidato | Etiquetas que declara | Zip 1K |
+|---|---|---|---|
+| Pradera | [Ground 020](https://ambientcg.com/view?id=Ground020) | Dirt, Forest, Grass, Ground, Leaves | 10 MB |
+| Bosque | [Ground 053](https://ambientcg.com/view?id=Ground053) | Forest, Ground, Leaves, Sand | 10 MB |
+| Desierto y Playa | [Ground 031](https://ambientcg.com/view?id=Ground031) | Cracks, Desert, Dry, Ground, Sand, Soil | 10 MB |
+| Mesetas y Montaña | [Rock 028](https://ambientcg.com/view?id=Rock028) | Cliff, Grey, Rock, Rough, Stone | 9 MB |
+| Hielo | [Snow 011](https://ambientcg.com/view?id=Snow011) | Dirt, Dirty, Floor, Ground, Snow | 8 MB |
+| Estructuras: chapa | [Metal Plates 013](https://ambientcg.com/view?id=MetalPlates013) | Metal, Plates, Rust, Rusted | 7 MB |
+| Estructuras: hormigón | [Concrete 042 C](https://ambientcg.com/view?id=Concrete042C) | Concrete, Damaged, Mesh, Metal, Rust | 8 MB |
+| Cielo nocturno | [Night Sky HDRI 008](https://ambientcg.com/view?id=NightSkyHDRI008) | — | 4 MB |
+
+Faltan Volcán y Salinas: buscá `Lava` y `Ground` blanco agrietado, que no aparecieron candidatos claros.
+
+**Ojo con uno que descarté:** Snow 006 tiene las etiquetas "Steps, Stomped", o sea pisadas. Repetida cientos de veces en el planeta se vería un campo de huellas iguales. La regla es evitar texturas con algo *puntual* adentro (una pisada, una mancha grande, una hoja sola): al repetirse se nota el patrón.
+
+## Cuánto vas a bajar y cuánto queda
+
+El zip de 1K pesa 8 o 10 MB porque trae **todos** los mapas (color, normal, rugosidad, desplazamiento, oclusión). Nosotros usamos dos. Así que:
+
+- lo que bajás: unos **80 MB** por los 10 materiales;
+- lo que termina en el juego: unos **6 a 10 MB**, después de quedarme con Color y NormalGL, achicarlos y convertirlos.
+
+No te asustes con el peso de la descarga: el 90 % se descarta.
+
 ## Qué bajar ahora, en concreto
 
-1. En ambientCG, filtrá por **Material** y bajá el **1K-JPG** de un material por cada fila de la tabla de arriba (unos 10 o 12).
+1. Bajá el **1K-JPG** de cada fila de la tabla de candidatos (o el que elijas vos en su lugar).
 2. El **Night Sky HDRI 008 en 1K**.
 3. Mandámelos. Yo los recorto, los achico, los convierto y armo la pantalla de Créditos.
 
