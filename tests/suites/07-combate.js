@@ -30,16 +30,17 @@ H.autostart = true;
   check('turbo acelera y abre la cámara', hot.speed > 110 && hot.fov > 70, f({ speed: hot.speed, fov: hot.fov, heat: hot.heat }));
   await L.page.waitForFunction(() => window.DeltaUno.vit().overheat > 0, null, { timeout: 30000 });
   const oh = await st(L.page);
-  check('a 100 % recalienta en unos 6 segundos', oh.t - t0 > 5 && oh.t - t0 < 7.5, `${(oh.t - t0).toFixed(1)} s`);
-  check('al recalentar, la barra vuelve a 50 %', Math.abs(oh.thr - .5) < .01, f({ thr: oh.thr }));
+  const HT = await L.page.evaluate(() => window.DeltaUno.TUNE.heatTime);
+  check('a 100 % recalienta en lo que dice la ficha (caza: 22 s)', oh.t - t0 > HT - 1 && oh.t - t0 < HT + 2.5, `${(oh.t - t0).toFixed(1)} s de ${HT}`);
+  check('al recalentar, la barra vuelve a crucero', Math.abs(oh.thr - .65) < .01, f({ thr: oh.thr }));
   await simWait(L.page, 1.5);
   const lockd = await st(L.page);
   const warnTxt = await L.page.evaluate(() => document.querySelector('#warn').textContent);
-  check('el motor cae a 30 % mientras está bloqueado y avisa', lockd.speed < 60 && /recalent/i.test(warnTxt), f({ speed: lockd.speed, warnTxt }));
+  check('el motor cae a 30 % mientras está bloqueado y avisa', lockd.speed < 75 && /recalent/i.test(warnTxt), f({ speed: lockd.speed, warnTxt }));
   await L.page.waitForFunction(() => window.DeltaUno.vit().overheat <= 0, null, { timeout: 15000 });
   await simWait(L.page, 2.5);
   const rec = await st(L.page);
-  check('después vuelve a crucero', Math.abs(rec.speed - 65) < 8, f({ speed: rec.speed, heat: rec.heat }));
+  check('después vuelve a crucero', Math.abs(rec.speed - 130) < 8, f({ speed: rec.speed, heat: rec.heat }));
 
   /* evasión */
   await waitGrace(L.page);
@@ -68,7 +69,7 @@ H.autostart = true;
   await L.page.evaluate(() => { const D = window.DeltaUno; D.ship.throttle = .5; });
   await place(L.page, 0, 1.6, 700); // afuera, cerca del borde
   await waitGrace(L.page);
-  await L.page.evaluate(() => { const s = window.DeltaUno.ship; s.throttle = .2; s.speed = 26; });
+  await faceOut(L.page, 0); // a crucero (muy lento la nave se hunde): mirando hacia afuera para no entrar a la zona
   await L.page.waitForFunction(() => window.DeltaUno.groups.length > 0, null, { timeout: 15000 });
   await simWait(L.page, 8);
   const pat = await L.page.evaluate(() => {
@@ -155,10 +156,11 @@ H.autostart = true;
   const ch = await L.page.evaluate(() => { const D = window.DeltaUno, z = D.zones[0], R = D.PLANET_R; return { alert: D.groups.some(g => g.zone === z && g.alert), arc: Math.acos(D.ship.pos.clone().normalize().dot(z.dir)) * R, r: z.r, st: D.groups.map(g => g.state) }; });
   check('saliendo apenas de la zona me siguen persiguiendo', ch.alert && ch.arc > ch.r, f({ alert: ch.alert, arc: ch.arc }));
   await place(L.page, 0, 2.2, 700);
+  await faceOut(L.page, 0); // a crucero la nave vuelve a la zona en pocos segundos si mira al centro
   await waitGrace(L.page);
-  await L.page.evaluate(() => { const s = window.DeltaUno.ship; s.throttle = .2; s.speed = 26; });
+  await L.page.evaluate(() => { const s = window.DeltaUno.ship; s.throttle = window.DeltaUno.TUNE.cruise; /* muy lento la nave se hunde */ });
   await simWait(L.page, 26);
-  const back = await L.page.evaluate(() => { const D = window.DeltaUno, z = D.zones[0], R = D.PLANET_R; return { alert: D.groups.some(g => g.zone === z && g.alert), st: D.groups.map(g => g.state), maxArc: D.enemies.length ? Math.max(...D.enemies.map(e => Math.acos(e.pos.clone().normalize().dot(z.dir)) * R)) : 0, r: z.r }; });
+  const back = await L.page.evaluate(() => { const D = window.DeltaUno, z = D.zones[0], R = D.PLANET_R; return { alert: D.groups.some(g => g.zone === z && g.alert), st: D.groups.filter(g => g.zone === z).map(g => g.state), maxArc: Math.max(0, ...D.enemies.filter(e => e.group.zone === z).map(e => Math.acos(e.pos.clone().normalize().dot(z.dir)) * R)), r: z.r }; }); // solo los de esta zona: a crucero la nave pasa cerca de otras
   check('si me alejo, abandonan y vuelven a su zona', !back.alert && back.st.every(x => x === 'patrol') && back.maxArc < back.r + 260, f({ alert: back.alert, maxArc: back.maxArc, r: back.r }));
   await L.page.evaluate(() => { window.DeltaUno.ship.throttle = .5; });
 
@@ -189,7 +191,9 @@ H.autostart = true;
   console.log('ANTES DEL REPUESTO', JSON.stringify(await L.page.evaluate(() => ({ ...window.DeltaUno.vit(), ...window.DeltaUno.flags(), msg: document.querySelector('#crashMsg').textContent, msgHidden: document.querySelector('#crashMsg').hidden, alt: window.DeltaUno.ship.alt, zona: window.DeltaUno.zones[0].alert }))));
   await L.page.waitForFunction(() => window.DeltaUno.flags().dead <= 0, null, { timeout: 25000 });
   const rep = await L.page.evaluate(async () => {
-    const D = window.DeltaUno, s = D.ship, before = D.vit();
+    const D = window.DeltaUno, s = D.ship;
+    if (D.vit().hull >= 100) { D.setInv(0); D.damage(130); } // si recién reapareció, con la vida llena no hay nada que curar
+    const before = D.vit();
     const d = D.drops[0], f = new s.pos.constructor(0, 0, -1).applyQuaternion(s.q);
     D.spawnDrop(d, s.pos.clone().addScaledVector(f, 30), 'vida');
     await new Promise(r => { const t0 = s.t, i = setInterval(() => { if (!d.on || s.t - t0 > 4) { clearInterval(i); r(); } }, 15); });

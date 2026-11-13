@@ -49,13 +49,24 @@ const view = page => page.evaluate(() => {
   const none = await L.page.evaluate(() => ({ t: !!window.DeltaUno.tgt(), toast: document.querySelector('#toast').textContent }));
   check('sin enemigos cerca, no elige nada y avisa', !none.t && /No hay enemigos/.test(none.toast), JSON.stringify(none));
 
+  // El Blanco solo elige lo que tenés adelante: pone otro enemigo delante de la trompa
+  const adelante = () => L.page.evaluate(() => {
+    const D = window.DeltaUno, s = D.ship, V = s.pos.constructor, cur = D.tgt();
+    const e = D.enemies.find(x => x.on && x !== cur && !x.def.ground) || D.enemies.find(x => x.on && x !== cur);
+    clearInterval(window.__ade); if (!e) return false;
+    window.__ade = setInterval(() => { if (!e.on) return; const fw = new V(0, 0, -1).applyQuaternion(s.q); e.pos.copy(s.pos).addScaledVector(fw, 400).addScaledVector(s.pos.clone().normalize(), 10); e.fwd.copy(fw); e.speed = s.speed; e.breakT = 9; }, 4);
+    return true;
+  });
+  const soltarAdelante = () => L.page.evaluate(() => clearInterval(window.__ade));
+
   /* en zona, con enemigos que no disparan para que nada interrumpa */
   await pinAlt(L.page, 200);
   await place(L.page, 0, .6, 320);
   await waitGrace(L.page);
   await L.page.waitForFunction(() => window.DeltaUno.enemies.length >= 3, null, { timeout: 30000 });
   await L.page.evaluate(() => { window.__calm = setInterval(() => window.DeltaUno.enemies.forEach(e => { e.cool = 99; e.burst = 0; }), 10); });
-  await tap();
+  await adelante(); await simWait(L.page, .05);
+  await tap(); await soltarAdelante();
   await simWait(L.page, .2); // la palabra del botón se actualiza unas 12 veces por segundo
   const sel1 = await L.page.evaluate(() => { const D = window.DeltaUno, t = D.tgt(); return t ? { kind: t.kind, i: D.enemies.indexOf(t), hint: document.querySelector('#toast').textContent, word: document.querySelector('#tgtWord').textContent } : null; });
   check('tocar Blanco elige un enemigo', !!sel1 && /Mantené para soltar/.test(sel1.hint) && sel1.word === 'Cambiar', JSON.stringify(sel1));
@@ -80,16 +91,6 @@ const view = page => page.evaluate(() => {
   await sleep(1500);
   await L.page.screenshot({ path: path.join(dir, 't-1-blanco.png') });
   await setRender(L.page, false);
-
-  // El Blanco solo elige lo que tenés adelante: pone otro enemigo delante de la trompa
-  const adelante = () => L.page.evaluate(() => {
-    const D = window.DeltaUno, s = D.ship, V = s.pos.constructor, cur = D.tgt();
-    const e = D.enemies.find(x => x.on && x !== cur && !x.def.ground) || D.enemies.find(x => x.on && x !== cur);
-    clearInterval(window.__ade); if (!e) return false;
-    window.__ade = setInterval(() => { if (!e.on) return; const fw = new V(0, 0, -1).applyQuaternion(s.q); e.pos.copy(s.pos).addScaledVector(fw, 400).addScaledVector(s.pos.clone().normalize(), 10); e.fwd.copy(fw); e.speed = s.speed; e.breakT = 9; }, 4);
-    return true;
-  });
-  const soltarAdelante = () => L.page.evaluate(() => clearInterval(window.__ade));
 
   /* cambiar */
   const before = await L.page.evaluate(() => window.DeltaUno.enemies.indexOf(window.DeltaUno.tgt()));

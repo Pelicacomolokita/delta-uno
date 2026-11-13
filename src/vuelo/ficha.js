@@ -61,7 +61,7 @@ export const COMBATE = {
   misil: 450,      // m/s (antes 310)
   balasEnemigas: 380, // m/s (antes 270)
   misilEnemigo: 160,  // m/s (antes 118): más lento que cualquier nave a fondo
-  enemigos: 1.5    // los enemigos van un 50 % más rápido
+  enemigos: 2      // los enemigos van al doble que en la demo, igual que tu crucero
 };
 
 // Gravedad regulada: crece con la altura y cuando vas muy lento.

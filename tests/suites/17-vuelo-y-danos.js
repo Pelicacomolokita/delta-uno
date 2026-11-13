@@ -19,7 +19,7 @@ H.autostart = false;
   check('el caza vuela con su ficha: 200 m/s, crucero 130, recalienta en 22 s, cabeceo 125°/s', r.vmax === 200 && r.cruise === 130 && r.heat === 22 && r.pitch === 125 && r.roll === 170 && r.hull === 100, f(r));
   check('el misil enemigo sigue siendo más lento que cualquier nave a fondo', Object.values(await page.evaluate(() => window.DeltaUno.FICHAS)).every(F => F.vmax > r.em) && r.lock === 1300, f(r));
   r = await page.evaluate(() => ({ caza: window.DeltaUno.ENEMY_DEF.caza.attack, inter: window.DeltaUno.ENEMY_DEF.interceptor.attack }));
-  check('los enemigos van un 50 % más rápido que antes', r.caza === 99 && r.inter === 147, f(r));
+  check('los enemigos atacando van a la par de tu crucero, como antes', r.caza === 132 && r.inter === 196, f(r));
 
   /* ---------- Gravedad regulada ---------- */
   r = await page.evaluate(async () => {
