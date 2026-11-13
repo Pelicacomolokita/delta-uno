@@ -4,7 +4,9 @@ import './style.css';
 import { stats } from './stats.js';
 import { APP_VERSION, FEEDBACK_URL } from './config.js';
 import { REPARTO, MISIONES, PROXIMAS } from './historia/campana1.js';
-import { NAVES, PALETAS, naveGeometria, naveMaterial } from './nave.js';
+import { NAVES, PALETAS, naveGeometria, naveMaterial, naveTextura } from './nave.js';
+import { leerPruebaFlota, iniciarPruebaFlota } from './naves/prueba-en-juego.js';
+import { NavesJuego, TIPO_ENEMIGO, NAVE_PROPIA, ESCOLTADO, mandosDesdeGiro } from './naves/juego.js';
 import { createEffects, createShield } from './efectos.js';
 import { createSound } from './sonido.js';
 import { runIntro } from './intro.js';
@@ -84,7 +86,7 @@ const ZONE_ORDER=['dispersa','normal','densa','dispersa','normal','densa'];
 
 const STORE='delta-uno-ajustes-v3';
 // v3: "lateral" cambió de significado, así que de los ajustes viejos se conserva todo menos eso
-const settings=Object.assign({mode:'asistido',invert:true,invertX:false,lateral:'dobla',sens:'media',sound:true,intro:true,flip:false,tgtCam:'camara',diff:'medio',lastMode:'conquista',touchUI:'auto',vibrate:true,stats:true,statsSeen:false,quality:'auto',shipModel:'actual',shipPaint:'actual'},(()=>{
+const settings=Object.assign({mode:'asistido',invert:true,invertX:false,lateral:'dobla',sens:'media',sound:true,intro:true,flip:false,tgtCam:'camara',diff:'medio',lastMode:'conquista',touchUI:'auto',vibrate:true,stats:true,statsSeen:false,quality:'auto',shipModel:'actual',shipPaint:'actual',navesNuevas:false},(()=>{
   try{
     const cur=localStorage.getItem(STORE);if(cur)return JSON.parse(cur)||{};
     const old=JSON.parse(localStorage.getItem('delta-uno-ajustes-v2'))||{};delete old.lateral;return old;
@@ -275,6 +277,7 @@ function setLevel(q,u,f){
 const scene=new T.Scene();
 scene.fog=new T.Fog(0xb3c9e0,500,4200);
 const camera=new T.PerspectiveCamera(58,2,1,14000);
+const PRUEBA_FLOTA=leerPruebaFlota();let pruebaFlota=null; // ?flota=40: naves decorativas para medir rendimiento
 const SUN=new V3(.55,.45,-.7).normalize();
 const MOON=new V3(-.62,.2,.76).normalize(); // casi opuesta al sol: se ve llena e ilumina el lado de noche
 
@@ -632,8 +635,46 @@ let shipMesh=null;
 function shipMat(fog){
   return GQ.ship==='lisa'?new T.MeshLambertMaterial({vertexColors:true,fog,emissive:0x15151c,side:T.DoubleSide}):naveMaterial(T,{fog});
 }
+/* ---------- Naves nuevas por piezas (src/naves/) ----------
+   Se prenden con el ajuste navesNuevas. Mientras están apagadas, el juego usa las mallas de siempre.
+   main.js solo copia posición, rotación y mandos; todo lo demás vive en src/naves/. */
+let naves=null,navePropia=null;
+const navesActivas=()=>!!(settings.navesNuevas&&naves);
+function navesIniciar(){
+  if(!settings.navesNuevas){navesSoltar();return;}
+  if(naves)return;
+  naves=new NavesJuego(scene,{detalleTex:GQ.name==='baja'?null:naveTextura(T)});
+  navePropia=naves.agregar({id:NAVE_PROPIA,propia:true,pintura:'guardia'});
+  if(shipMesh)shipMesh.visible=false;
+  acomodarPuntosNave();
+}
+function navesSoltar(){
+  if(!naves)return;
+  naves.setVisible(false);naves.limpiar();naves=null;navePropia=null;
+  if(shipMesh)shipMesh.visible=true;
+  buildPlayerShip();   // vuelve a dejar llamas y bocas donde las quiere la malla de siempre
+}
+// Las llamas, las bocas de los cañones y las luces salen del diseño nuevo, no de NAVES[modelo]
+function acomodarPuntosNave(){
+  if(!navesActivas())return;
+  const P=naves.puntos(NAVE_PROPIA);
+  if(!P)return;
+  flames.forEach((f,i)=>{const e=P.motores[i]||P.motores[0];if(!e)return;f.cone.position.set(e[0],e[1],e[2]);f.glow.position.set(e[0],e[1],e[2]+.08);});
+  if(P.bocas&&P.bocas.length>=2){muzzleL.fromArray(P.bocas[0]);muzzleR.fromArray(P.bocas[1]);flashL.position.copy(muzzleL);flashR.position.copy(muzzleR);}
+}
+// Mandos del jugador: lo que está pidiendo con la palanca, no lo que terminó haciendo la nave
+function navesMandosJugador(){
+  const m=navePropia.mandos;
+  // input.x: palanca a los costados. input.y: tirar o empujar. Los botones de tonel mandan el alabeo.
+  const btn=(input.rollL?1:0)-(input.rollR?1:0);
+  m.roll=clamp(btn||input.x,-1,1);
+  m.pitch=clamp(input.y,-1,1);
+  m.yaw=clamp(btn?0:input.x*.35,-1,1);   // en asistido la nave dobla con el alabeo: un poco de timón acompaña
+  m.empuje=clamp(ship.throttle,0,1);m.turbo=(ship.tf||0)>.05;m.freno=ship.throttle<.08;m.velocidad=ship.speed;
+}
 function buildPlayerShip(){
   if(shipMesh){shipGroup.remove(shipMesh);shipMesh.geometry.dispose();shipMesh.material.dispose();}
+  if(navesActivas()){shipMesh=null;}
   const model=NAVES[settings.shipModel]?settings.shipModel:'actual',paint=PALETAS[settings.shipPaint]?settings.shipPaint:'actual';
   shipMesh=new T.Mesh(naveGeometria(T,model,paint),shipMat(false));
   shipGroup.add(shipMesh);
@@ -1815,6 +1856,7 @@ document.querySelectorAll('.seg').forEach(seg=>{
     if(k==='stats'&&!v)stats.optOut();
     if(k==='quality')applyQuality();
     if(k==='shipModel'||k==='shipPaint'){buildPlayerShip();restyleAllies();prepSummary();}
+    if(k==='navesNuevas'){if(settings.navesNuevas)navesIniciar();else navesSoltar();}
     if(!menuEl.hidden)syncMenu();
   });
 });
@@ -2111,7 +2153,10 @@ function makeGroup(z,kinds,home,anchor,form,alert){
     slot.free=false;
     slot.mesh.geometry=ENEMY_GEO[k];slot.mesh.material=enemyMat;slot.mesh.scale.setScalar(def.scale);slot.mesh.visible=true;
     const gl=slot.mesh.children[0];gl.position.set(0,.04,1.7);gl.material.color.set(0xff7a3c);gl.scale.setScalar(2);gl.material.opacity=1;
-    const e={kind:k,def,group:g,slot,mesh:slot.mesh,on:true,hp:def.hp,speed:def.patrol,bank:0,cool:.6+Math.random()*2,burst:0,gap:0,breakT:0,
+    // Nave nueva por piezas: trae su propio tamaño, así que no se le aplica def.scale
+    const nueva=navesActivas()&&TIPO_ENEMIGO[k]?naves.agregar({id:TIPO_ENEMIGO[k]}):null;
+    if(nueva)slot.mesh.visible=false;
+    const e={kind:k,def,group:g,slot,mesh:slot.mesh,nueva,qPrev:new T.Quaternion(),on:true,hp:def.hp,speed:def.patrol,bank:0,cool:.6+Math.random()*2,burst:0,gap:0,breakT:0,
       breakDir:new V3(),ox:(Math.random()-.5)*120,oy:(Math.random()-.5)*60,sx:sl[0],sy:sl[1],sz:sl[2],
       pos:home.clone().addScaledVector(side,sl[0]).addScaledVector(u,sl[1]).addScaledVector(heading,-sl[2]),fwd:heading.clone()};
     e.mesh.position.copy(e.pos);
@@ -2149,7 +2194,7 @@ function flashAt(at,size){
 }
 function removeEnemy(e){
   const i=enemies.indexOf(e);if(i>=0)enemies.splice(i,1);
-  e.on=false;e.slot.free=true;e.mesh.visible=false;
+  e.on=false;e.slot.free=true;if(e.nueva&&naves){naves.quitar(e.nueva);e.nueva=null;}e.mesh.visible=false;
   const g=e.group,mi=g.members.indexOf(e);if(mi>=0)g.members.splice(mi,1);
   if(g.leader===e)g.leader=g.members[0]||null;
   if(!g.members.length){const gi=groups.indexOf(g);if(gi>=0)groups.splice(gi,1);}
@@ -2339,6 +2384,11 @@ function stepEnemy(e,dt){
   _ez.copy(e.fwd).negate();
   _m.makeBasis(_ex,_ey,_ez);e.mesh.quaternion.setFromRotationMatrix(_m);
   e.mesh.position.copy(p);
+  if(e.nueva){
+    e.nueva.pos.copy(p);e.nueva.quat.copy(e.mesh.quaternion);e.nueva.visible=e.on;
+    mandosDesdeGiro(e.nueva,e.qPrev,dt,{empuje:clamp(e.speed/160,0,1),velocidad:e.speed});
+    e.qPrev.copy(e.mesh.quaternion);
+  }
 
   // Dispara en ráfagas cuando tiene la trompa apuntada adonde cree que vas a estar
   if(g.state==='attack'&&def.burstN>0&&dead<=0)enemyGuns(e,dP,dt);
@@ -2428,6 +2478,15 @@ function fireEnemyBolt(e,dP){
 // el triángulo de la nave visto desde arriba y su poco espesor.
 const _hInv=new Q(),_hS=new V3(),_hP=new V3();
 function boltHitsShip(a,b){
+  if(navesActivas()&&navePropia){   // silueta de verdad del diseño nuevo, no el triángulo
+    _hS.copy(b).sub(a);
+    const n=Math.min(48,Math.ceil(_hS.length()/.35));
+    for(let i=0;i<=n;i++){
+      _hP.copy(a).addScaledVector(_hS,i/n);
+      if(naves.golpea(navePropia,_hP))return true;
+    }
+    return false;
+  }
   if(!segmentSphereHit(a,b,ship.pos,3.4))return false;
   _hInv.copy(ship.q).invert();
   _hS.copy(b).sub(a);
@@ -3056,6 +3115,7 @@ function setupZones(on){
 function startRun(mode,diff,missionId){
   if(run.live)endRunStats('reinicio');
   noteSettings();
+  navesIniciar();
   histStop();
   run.mode=mode;run.diff=MODES[mode].diff?(diff||'medio'):'medio';
   const D=DIFF[run.diff];
@@ -3740,15 +3800,17 @@ function makeAllies(ids){
     const R=REPARTO[id]||{radio:id};
     const mesh=new T.Group();
     // misma nave que el jugador, con el color de marca de cada uno
-    mesh.add(new T.Mesh(naveGeometria(T,NAVES[settings.shipModel]?settings.shipModel:'actual',PALETAS[settings.shipPaint]?settings.shipPaint:'actual',R.marca),shipMat(true)));
+    const nueva=navesActivas()?naves.agregar({id:NAVE_PROPIA}):null;
+    if(!nueva)mesh.add(new T.Mesh(naveGeometria(T,NAVES[settings.shipModel]?settings.shipModel:'actual',PALETAS[settings.shipPaint]?settings.shipPaint:'actual',R.marca),shipMat(true)));
     const flames=[-.55,.55].map(x=>{const g=glow(0x7ff0e1,1.7);g.position.set(x,.04,1.6);mesh.add(g);return g;});
     scene.add(mesh);
-    allies.push({id,name:R.radio,mesh,flames,pos:new V3(),fwd:new V3(),speed:60,bank:0,roll:0,lat:0,mode:(mis.P&&mis.P.aliados)||'formacion',slot:ALLY_SLOTS[i%ALLY_SLOTS.length],orbitA:i/ids.length*Math.PI*2,man:null,seen:0});
+    allies.push({id,name:R.radio,mesh,flames,nueva,qPrev:new T.Quaternion(),pos:new V3(),fwd:new V3(),speed:60,bank:0,roll:0,lat:0,mode:(mis.P&&mis.P.aliados)||'formacion',slot:ALLY_SLOTS[i%ALLY_SLOTS.length],orbitA:i/ids.length*Math.PI*2,man:null,seen:0});
   });
   placeAllies(U,fwd);
 }
 // Cambia el diseño o el material de los compañeros sin sacarlos de donde están (ni cortarles la maniobra)
 function restyleAllies(){
+  if(navesActivas())return;   // las naves nuevas traen su propia pintura
   allies.forEach(a=>{
     const m=a.mesh.children[0],R=REPARTO[a.id]||{};
     m.geometry.dispose();m.material.dispose();
@@ -3757,6 +3819,7 @@ function restyleAllies(){
   });
 }
 function removeAllies(){
+  if(naves)allies.forEach(a=>{if(a.nueva)naves.quitar(a.nueva);});
   allies.forEach(a=>{scene.remove(a.mesh);a.mesh.children[0].geometry.dispose();a.mesh.children[0].material.dispose();a.flames.forEach(f=>f.material.dispose());});
   allies.length=0;allyMarks.forEach(m=>{m.el.hidden=true;});
 }
@@ -3838,6 +3901,11 @@ function stepAlly(a,dt){
   _aZ.copy(a.fwd).negate();
   _m.makeBasis(_aX,_aY,_aZ);a.mesh.quaternion.setFromRotationMatrix(_m);
   a.mesh.position.copy(p);
+  if(a.nueva){ // la nave nueva va en el mismo lugar, y sus piezas se mueven según cómo giró
+    a.nueva.pos.copy(p);a.nueva.quat.copy(a.mesh.quaternion);a.nueva.visible=a.mesh.visible!==false;
+    mandosDesdeGiro(a.nueva,a.qPrev,dt,{empuje:clamp(a.speed/TUNE.vmax,0,1),velocidad:a.speed});
+    a.qPrev.copy(a.mesh.quaternion);
+  }
 }
 /* La firma de Rastro (reporte 01): se pone adelante del jugador, amaga hacia la izquierda, esquiva hacia la
    derecha con un tonel y sale con un golpe de turbo. Espera a estar a la vista antes de amagar. */
@@ -4248,6 +4316,12 @@ function frame(now){
     stepTrails(dt);
     stepTerrain(false);
     stepCamera(dt,ship.t);
+  if(PRUEBA_FLOTA){if(!pruebaFlota)pruebaFlota=iniciarPruebaFlota(scene,PRUEBA_FLOTA,naveTextura(T));pruebaFlota.actualizar(dt,camera,ship.pos,ship.q,U);}
+  if(navesActivas()){
+    navePropia.pos.copy(ship.pos);navePropia.quat.copy(ship.q);navePropia.visible=dead<=0;
+    navesMandosJugador();
+    naves.actualizar(dt,camera);
+  }
     updateShadow();
     stepDust();
     updateHud(dt);
@@ -4313,7 +4387,7 @@ function boot(data){
   window.DeltaUno={renderer,ship,input,settings,TUNE,rocks,activeRocks,rings,chart,chartDir,straighten,terrain,heightAt,S,BIOMES,PLANET_R,CEIL:{CEIL_WARN,CEIL_PUSH,CEIL_MAX},buildMs,flags:()=>({dead,inv,warning,thinWarn}),
     zones,groups,enemies,lost,drops,DROP_KIND,damage,spawnDrop,dodge,tryDodge,rockets,lockCancel,AIM,seenVel,ZONE_KIND,eBolts,boltHitsShip,
     tgt:()=>camTarget,camBlend:()=>camBlend,camera,
-    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
+    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
     vit:()=>({hull,shield,heat,overheat,score,record,combo,curZone:curZone&&zones.indexOf(curZone),target:!!target,fov:camera.fov,missiles,missileT,lockOn,lockP,hasLock:!!lockTarget,repairT,repairCool})};
   last=performance.now();
   requestAnimationFrame(frame);

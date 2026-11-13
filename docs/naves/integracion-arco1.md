@@ -64,3 +64,48 @@ Propuestas de la especificación técnica, **sin aplicar hasta que Santiago las 
 ## Pruebas
 
 `npm test -- naves` (prueba 16): armado, triángulos, sentido de giro de cada pieza, simetría, tamaño por clase, silueta de choque, mandos, Hangar. Hoy: 89 bien.
+
+---
+
+# Estado de la integración (13 de noviembre, en `main`)
+
+Hecho: **pasos 1 a 4**. El paso 5 queda sin aplicar, como pidieron.
+
+## Medido con el mundo real
+
+Modo Vuelo libre, calidad Alta, 844×390, en el contenedor de pruebas (renderizador por software: son conteos, no tiempos).
+
+| | Llamadas de dibujo | Triángulos |
+|---|---|---|
+| Mundo solo | 37 | 57.809 |
+| `?flota=40` | 42 | 67.461 |
+| `?flota=60` | 42 | 69.251 |
+
+Las 5 llamadas que ustedes midieron se confirman, y 60 naves no cuestan más que 40. Contra el presupuesto de 150 llamadas y 400.000 triángulos, sobra.
+
+## Lo que quedó conectado
+
+- `settings.navesNuevas`, apagado por defecto, en Ajustes → Vuelo. Prenderlo y apagarlo funciona en caliente.
+- **Jugador:** diseño A, pintura `guardia`. La malla vieja se esconde. Llamas, bocas de cañón y luces salen de `naves.puntos('A')`.
+- **Mandos:** `roll` sale de los botones de tonel o de la palanca, `pitch` de la palanca, `yaw` acompaña al alabeo (el juego es de vuelo asistido: la nave dobla inclinándose), `empuje` de `ship.throttle`, `turbo` de `ship.tf`, `freno` cuando el empuje baja de 0,08.
+- **Compañeros:** diseño A, con `mandosDesdeGiro`.
+- **Enemigos:** caza, interceptor y pesada con `TIPO_ENEMIGO`, sin aplicar `def.scale`. Al morir se sacan de la flota.
+- **Choques:** `boltHitsShip` usa `naves.golpea(navePropia, punto)` cuando el interruptor está prendido.
+
+## Lo que falta y por qué
+
+- **El escoltado P1 no está conectado**: todavía no hay ninguna misión de escolta en el juego. El convoy es lo próximo que hay que programar; cuando exista, se agrega con `naves.agregar({id:'P1'})`.
+- **Las balizas de bando** usan el valor por defecto (`['guardia']`). La campaña 3 no existe todavía.
+- **La dificultad no está ajustada.** Las siluetas nuevas son más grandes (18,9 m² contra 11) y eso hay que volarlo con Santiago, como avisaron.
+
+## Importante: el tamaño del planeta cambió
+
+El paso 5 propone `PLANET_R` 3650 → 4400. **En `main` ya está en 21.900** (seis veces el original), decidido por Santiago el 13 de noviembre para que entren ciudades y escenas de desplazamiento. Medido: el planeta grande sale más barato que el chico, porque el terreno se arma en anillos alrededor del jugador.
+
+Lo que esto cambia para ustedes:
+
+- La cámara, las zonas y los alcances hay que dimensionarlos sobre 21.900, no sobre 4.400. Las zonas de combate y los alcances están en metros, así que **no cambian** con el tamaño del planeta: lo único que cambia es cuánto mundo hay alrededor.
+- `TUNE.vmax` sigue en 130. Si proponen 150, mándenlo y lo aplico.
+- Las propuestas de cámara (11,5 m × escala × 0,9 atrás, 5,2 m × escala × 0,9 arriba) no dependen del planeta: ésas las puedo aplicar cuando Santiago las apruebe volando.
+
+Detalle en `docs/historia/proyeccion-mapa.md`, sección 2 bis.
