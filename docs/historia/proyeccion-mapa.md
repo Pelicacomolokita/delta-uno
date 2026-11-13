@@ -37,6 +37,39 @@ Conclusión: **el mapa se diseña primero y después el generador obedece.** Hoy
 
 ---
 
+## 2 bis. El tamaño del planeta: medido, no supuesto
+
+Pregunta de Santiago: ¿no conviene agrandar el mapa, aunque cueste rendimiento?
+
+**No cuesta rendimiento. Cuesta relieve, y el relieve se arregla gratis.** Lo probé con el planeta a 6 veces el tamaño actual (radio 21.900 m):
+
+| | Llamadas de dibujo | Triángulos | Cómo se ve |
+|---|---|---|---|
+| Hoy (3.650) | 44 | 78.513 | Montañas, laderas, nieve en la cima |
+| 6× sin tocar nada | 28 | 62.626 | **Una llanura verde. Nada.** |
+| 6× con el detalle ajustado | **25** | **52.178** | Pared de montaña, costa, relieve fuerte |
+
+El planeta grande sale **más barato** que el de hoy, porque el terreno se arma en anillos alrededor del jugador: da igual cuánto mundo haya más allá.
+
+La razón de que se aplane es que el ruido del terreno se mide en **grados**, no en metros: al agrandar el planeta, la misma loma se estira sobre seis veces más terreno. La corrección es multiplicar la frecuencia de las octavas de relieve por el factor de crecimiento, dejando angulares las de clima y continentes. Resultado: **los continentes crecen con el planeta y las laderas conservan su inclinación.**
+
+| Tamaño | Radio | Vuelta entera a 150 m/s | Horizonte a 300 m | Ancho de un continente | 5 km en grados | Sectores que entran |
+|---|---|---|---|---|---|---|
+| 1× | 3.650 | 2,5 min | 1.480 m | 7.600 m | 78° | ~20 |
+| 2× | 7.300 | 5,1 min | 2.093 m | 15.300 m | 39° | ~83 |
+| 4× | 14.600 | 10,2 min | 2.960 m | 30.600 m | 20° | ~333 |
+| **6×** | **21.900** | **15,3 min** | **3.625 m** | **45.900 m** | **13°** | **~749** |
+
+Lo que esto resuelve, y que es el motivo real para agrandar:
+
+- **Hoy no entra la campaña.** Un sector de misión cubre 25° del planeta y entran unos 20 en todo el mundo; la campaña son 30 misiones. A 6× entran 749.
+- **Hoy no hay lugar para nada entre regiones.** Los 7 centros están a 43-69°, casi el máximo que se puede separar 7 puntos en una esfera. A 6×, los mismos 5 km son 13°: aparece territorio vacío que cruzar.
+- **Las escenas de desplazamiento necesitan distancia.** Una ruta de convoy de 5 km hoy es un cuarto del planeta; a 6× es un camino entre dos pueblos.
+
+Lo que cuesta de verdad: **36 veces más superficie que llenar.** Con 7 regiones diseñadas, el resto queda procedural. Y dar la vuelta entera al mundo pasa a tardar 15 minutos, aunque nada obliga a hacerlo: los tránsitos entre regiones siguen en 30 segundos.
+
+Las direcciones de la tabla de abajo **no cambian** si crece el planeta: son angulares. Lo que cambia es que las regiones se acercan en grados para que los tránsitos sigan durando lo mismo.
+
 ## 3. Dónde va cada región
 
 Resolví la ubicación de las 7 regiones como un problema de geometría, con tres condiciones: que respeten las vecindades del reporte, que la luz de cada una sea la que pide la historia, y que ninguna se pise con otra.
@@ -209,4 +242,4 @@ Las capas 1 y 2 van primero porque definen si se puede volar; la 3 y la 4 son ve
 - **Las ciudades cuestan.** El presupuesto es de unas 25 naves y 400.000 triángulos para toda la escena. Un pueblo entero de piezas distintas no entra: van a ser pocas piezas repetidas con variación de color, rotación y daño. Todavía no medí cuántas.
 - **La capa civil no existe en el código.** Hoy no hay ni una construcción civil en el juego. Es la parte más grande de este plan.
 - **Sigilo.** Dos misiones lo piden. Hay cálculo de si el terreno tapa la vista, pero eso no es un sistema de infiltración.
-- **El tamaño del planeta.** Todo lo de acá está calculado a 3.650 m de radio. Si pasa a 4.400, las direcciones no cambian pero las distancias crecen un 20 %.
+- **El tamaño del planeta.** Ver la sección 2 bis. Las direcciones no cambian; lo que hay que recalcular es la separación entre regiones en grados y avisarle al chat de naves, que está dimensionando cámara, zonas y alcances sobre 4.400.
