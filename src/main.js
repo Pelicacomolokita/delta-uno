@@ -358,7 +358,10 @@ const noiseTex=(function(){
 const GU={
   uNoise:{value:noiseTex},uDet:{value:null},uRoca:{value:null},uOrg:{value:new T.Vector3()},uSun:{value:SUN},uMoon:{value:MOON},uTime:{value:0},uAir:airU,
   uG:{value:new V3()},uT1:{value:new V3()},uT2:{value:new V3()},uE0:{value:new V3()},uE1:{value:new V3()},uE2:{value:new V3()},uShadow:{value:0},
-  uCenter:{value:new V3(0,1,0)},uSinkA:{value:Math.cos(720/PLANET_R)},uSinkB:{value:Math.cos(640/PLANET_R)}
+  // La esfera de fondo se hunde debajo de los anillos de detalle para no asomar entre ellos.
+  // El hundido tiene que cubrir TODO lo que tapan los anillos (3.456 m) y volver a cero justo antes
+  // de que se terminen; si no, la esfera pelea con el terreno fino y las laderas parpadean.
+  uCenter:{value:new V3(0,1,0)},uSinkA:{value:Math.cos(3300/PLANET_R)},uSinkB:{value:Math.cos(3100/PLANET_R)}
 };
 const GROUND_VS=`
   attribute vec3 aCol;attribute vec4 aMat;
@@ -370,7 +373,9 @@ const GROUND_VS=`
     vec3 p=position;
     #ifdef SINK
     vec3 dr=normalize(p);
-    p-=dr*smoothstep(uSinkA,uSinkB,dot(dr,uCenter))*70.; // bajo los anillos finos, la esfera se hunde para no asomar
+    // 320 m: con el planeta grande los triángulos de la esfera miden 360 m de lado y entre dos
+    // vértices se separan mucho del terreno de verdad, así que 70 m ya no alcanzaban
+    p-=dr*smoothstep(uSinkA,uSinkB,dot(dr,uCenter))*320.;
     #endif
     vP=position;vN=normal;vC=aCol;vM=aMat;
     gl_Position=projectionMatrix*viewMatrix*vec4(p,1.);

@@ -10,3 +10,6 @@ dist-pagina/
 
 # Visor de naves armado
 dist-hangar/
+
+# Prueba de rendimiento armada
+dist-rendimiento/

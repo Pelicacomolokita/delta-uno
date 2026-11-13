@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Delta Uno · Prueba de rendimiento de naves</title>
+<style>
+/* Mismo azul noche del Hangar. Escena a pantalla completa, medidor arriba a la izquierda y controles abajo. */
+:root{
+  color-scheme:dark;
+  --bg:#0a1022;--panel:rgba(10,16,34,.84);--paper:#f6ead6;--dim:rgba(246,234,214,.7);--line:rgba(246,234,214,.22);--ember:#ff6b3d;--ink:#1a0d06;--ok:#7fe0a8;--bad:#ff8a7a;
+  --label:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;--data:ui-monospace,'SFMono-Regular',Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--paper);font:14px/1.4 var(--label);overflow:hidden}
+#view{position:fixed;inset:0;display:block;width:100%;height:100%;touch-action:none}
+#hud{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));left:max(8px,env(safe-area-inset-left,0px));background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font:12px/1.45 var(--data);min-width:210px;pointer-events:none}
+#hud b{font-size:20px;font-weight:700}
+#hud .row{display:flex;justify-content:space-between;gap:12px}
+#hud .k{color:var(--dim)}
+#estado{margin-top:4px;color:var(--ember);font-weight:700}
+#ui{position:fixed;left:0;right:0;bottom:0;padding:18px max(10px,env(safe-area-inset-right,0px)) calc(8px + env(safe-area-inset-bottom,0px)) max(10px,env(safe-area-inset-left,0px));display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;background:linear-gradient(rgba(10,16,34,0),var(--panel) 40%)}
+.grp{display:flex;gap:4px;align-items:center}
+.grp small{color:var(--dim);font:11px/1 var(--data);letter-spacing:.06em;text-transform:uppercase;margin-right:2px}
+button{font:inherit;font-size:13px;color:var(--paper);background:rgba(246,234,214,.07);border:1px solid var(--line);border-radius:4px;padding:6px 10px;cursor:pointer;min-height:40px;min-width:44px}
+button:hover{background:rgba(246,234,214,.14)}
+button:focus-visible{outline:2px solid var(--ember);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--ember);border-color:var(--ember);color:var(--ink);font-weight:700}
+button:disabled{opacity:.45;cursor:default}
+#ocultar{margin-left:auto}
+@media (max-height:500px){#ui{padding-top:10px;gap:4px 10px}button{min-height:36px;padding:4px 8px;font-size:12px}.grp small{display:none}#hud{font-size:11px;min-width:180px;padding:6px 8px}#hud b{font-size:17px}}
+body.limpio #ui .grp,body.limpio #hud{display:none}
+#res{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,8,18,.7);padding:16px}
+#res.on{display:flex}
+#res .box{background:#101a33;border:1px solid var(--line);border-radius:8px;max-width:560px;width:100%;max-height:100%;overflow:auto;padding:16px 18px}
+#res h2{margin:0 0 6px;font-size:18px}
+#res p{margin:0 0 10px;color:var(--dim)}
+#res textarea{width:100%;height:220px;background:#0a1022;color:var(--paper);border:1px solid var(--line);border-radius:4px;font:12px/1.45 var(--data);padding:8px;resize:vertical}
+#res .acc{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+#veredicto{font-weight:700}
+#veredicto.ok{color:var(--ok)}#veredicto.bad{color:var(--bad)}
+</style>
+</head>
+<body>
+<canvas id="view" aria-label="Escena de prueba con naves volando"></canvas>
+<div id="hud" aria-live="off">
+  <div class="row"><span class="k">Cuadros por segundo</span><b id="fps">–</b></div>
+  <div class="row"><span class="k">ms por cuadro</span><span id="ms">–</span></div>
+  <div class="row"><span class="k">Llamadas de dibujo</span><span id="calls">–</span></div>
+  <div class="row"><span class="k">Triángulos</span><span id="tris">–</span></div>
+  <div class="row"><span class="k">Naves por nivel 0·1·2·3</span><span id="niveles">–</span></div>
+  <div class="row"><span class="k">Resolución</span><span id="res-px">–</span></div>
+  <div id="estado" role="status"></div>
+</div>
+<div id="ui">
+  <div class="grp" id="g-forma"><small>Forma</small></div>
+  <div class="grp" id="g-naves"><small>Naves</small></div>
+  <div class="grp" id="g-calidad"><small>Calidad</small></div>
+  <div class="grp" id="g-piezas"><small>Piezas</small></div>
+  <div class="grp" id="g-camara"><small>Cámara</small></div>
+  <div class="grp" id="g-prueba"><small>Prueba</small></div>
+  <button type="button" id="ocultar" aria-pressed="false">Ver solo la escena</button>
+</div>
+<div id="res" role="dialog" aria-modal="true" aria-labelledby="res-t">
+  <div class="box">
+    <h2 id="res-t">Resultado</h2>
+    <p id="veredicto"></p>
+    <p>Copialo y pegalo en el chat.</p>
+    <label for="res-txt" class="k" style="display:block;margin-bottom:4px;color:var(--dim)">Datos de la prueba</label>
+    <textarea id="res-txt" readonly></textarea>
+    <div class="acc"><button type="button" id="copiar">Copiar resultado</button><button type="button" id="cerrar">Cerrar</button></div>
+  </div>
+</div>
+<script type="module" src="./rendimiento.js"></script>
+</body>
+</html>
