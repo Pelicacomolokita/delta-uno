@@ -11,6 +11,9 @@ import { createEffects, createShield } from './efectos.js';
 import { createSound } from './sonido.js';
 import { runIntro } from './intro.js';
 import { cargarTexturas, afinar } from './texturas.js';
+import { TUNE, SENS, aplicarFicha } from './vuelo/ficha.js';
+import { ENEMY_DEF, AIM, DIFF } from './vuelo/dificultad.js';
+import { FIJADO, pasoFijado, mejorBlanco, siguienteBlanco, blancoPerdido, candidatosBlanco } from './vuelo/fijado.js';
 import { CLASES, STAT_NOMBRE, ARMAS, RANURA_NOMBRE, PINTURAS, EQUIPO_INICIAL } from './hangar/catalogo.js';
 window.THREE = THREE; // las pruebas lo usan para armar matrices
 
@@ -32,21 +35,7 @@ catch(e){sizeFallback();fatal('Este navegador no pudo abrir los gráficos 3D. Pr
 renderer.setClearColor(0x0a1022);
 canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();fatal('El teléfono cerró los gráficos 3D. Recargá la página para seguir.');});
 
-/* ---------- Ajustes de vuelo: todo lo que define cómo se siente está acá ---------- */
-const TUNE={
-  vmax:130,        // velocidad a empuje 100 %
-  pitch:1.35,      // cabeceo, rad/s
-  roll:3.3,        // rotación con botones o en manual, rad/s
-  rudder:.85,      // timón en modo manual, rad/s
-  yaw:.4,          // giro directo de la palanca en asistido, rad/s
-  bankTurn:.9,     // cuánto dobla la nave por estar inclinada, rad/s a 90°
-  maxBank:72*Math.PI/180, // inclinación máxima que pide la palanca en asistido
-  level:4.2,       // fuerza con la que busca esa inclinación
-  resp:5.5,        // inercia de los giros (más alto = más seco)
-  grip:4.5,        // agarre: qué tan rápido la velocidad sigue a la nariz
-  engine:1.8       // respuesta del motor
-};
-const SENS={suave:.72,media:1,rapida:1.3};
+/* ---------- Ajustes de vuelo: ver src/vuelo/ficha.js ---------- */
 
 /* ---------- Tamaño del planeta ---------- */
 const PLANET_R=21900;   // 6 veces el de la demo: ver docs/historia/proyeccion-mapa.md
@@ -58,22 +47,13 @@ const CEIL_PUSH=1300; // empieza a empujar hacia abajo
 const CEIL_MAX=1620;  // acá el empuje ya le gana al motor a fondo
 
 /* ---------- Combate: valores para ajustar jugando ---------- */
-const CRUISE=.5,THROTTLE_MIN=.2;   // crucero sin costo; por encima calienta el motor
-const HEAT_TIME=6,COOL_TIME=8,OVERHEAT_LOCK=3,OVERHEAT_THRUST=.3; // segundos a 100 % hasta recalentar, enfriado, bloqueo y empuje bloqueado
 const DODGE_TIME=.42,DODGE_DIST=35,DODGE_COOL=3,DOUBLE_TAP=.3;
-const SHIELD_MAX=100,HULL_MAX=100,SHIELD_DELAY=4,SHIELD_REGEN=12,ROCK_DAMAGE=35,COMBO_TIME=6;
-const MISSILE_MAX=4,MISSILE_RELOAD=20,LOCK_TIME=1,LOCK_RANGE=900,LOCK_CONE=.92,MISSILE_SPEED=310,MISSILE_TURN=2.8,MISSILE_LIFE=7,MISSILE_DMG=6,SPLASH_R=28,SPLASH_DMG=2;
+const SHIELD_MAX=100,SHIELD_DELAY=4,SHIELD_REGEN=12,ROCK_DAMAGE=35,COMBO_TIME=6;
+const MISSILE_RELOAD=20,MISSILE_SPEED=310,MISSILE_TURN=2.8,MISSILE_LIFE=7,MISSILE_DMG=6,SPLASH_R=28,SPLASH_DMG=2;
 const REPAIR_TIME=8,REPAIR_AMOUNT=30,REPAIR_COOL=45;
 const ENEMY_MAX=20;    // enemigos activos a la vez: en una zona densa entran 6 defensas de tierra, 3 escuadrones y la nodriza
 const ZONE_WAKE=1500,ZONE_SLEEP=2300,ZONE_LEASH=650,ZONE_REGROW=120;
 const DEG=Math.PI/180;
-// Puntería enemiga. Un solo lugar para ajustar, y más adelante uno por dificultad.
-const AIM={
-  lag:.3,          // s: ven tu rumbo con este retraso, así que maniobrar les hace errar
-  errMin:1.6,      // m: desvío de cada tiro aunque estén encima
-  errK:.01,        // m por metro de distancia: de lejos se abren más
-  gimbal:3*DEG     // el cañón corrige como mucho esto respecto de la trompa: la bala sale derecha
-};
 // Detección: cada grupo te ve si estás cerca, más lejos si estás adelante de él
 const DETECT_FRONT=650,DETECT_SIDE=300,DETECT_LOSE=1300,DETECT_FORGET=3;
 // Tipos de zona: cuántos enemigos, qué tan juntos y qué tan rápido se avisan entre ellos
@@ -695,17 +675,17 @@ shipGroup.add(flashL,flashR);
 buildPlayerShip();
 
 /* ---------- Estado ---------- */
-const ship={pos:new V3(),q:new Q(),vel:new V3(0,0,-65),speed:65,w:new V3(),throttle:CRUISE,pull:0,turn:0,bank:0,pitchA:0,heading:0,cool:0,side:0,rocks:0,kills:0,alt:100,biome:2,thin:0,tf:0,turnBtn:0,t:0};
+const ship={pos:new V3(),q:new Q(),vel:new V3(0,0,-65),speed:65,w:new V3(),throttle:TUNE.cruise,pull:0,turn:0,bank:0,pitchA:0,heading:0,cool:0,side:0,rocks:0,kills:0,alt:100,biome:2,thin:0,tf:0,turnBtn:0,t:0};
 const input={x:0,y:0,rollL:false,rollR:false,fire:false};
 const fwd=new V3(0,0,-1),right=new V3(1,0,0),up=new V3(0,1,0),U=new V3(0,1,0); // U: el arriba local, desde el centro del planeta
 let horiz=1;
 let dead=0,inv=0; // dead: segundos hasta reaparecer. inv: segundos sin poder chocar.
-let heat=0,overheat=0,hull=HULL_MAX,shield=SHIELD_MAX,shieldWait=0,bounceT=0,hitInv=0;
+let heat=0,overheat=0,hull=TUNE.hull,shield=SHIELD_MAX,shieldWait=0,bounceT=0,hitInv=0;
 const dodge={t:0,cool:0,dir:0,side:new V3()};
 let missileRegen=true; // las misiones pueden arrancar sin que los misiles se recarguen solos
-let missiles=MISSILE_MAX,missileT=0,lockOn=false,lockTarget=null,lockP=0,lockBeep=0,repairT=0,repairCool=0,repairFxT=0;
+let missiles=TUNE.missiles,missileT=0,lockOn=false,lockTarget=null,lockP=0,lockBeep=0,repairT=0,repairCool=0,repairFxT=0;
 let camTarget=null,camBlend=0,tgtTimer=0,tgtHint=false; // camTarget: el enemigo elegido con el botón Blanco
-const TGT_RANGE=1800,TGT_HOLD=450;
+const TGT_HOLD=FIJADO.tgtHold;
 let score=0,combo=0,lastKill=-99,record=(()=>{try{return +localStorage.getItem('delta-uno-record')||0;}catch(e){return 0;}})();
 const camFwd=new V3(0,0,-1),camUp=new V3(0,1,0),_upT=new V3(),_look=new V3();
 
@@ -795,8 +775,8 @@ function stepFlight(dt){
     wz=btn*TUNE.roll*k;
   }
   if(dodging)wz=0;
-  const a=1-Math.exp(-TUNE.resp*dt);
-  s.w.x+=(wx-s.w.x)*a;s.w.y+=(wy-s.w.y)*a;s.w.z+=(wz-s.w.z)*a;
+  const a=1-Math.exp(-TUNE.resp*dt),ap=1-Math.exp(-TUNE.pitchResp*dt);
+  s.w.x+=(wx-s.w.x)*ap;s.w.y+=(wy-s.w.y)*a;s.w.z+=(wz-s.w.z)*a;
 
   _q.set(s.w.x*dt*.5,s.w.y*dt*.5,s.w.z*dt*.5,1).normalize();
   s.q.multiply(_q);
@@ -811,7 +791,7 @@ function stepFlight(dt){
   _q.setFromAxisAngle(U,(s.turn+headingInput)*dt);
   s.q.premultiply(_q).normalize();
 
-  const thrustNow=overheat>0?OVERHEAT_THRUST:s.throttle;
+  const thrustNow=overheat>0?TUNE.overheatThrust:s.throttle;
   s.speed+=(thrustNow*TUNE.vmax*(1-thin*.5)-s.speed)*(1-Math.exp(-TUNE.engine*dt));
   fwd.set(0,0,-1).applyQuaternion(s.q);
   s.vel.lerp(_v.copy(fwd).multiplyScalar(s.speed),1-Math.exp(-(bounceT>0?1.2:TUNE.grip)*dt));
@@ -1273,11 +1253,11 @@ function respawn(){
   run.prev.copy(ship.pos);
 }
 function resetVitals(){
-  hull=HULL_MAX;shield=SHIELD_MAX;shieldWait=0;heat=0;overheat=0;bounceT=0;hitInv=0;
+  hull=TUNE.hull;shield=SHIELD_MAX;shieldWait=0;heat=0;overheat=0;bounceT=0;hitInv=0;
   dodge.t=0;dodge.cool=0;
-  missiles=MISSILE_MAX;missileT=0;repairT=0;repairCool=0;lockCancel();
+  missiles=TUNE.missiles;missileT=0;repairT=0;repairCool=0;lockCancel();
   rockets.forEach(m=>{m.on=false;m.mesh.visible=false;});
-  ship.throttle=CRUISE;turbo.on=false;showThrust();
+  ship.throttle=TUNE.cruise;turbo.on=false;showThrust();
   bolts.forEach(b=>{b.on=false;});eBolts.forEach(b=>{b.on=false;});
 }
 // Pone la nave nivelada sobre la dirección u, mirando hacia f, a "extra" metros sobre lo más alto del terreno
@@ -1468,13 +1448,13 @@ releases.push(stickRelease);
 const thrust=$('#thrust'),thrustTrack=$('#thrustTrack'),thrustFill=$('#thrustFill'),thrustGrip=$('#thrustGrip'),thrustVal=$('#thrustVal');
 let thrustId=null;
 function showThrust(){
-  const pct=Math.round(ship.throttle*100),track=(ship.throttle-THROTTLE_MIN)/(1-THROTTLE_MIN)*100;
+  const pct=Math.round(ship.throttle*100),track=(ship.throttle-TUNE.throttleMin)/(1-TUNE.throttleMin)*100;
   thrustFill.style.height=track+'%';thrustGrip.style.bottom=track+'%';thrustVal.textContent=pct;
   thrust.setAttribute('aria-valuenow',pct);
 }
 function thrustFrom(cx,cy){
   const p=toGame(cx,cy),top=thrust.offsetTop+thrustTrack.offsetTop,h=thrustTrack.offsetHeight;
-  ship.throttle=clamp(THROTTLE_MIN+(1-THROTTLE_MIN)*(1-(p.y-top)/h),THROTTLE_MIN,1);showThrust();
+  ship.throttle=clamp(TUNE.throttleMin+(1-TUNE.throttleMin)*(1-(p.y-top)/h),TUNE.throttleMin,1);showThrust();
 }
 thrust.addEventListener('pointerdown',e=>{
   e.preventDefault();unlock();thrustId=e.pointerId;
@@ -1553,7 +1533,7 @@ function applyTouchUI(){
 /* Acciones */
 const keys=new Set(); // teclas y botones del mouse apretados ahora
 const kbHeld=id=>{const b=binds.kb[id];return !!((b[0]&&keys.has(b[0]))||(b[1]&&keys.has(b[1])));};
-const turbo={on:false,prev:CRUISE};
+const turbo={on:false,prev:TUNE.cruise};
 function turboStart(){if(turbo.on)return;turbo.on=true;turbo.prev=ship.throttle;ship.throttle=1;showThrust();}
 function turboEnd(){if(!turbo.on)return;turbo.on=false;ship.throttle=Math.min(ship.throttle,turbo.prev);showThrust();}
 function toggleCam(){
@@ -1617,7 +1597,7 @@ window.addEventListener('wheel',e=>{
   const code=e.deltaY<0?'WheelUp':'WheelDown';
   for(const a of ACTIONS){
     if(!binds.kb[a.id].includes(code))continue;
-    if(a.id==='faster'||a.id==='slower'){if(!turbo.on){ship.throttle=clamp(ship.throttle+(a.id==='faster'?.1:-.1),THROTTLE_MIN,1);showThrust();}}
+    if(a.id==='faster'||a.id==='slower'){if(!turbo.on){ship.throttle=clamp(ship.throttle+(a.id==='faster'?.1:-.1),TUNE.throttleMin,1);showThrust();}}
     else{actPress(a.id);actRelease(a.id);}
   }
   if(!coarse)useDev('kbd');
@@ -1784,7 +1764,7 @@ function readInput(dt){
   input.rollR=!!input.rollRT||v('btnR')>.5;
   input.fire=touchFire.on||v('fire')>.5;
   const dT=v('faster')-v('slower');
-  if(dT&&!turbo.on){ship.throttle=clamp(ship.throttle+dT*.55*dt,THROTTLE_MIN,1);showThrust();}
+  if(dT&&!turbo.on){ship.throttle=clamp(ship.throttle+dT*.55*dt,TUNE.throttleMin,1);showThrust();}
   if(turbo.on&&ship.throttle<1){ship.throttle=1;showThrust();}
 }
 
@@ -2079,16 +2059,6 @@ const ENEMY_GEO={
   nodriza:enemyGeometry([0,0,-3],[-3.2,-.2,1.6],[3.2,-.2,1.6],[0,1.3,.4],[0,-.9,.3],[-1.6,.2,1.8],[1.6,.2,1.8])
 };
 // ram: daño si te choca (los drones se tiran encima). ground: fija en el suelo. carrier: la nodriza.
-const ENEMY_DEF={
-  caza:{name:'Caza',hp:3,patrol:48,attack:66,turn:1.05,hit:3.6,range:420,cone:Math.cos(7*DEG),burstN:3,coolA:1.7,coolB:1.2,dmg:8,breakDist:75,score:100,drop:.35,boom:9,scale:1},
-  pesada:{name:'Pesada',hp:12,patrol:36,attack:46,turn:.55,hit:7.4,range:480,cone:Math.cos(8.5*DEG),burstN:4,coolA:2.4,coolB:1.2,dmg:14,breakDist:130,score:400,drop:1,boom:20,scale:2.1},
-  interceptor:{name:'Interceptor',hp:2,patrol:62,attack:98,turn:1.35,hit:3.2,range:380,cone:Math.cos(6*DEG),burstN:2,coolA:1.3,coolB:.8,dmg:6,breakDist:150,breakTime:2.6,score:150,drop:.3,boom:8,scale:.9},
-  dron:{name:'Dron',hp:1,patrol:58,attack:86,turn:1.9,hit:2.6,range:0,cone:2,burstN:0,coolA:99,coolB:0,dmg:0,breakDist:0,ram:12,score:40,drop:.06,boom:6,scale:.6},
-  torreta:{name:'Torreta',hp:7,patrol:0,attack:0,turn:1.1,hit:7.5,range:680,radar:800,cone:Math.cos(5*DEG),burstN:3,coolA:2.2,coolB:1.4,dmg:9,breakDist:0,ground:true,score:250,drop:.5,boom:16,scale:2.2},
-  // Lanzamisiles: te fija con línea de vista y tira un misil que te persigue (ver Misiles enemigos)
-  lanzamisiles:{name:'Lanzamisiles',hp:6,patrol:0,attack:0,turn:.9,hit:7,range:1100,radar:900,cone:-1,burstN:0,coolA:99,coolB:0,dmg:0,breakDist:0,ground:true,launcher:true,lockTime:2.5,reload:9,score:300,drop:.6,boom:18,scale:2},
-  nodriza:{name:'Nodriza',hp:60,patrol:30,attack:30,turn:.22,hit:16,range:560,cone:-1,gimbal:Math.PI,burstN:5,coolA:2.6,coolB:1.6,dmg:10,breakDist:0,carrier:true,score:2000,drop:1,boom:46,scale:5.2}
-};
 // Escuadrones posibles: cada tipo de zona va rotando entre los suyos
 const GROUP_T={
   par:['caza','caza'],cazas:['caza','caza','caza'],escolta:['pesada','caza','caza'],
@@ -2563,13 +2533,13 @@ function rockHit(r){
 function stepHeat(dt){
   if(overheat>0){
     overheat=Math.max(0,overheat-dt);
-    heat=Math.max(0,heat-dt/COOL_TIME);
+    heat=Math.max(0,heat-dt/TUNE.coolTime);
     return;
   }
-  const over=ship.throttle-CRUISE;
-  heat=clamp(over>.001?heat+over/(1-CRUISE)*dt/HEAT_TIME:heat-dt/COOL_TIME,0,1);
+  const over=ship.throttle-TUNE.cruise;
+  heat=clamp(over>.001?heat+over/(1-TUNE.cruise)*dt/TUNE.heatTime:heat-dt/TUNE.coolTime,0,1);
   if(heat>=1){ // se pasó: el motor cae un rato y la barra vuelve a crucero
-    overheat=OVERHEAT_LOCK;ship.throttle=CRUISE;showThrust();
+    overheat=TUNE.overheatLock;ship.throttle=TUNE.cruise;showThrust();
     blip(240,70,.5,.08,'sawtooth');
   }
 }
@@ -2600,25 +2570,8 @@ function updateTarget(){
   }
 }
 /* ---------- Botón Blanco: tocar elige o cambia de enemigo, mantener lo suelta ---------- */
-function tgtCandidates(){
-  return enemies.filter(e=>e.on&&e.pos.distanceTo(ship.pos)<TGT_RANGE);
-}
-// El primero: el que está más adelante de la nariz, con preferencia por los cercanos y los que te atacan
-function tgtBest(){
-  let best=null,bs=-1e9;
-  for(const e of tgtCandidates()){
-    _eA.copy(e.pos).sub(ship.pos);
-    const d=_eA.length(),s=_eA.dot(fwd)/(d||1)*1.2-d/TGT_RANGE+(e.group.state==='attack'?.3:0);
-    if(s>bs){bs=s;best=e;}
-  }
-  return best;
-}
-// Los siguientes: de más cerca a más lejos, y vuelve a empezar
-function tgtNext(){
-  const list=tgtCandidates().sort((a,b)=>a.pos.distanceTo(ship.pos)-b.pos.distanceTo(ship.pos));
-  if(!list.length)return null;
-  return list[(list.indexOf(camTarget)+1)%list.length];
-}
+function tgtBest(){return mejorBlanco(enemies,ship.pos,fwd);}
+function tgtNext(){return siguienteBlanco(enemies,ship.pos,fwd,camTarget);}
 function tgtTap(){
   if(dead>0)return;
   const t=camTarget&&camTarget.on?tgtNext():tgtBest();
@@ -2648,7 +2601,7 @@ function stepCamTarget(){
     if(camTarget)blip(1150,1500,.06,.025,'square');else toast('Sin blancos cerca',1.2);
     return;
   }
-  if(camTarget.pos.distanceTo(ship.pos)>TGT_RANGE*1.25){camTarget=null;toast('Blanco perdido',1.2);}
+  if(blancoPerdido(camTarget,ship.pos)){camTarget=null;toast('Blanco perdido',1.2);}
 }
 
 /* ---------- Reparación: se activa con un toque y cualquier golpe la corta ---------- */
@@ -2656,7 +2609,7 @@ const repairFx=glow(0xa5e36f,7);repairFx.material.opacity=0;shipGroup.add(repair
 function tryRepair(){
   if(dead>0||repairT>0)return;
   if(repairCool>0){toast('Reparación en recarga · '+Math.ceil(repairCool)+' s',1.2);return;}
-  if(hull>=HULL_MAX){toast('La vida está completa',1.2);return;}
+  if(hull>=TUNE.hull){toast('La vida está completa',1.2);return;}
   repairT=REPAIR_TIME;toast('Reparando',1.2);sfxPickup();
 }
 function endRepair(cut){
@@ -2666,7 +2619,7 @@ function endRepair(cut){
 function stepRepair(dt){
   if(repairT>0&&dead<=0){
     repairT-=dt;
-    hull=Math.min(HULL_MAX,hull+REPAIR_AMOUNT/REPAIR_TIME*dt);
+    hull=Math.min(TUNE.hull,hull+REPAIR_AMOUNT/REPAIR_TIME*dt);
     repairFx.material.opacity=.26+.16*Math.sin(ship.t*9);
     repairFxT-=dt;
     if(repairFxT<=0){
@@ -2674,7 +2627,7 @@ function stepRepair(dt){
       _a.copy(ship.pos).add(_v.set(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize().multiplyScalar(2+Math.random()*2));
       burst(_a,1,5,.5,.42,.95,.45);
     }
-    if(repairT<=0||hull>=HULL_MAX)endRepair(false);
+    if(repairT<=0||hull>=TUNE.hull)endRepair(false);
   }else{
     repairFx.material.opacity=0;
     if(repairCool>0)repairCool=Math.max(0,repairCool-dt);
@@ -2697,24 +2650,10 @@ function lockRelease(){
 }
 function stepLock(dt){
   if(!lockOn)return;
-  let best=null,bestC=LOCK_CONE,curOk=false;
-  for(const e of enemies){
-    _eA.copy(e.pos).sub(ship.pos);
-    const d=_eA.length();
-    if(d>LOCK_RANGE||d<5)continue;
-    const c=_eA.dot(fwd)/d;
-    if(c<=LOCK_CONE)continue;
-    if(e===lockTarget)curOk=true;
-    if(c>bestC){bestC=c;best=e;}
-  }
-  if(camTarget&&camTarget.on&&lockTarget!==camTarget){ // el misil prefiere el blanco elegido si entra en el cono
-    _eA.copy(camTarget.pos).sub(ship.pos);
-    const d=_eA.length();
-    if(d<=LOCK_RANGE&&d>=5&&_eA.dot(fwd)/d>LOCK_CONE){lockTarget=camTarget;lockP=0;curOk=true;}
-  }
-  if(!curOk){lockTarget=best;lockP=0;}
+  const r=pasoFijado(enemies,ship.pos,fwd,lockTarget,camTarget);
+  if(r.reinicia){lockTarget=r.blanco;lockP=0;}
   if(!lockTarget)return;
-  lockP=Math.min(1,lockP+dt/LOCK_TIME);
+  lockP=Math.min(1,lockP+dt/FIJADO.lockTime);
   lockBeep-=dt;
   if(lockBeep<=0){
     lockBeep=lockP>=1?.11:.26;
@@ -2804,9 +2743,9 @@ function stepMissiles(dt){
 function stepCombat(dt){
   stepHeat(dt);
   stepRepair(dt);
-  if(missileRegen&&missiles<MISSILE_MAX&&missileT>0){
+  if(missileRegen&&missiles<TUNE.missiles&&missileT>0){
     missileT-=dt;
-    if(missileT<=0){missiles++;missileT=missiles<MISSILE_MAX?MISSILE_RELOAD:0;}
+    if(missileT<=0){missiles++;missileT=missiles<TUNE.missiles?MISSILE_RELOAD:0;}
   }
   stepCamTarget();
   stepLock(dt);
@@ -2992,9 +2931,9 @@ function stepSmoke(dt){
 /* ---------- Repuestos ---------- */
 const DROP_KIND={
   escudo:{color:0x86f2e4,text:'+40 Escudo',use(){shield=Math.min(SHIELD_MAX,shield+40);}},
-  vida:{color:0xa5e36f,text:'+25 Vida',use(){hull=Math.min(HULL_MAX,hull+25);}},
+  vida:{color:0xa5e36f,text:'+25 Vida',use(){hull=Math.min(TUNE.hull,hull+25);}},
   frio:{color:0xffc04d,text:'Motor enfriado',use(){heat=0;overheat=0;}},
-  misil:{color:0xf6ead6,text:'+2 Misiles',use(){missiles=Math.min(MISSILE_MAX,missiles+2);if(missiles>=MISSILE_MAX)missileT=0;}}
+  misil:{color:0xf6ead6,text:'+2 Misiles',use(){missiles=Math.min(TUNE.missiles,missiles+2);if(missiles>=TUNE.missiles)missileT=0;}}
 };
 const dropGeo=new T.OctahedronGeometry(1.7,0);
 const drops=Array.from({length:8},()=>{
@@ -3049,12 +2988,6 @@ function addScore(base,withCombo){
 }
 
 /* ---------- Modos de juego ---------- */
-const DIFF={
-  facil:{name:'Fácil',lives:Infinity,aim:{lag:.45,errMin:2.6,errK:.014},assist:true,note:'Vidas infinitas. Los enemigos apuntan peor.'},
-  medio:{name:'Medio',lives:5,aim:{lag:.3,errMin:1.6,errK:.01},assist:true,note:'5 vidas.'},
-  dificil:{name:'Difícil',lives:3,aim:{lag:.22,errMin:1.1,errK:.008},assist:true,note:'3 vidas. Los enemigos apuntan mejor.'},
-  extremo:{name:'Extremo',lives:1,aim:{lag:.22,errMin:1.1,errK:.008},assist:false,note:'1 vida y sin ayudas para apuntar: tus tiros no se corrigen solos y no hay marca de impacto.'}
-};
 const MODES={
   conquista:{name:'Conquista',diff:true,desc:'Liberá las seis zonas enemigas. Para despejar una zona tenés que destruir sus torretas y todos sus escuadrones. Una nave nodriza recorre el planeta: si la derribás, cada zona pierde refuerzos y una torreta.'},
   supervivencia:{name:'Supervivencia',diff:true,desc:'Oleadas cada vez más grandes vienen a buscarte. Cada cinco oleadas llega una nodriza. Tenés una sola vida.'},
@@ -3124,7 +3057,7 @@ function startRun(mode,diff,missionId){
   record=mode==='carrera'?0:(records[recKey()]||0);run.best0=record;
   resetVitals();
   dead=0;inv=GRACE;crashMsg.hidden=true;shipGroup.visible=true;
-  ship.speed=CRUISE*TUNE.vmax;
+  ship.speed=TUNE.cruise*TUNE.vmax;
   shipAt(startU,startF,105);
   run.prev.copy(ship.pos);
   if(mode==='conquista')spawnCarrier();
@@ -3481,7 +3414,7 @@ function histStart(def){
   // posición de partida: sobre el círculo de los anillos, mirando al primero
   misRingAt(-1.2,_hA);misRingAt(0,_hB);
   _hC.copy(_hB).sub(_hA);_hC.addScaledVector(_hA,-_hC.dot(_hA)).normalize();
-  ship.speed=CRUISE*TUNE.vmax;
+  ship.speed=TUNE.cruise*TUNE.vmax;
   shipAt(_hA,_hC,90);
   run.prev.copy(ship.pos);
   mis.pose.u.copy(_hA);mis.pose.f.copy(_hC);
@@ -3542,7 +3475,7 @@ function histApplyStart(P){
   const s=P.inicio;
   missileRegen=!(s&&s.recargaMisiles===false);
   if(!s)return;
-  if(s.misiles!==undefined){missiles=clamp(s.misiles,0,MISSILE_MAX);missileT=0;}
+  if(s.misiles!==undefined){missiles=clamp(s.misiles,0,TUNE.missiles);missileT=0;}
   if(s.casco!==undefined)hull=clamp(s.casco,1,100);
   if(s.escudo!==undefined)shield=clamp(s.escudo,0,100);
 }
@@ -4209,7 +4142,7 @@ function updateCombatHud(dt){
   if(vitT<=0){
     vitT=.08;
     elBarShield.style.transform='scaleX('+(shield/SHIELD_MAX).toFixed(3)+')';
-    elBarHull.style.transform='scaleX('+(hull/HULL_MAX).toFixed(3)+')';
+    elBarHull.style.transform='scaleX('+(hull/TUNE.hull).toFixed(3)+')';
     elBarDodge.style.transform='scaleX('+(1-dodge.cool/DODGE_COOL).toFixed(3)+')';
     elVitals.classList.toggle('low',hull<25);
     thrust.classList.toggle('hot',overheat>0);
@@ -4222,7 +4155,7 @@ function updateCombatHud(dt){
     const mTxt=String(missiles);
     if(elMissileN.textContent!==mTxt)elMissileN.textContent=mTxt;
     elMissile.classList.toggle('empty',missiles<=0);
-    elMissileBar.style.transform='scaleX('+(missiles<MISSILE_MAX?1-missileT/MISSILE_RELOAD:0).toFixed(3)+')';
+    elMissileBar.style.transform='scaleX('+(missiles<TUNE.missiles?1-missileT/MISSILE_RELOAD:0).toFixed(3)+')';
     const rTxt=repairT>0?Math.ceil(repairT)+' s':repairCool>0?Math.ceil(repairCool)+' s':'Reparar';
     if(elRepairWord.textContent!==rTxt)elRepairWord.textContent=rTxt;
     elRepair.classList.toggle('active',repairT>0);
@@ -4346,7 +4279,7 @@ function boot(data){
   try{
     const d=data&&data.ship;
     if(d&&d.world==='esfera'&&Array.isArray(d.pos)&&Array.isArray(d.q)){
-      ship.pos.fromArray(d.pos);ship.q.fromArray(d.q);ship.throttle=clamp(+d.throttle||CRUISE,THROTTLE_MIN,1);ship.rocks=d.rocks|0;
+      ship.pos.fromArray(d.pos);ship.q.fromArray(d.q);ship.throttle=clamp(+d.throttle||TUNE.cruise,TUNE.throttleMin,1);ship.rocks=d.rocks|0;
       U.copy(ship.pos).normalize();
       fwd.set(0,0,-1).applyQuaternion(ship.q);right.set(1,0,0).applyQuaternion(ship.q);up.set(0,1,0).applyQuaternion(ship.q);
       ship.speed=ship.throttle*TUNE.vmax;ship.vel.copy(fwd).multiplyScalar(ship.speed);
@@ -4377,7 +4310,7 @@ function boot(data){
   try{const q=new URLSearchParams(location.search);['utm_source','utm_medium','utm_campaign'].forEach(k=>{if(q.get(k))ini[k]=q.get(k);});}catch(e){}
   stats.track('sesion_inicio',ini);
   window.addEventListener('pagehide',()=>{endRunStats('cierre');stats.track('sesion_fin',{duracion_s:stats.sessionSecs(),partidas:run.count});stats.flush(true);});
-  window.DeltaUno={renderer,ship,input,settings,TUNE,rocks,activeRocks,rings,chart,chartDir,straighten,terrain,heightAt,S,BIOMES,PLANET_R,CEIL:{CEIL_WARN,CEIL_PUSH,CEIL_MAX},buildMs,flags:()=>({dead,inv,warning,thinWarn}),
+  window.DeltaUno={renderer,ship,input,settings,TUNE,FIJADO,ENEMY_DEF,DIFF,rocks,activeRocks,rings,chart,chartDir,straighten,terrain,heightAt,S,BIOMES,PLANET_R,CEIL:{CEIL_WARN,CEIL_PUSH,CEIL_MAX},buildMs,flags:()=>({dead,inv,warning,thinWarn}),
     zones,groups,enemies,lost,drops,DROP_KIND,damage,spawnDrop,dodge,tryDodge,rockets,lockCancel,AIM,seenVel,ZONE_KIND,eBolts,boltHitsShip,
     tgt:()=>camTarget,camBlend:()=>camBlend,camera,
     binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
