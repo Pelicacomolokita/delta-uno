@@ -12,17 +12,18 @@ export const LOD_DIST = [80, 300, 900];
 
 // metros para un Caza; se multiplica por la escala de la clase
 
-// baliza de bando: círculo, cuadrado o rombo, con borde oscuro para que se lea sobre cielo claro y sobre terreno
+// baliza de bando, sutil: solo el contorno (círculo, cuadrado o rombo), con un filo oscuro para que se lea
+// sobre cielo claro y sobre terreno
 function balizaTex(forma) {
   const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d');
   const figura = r => {
     g.beginPath();
     if (forma === 'cuadrado') g.rect(16 - r, 16 - r, r * 2, r * 2);
-    else if (forma === 'rombo') { g.moveTo(16, 16 - r * 1.25); g.lineTo(16 + r * 1.25, 16); g.lineTo(16, 16 + r * 1.25); g.lineTo(16 - r * 1.25, 16); g.closePath(); }
+    else if (forma === 'rombo') { g.moveTo(16, 16 - r * 1.3); g.lineTo(16 + r * 1.3, 16); g.lineTo(16, 16 + r * 1.3); g.lineTo(16 - r * 1.3, 16); g.closePath(); }
     else g.arc(16, 16, r, 0, Math.PI * 2);
   };
-  figura(12.5); g.fillStyle = 'rgba(10,14,20,0.85)'; g.fill();
-  figura(8.5); g.fillStyle = '#fff'; g.fill();
+  figura(10); g.lineWidth = 6; g.strokeStyle = 'rgba(10,14,20,0.55)'; g.stroke();
+  figura(10); g.lineWidth = 3; g.strokeStyle = '#fff'; g.stroke();
   return new T.CanvasTexture(c);
 }
 const HISTERESIS = 0.12;
@@ -100,7 +101,7 @@ export function geometriaDiseno(dis, lod) {
 
 export class Flota {
   /* ids: los diseños que se usan en la misión. max: naves por diseño. */
-  constructor(scene, ids, { max = 40, detalleTex = null } = {}) {
+  constructor(scene, ids, { max = 40, detalleTex = null, bandoPropio = 'guardia' } = {}) {
     this.scene = scene;
     this.pint = tablaPinturas();
     this.mat = materialFlota(this.pint.tex, detalleTex);
@@ -123,14 +124,16 @@ export class Flota {
       this.dis[id] = { dis, lods, radio: lods[0].mesh.geometry.boundingSphere.radius, puntos: puntosDiseno(dis) };
     }
     this.msArmado = performance.now() - t0;
-    // balizas de bando: desde el nivel 1 cada nave lleva una, de tamaño fijo en pantalla; en el nivel 3 es lo único
-    // que se ve. Una llamada de dibujo por bando (círculo, cuadrado, rombo).
+    // balizas: solo las naves enemigas llevan una, desde el nivel 1 y de tamaño fijo en pantalla; en el nivel 3 es lo
+    // único que se ve de ellas. Las aliadas no se marcan: de lejos se quedan en el nivel 2.
+    // Una llamada de dibujo por bando (círculo, cuadrado, rombo).
+    this.aliados = new Set([bandoPropio]);
     const n = max * ids.length, pr = Math.min((typeof devicePixelRatio !== 'undefined' && devicePixelRatio) || 1, 2);
     this.balizas = {};
     for (const [b, B] of Object.entries(BANDOS)) {
       const geo = new T.BufferGeometry();
       geo.setAttribute('position', new T.BufferAttribute(new Float32Array(n * 3), 3).setUsage(T.DynamicDrawUsage));
-      const pts = new T.Points(geo, new T.PointsMaterial({ size: 9 * pr, sizeAttenuation: false, color: new T.Color(...B.color), fog: false, map: balizaTex(B.forma), transparent: true, depthWrite: false, alphaTest: 0.05 }));
+      const pts = new T.Points(geo, new T.PointsMaterial({ size: 11 * pr, sizeAttenuation: false, color: new T.Color(...B.color), fog: false, map: balizaTex(B.forma), transparent: true, opacity: 0.7, depthWrite: false }));
       pts.frustumCulled = false; scene.add(pts);
       this.balizas[b] = { geo, pts, n: 0 };
     }
@@ -156,11 +159,12 @@ export class Flota {
         while (lod < 3 && dist > LOD_DIST[lod] * k * (1 + HISTERESIS)) lod++;
         while (lod > 0 && dist < LOD_DIST[lod - 1] * k * (1 - HISTERESIS)) lod--;
       }
+      const bando = BANDOS[n.bando] ? n.bando : D.dis.bando, marca = BANDOS[bando].color, enemiga = !this.aliados.has(bando);
+      if (lod === 3 && !enemiga) lod = 2; // las aliadas no se reducen a una marca
       n.lod = lod; this.porNivel[lod]++;
-      const bando = BANDOS[n.bando] ? n.bando : D.dis.bando, marca = BANDOS[bando].color;
-      if (lod >= 1) { // baliza de bando, un poco arriba de la nave (en el nivel 3, en su lugar)
+      if (lod >= 1 && enemiga) { // baliza, alrededor de la nave (en el nivel 3, en su lugar)
         const B = this.balizas[bando], p = B.geo.attributes.position.array, j = B.n++ * 3;
-        p[j] = n.pos.x; p[j + 1] = n.pos.y + (lod === 3 ? 0 : D.radio * 0.7); p[j + 2] = n.pos.z;
+        p[j] = n.pos.x; p[j + 1] = n.pos.y; p[j + 2] = n.pos.z;
       }
       if (lod === 3) continue;
       const L = D.lods[lod], mesh = L.mesh, i = mesh.count++;
@@ -184,6 +188,8 @@ export class Flota {
     return Object.fromEntries(Object.entries(this.dis).map(([id, D]) => [id, D.lods.map(l => Math.round(l.tris))]));
   }
   setVisible(v) { this.visible = v; for (const id in this.dis) for (const l of this.dis[id].lods) l.mesh.visible = v; for (const b in this.balizas) this.balizas[b].pts.visible = v; }
+  // qué bandos son aliados en esta misión (no llevan baliza). Por defecto, solo el propio.
+  setAliados(bandos) { this.aliados = new Set(bandos); }
   // cantidad de balizas dibujadas por bando (para el informe y las pruebas)
   balizasPorBando() { return Object.fromEntries(Object.entries(this.balizas).map(([b, B]) => [b, B.n])); }
 }

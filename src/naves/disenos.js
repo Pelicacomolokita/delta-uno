@@ -94,6 +94,36 @@ export const DISENOS = {
       { tipo: 'freno', x0: 0.1, x1: 0.4, z0: 0.3, z1: 0.9, y: 0.43 }
     ]
   },
+  I4: {
+    nombre: 'Riel', clase: 'interceptor', bando: 'directorio', pintura: 'directorio',
+    piezas: [
+      { tipo: 'fuselaje', seccion: 'box', anillo: [-2.6, -2.35], est: [[-3.0, 0.06, 0.1, -0.08], [-2.2, 0.3, 0.28, -0.26], [-0.8, 0.42, 0.36, -0.3], [1.6, 0.42, 0.36, -0.3], [1.8, 0.4, 0.3, -0.26]], lomo: [-0.8, 1.8, 0.25] },
+      { tipo: 'cabina', z0: -2.1, z1: -1.2, w: 0.22, yb: 0.28, yt: 0.56 },
+      ala([0.42, 0, -0.1], 1.3, [1.7, 0, 0.15], 1.0, [0.4, 0.95, 0.28]),
+      { tipo: 'superficie', rle: [0.42, 0.1, -2.0], cr: 0.45, tle: [0.95, 0.1, -2.0], ct: 0.45, mov: 'todo', canal: 2, invertir: true, fill: 'acento' },
+      { tipo: 'motor', x: 0.64, y: 0.12, z0: -0.6, z1: 1.7, r: 0.22, tobera: 0.28, plana: [0.4, 0.32] },
+      timon([0, 0.36, 0.6], 1.1, 0.75, 1.0, 0.15, 0, { espejo: false }),
+      { tipo: 'canon', x: 0.15, y: -0.2, z0: -2.6, z1: -1.8 },
+      { tipo: 'freno', x0: 0.1, x1: 0.3, z0: 0.1, z1: 0.6, y: 0.37 }
+    ]
+  },
+  P3: {
+    nombre: 'Bloque', clase: 'ataque', bando: 'directorio', pintura: 'directorio',
+    piezas: [
+      { tipo: 'fuselaje', seccion: 'box', anillo: [-2.75, -2.5], est: [[-3.0, 0.15, 0.2, -0.15], [-2.4, 0.45, 0.45, -0.42], [-0.5, 0.62, 0.6, -0.55], [2.2, 0.62, 0.6, -0.55], [2.6, 0.55, 0.5, -0.45]], lomo: [-1.6, 2.6, 0.3] },
+      { tipo: 'cabina', z0: -2.5, z1: -1.4, w: 0.32, yb: 0.45, yt: 0.82 },
+      ala([0.6, 0.5, -0.5], 1.7, [2.6, 0.45, -0.3], 1.4, [0.5, 0.95, 0.26], { t: 0.16 }),
+      { tipo: 'motor', x: 1.2, y: 0.18, z0: -0.6, z1: 1.5, r: 0.26, tobera: 0.28, plana: [0.44, 0.36] },
+      { tipo: 'motor', x: 1.95, y: 0.2, z0: -0.4, z1: 1.3, r: 0.24, tobera: 0.28, plana: [0.4, 0.34] },
+      { tipo: 'superficie', rle: [0.6, 0.3, 2.0], cr: 0.65, tle: [1.5, 0.3, 2.0], ct: 0.65, mov: [0.05, 0.98, 0.4], canal: 7 },
+      timon([1.5, 0.3, 1.95], 0.75, 0.8, 0.6, 0.15, 0),
+      { tipo: 'carga', x: 2.45, y: 0.32, z0: -0.2, z1: 0.8, r: 0.09, misil: true },
+      { tipo: 'compuertas', x0: 0.1, x1: 0.55, z0: -0.8, z1: 1.4, y: -0.55 },
+      { tipo: 'canon', x: 0.12, y: -0.2, z0: -2.85, z1: -2.1 },
+      { tipo: 'caja', x0: 0.62, x1: 0.68, y0: -0.3, y1: 0.3, z0: -1.6, z1: 1.4, grande: true },
+      { tipo: 'freno', x0: 0.15, x1: 0.5, z0: 0.4, z1: 1.0, y: 0.6 }
+    ]
+  },
   X1: {
     nombre: 'Remiendo', clase: 'caza', bando: 'desligados', pintura: 'desligados',
     piezas: [

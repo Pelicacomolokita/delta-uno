@@ -139,9 +139,10 @@ function superficie(m, P, pz, lado) {
     const piv = at(r[0], 1 - r[2], 0), e = norm(sub3(at(r[1], 1 - r[2], 0), piv));
     return { piv, eje: e, canal: cn, max: MAX[cn] * signo(cn, lado) };
   };
+  const inv = pz.invertir ? -1 : 1; // canards: adelante del centro, se mueven al revés que un elevador de cola
   const movTodo = P.moviles && pz.mov === 'todo' ? (() => {
     const piv = at(0, 0.3, 0), e = norm(sub3(at(1, 0.3, 0), piv));
-    return { piv, eje: e, canal, max: MAX[canal] * signo(canal, lado) };
+    return { piv, eje: e, canal, max: MAX[canal] * signo(canal, lado) * inv };
   })() : null;
   const fillZ = ZONA[pz.fill || 'base'];
   for (let i = 0; i < ss.length - 1; i++) for (let j = 0; j < cs.length - 1; j++) {
@@ -281,8 +282,11 @@ function espejar(pz) {
 export function puntosDiseno(dis) {
   const k = dis.escala || 1, motores = [], bocas = [], luces = [];
   let cola = null;
+  // las luces van en las alas: las superficies con alerón o elevón más anchas (no los estabilizadores de cola)
+  const alas = dis.piezas.filter(pz => pz.tipo === 'superficie' && (pz.canal === 0 || pz.canal === 7) && pz.mov !== 'todo');
+  const ancho = Math.max(0, ...alas.map(pz => Math.abs(pz.tle[0])));
   for (const pz of dis.piezas) {
-    if (pz.tipo === 'superficie' && (pz.canal === 0 || pz.canal === 7) && pz.mov !== 'todo') {
+    if (alas.includes(pz) && Math.abs(pz.tle[0]) > ancho * 0.75) {
       // punta del ala: luz de navegación, roja a la izquierda y verde a la derecha
       const p = [pz.tle[0], pz.tle[1], pz.tle[2] + pz.ct * 0.5];
       for (const s of pz.espejo === false ? [1] : [1, -1]) {
