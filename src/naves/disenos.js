@@ -124,12 +124,18 @@ export const PINTURAS = {
   clasica: { nombre: 'Clásica', zonas: ['#f5ebd6', '#d6ccbd', '#b8ada3', '#29478f', '#ff6638', '#42424d', '#0f2938', '#c9bfb0'] }
 };
 
-// Colores de marca por piloto: distintos en tono y en claridad para reconocerlos de lejos.
-export const MARCAS = [
-  { id: 'amarilla', nombre: 'Amarilla', rgb: [1, 0.84, 0.12] },
-  { id: 'cian', nombre: 'Cian', rgb: [0.15, 0.85, 1] },
-  { id: 'naranja', nombre: 'Naranja', rgb: [1, 0.42, 0.08] },
-  { id: 'magenta', nombre: 'Magenta', rgb: [0.95, 0.2, 0.75] },
-  { id: 'lima', nombre: 'Lima', rgb: [0.55, 1, 0.2] },
-  { id: 'roja', nombre: 'Roja', rgb: [0.9, 0.1, 0.12] }
-];
+// Marca de bando: la llevan todas las naves (timones, anillo de la trompa, puntas de ala) y su luz de
+// identificación. Es del bando que vuela la nave, no del diseño: un R1 capturado por los Desligados lleva
+// la marca de los Desligados. Color y forma distintos, para no depender solo del color (daltonismo).
+// Propuesta: cian, ámbar y magenta se separan bien entre sí y contra el cielo y el terreno.
+export const BANDOS = {
+  guardia: { nombre: 'Guardia', color: [0.15, 0.78, 1], forma: 'circulo' },
+  directorio: { nombre: 'Directorio', color: [1, 0.62, 0.05], forma: 'cuadrado' },
+  desligados: { nombre: 'Desligados', color: [0.95, 0.25, 0.75], forma: 'rombo' }
+};
+
+// Escuadrones: cada uno define su pintura (camuflaje) y qué diseño vuela en cada clase.
+// Los nombres y en qué misión aparece cada uno los define la historia; por ahora está solo Delta.
+export const ESCUADRONES = {
+  delta: { nombre: 'Delta', bando: 'guardia', pintura: 'guardia', disenos: { caza: 'A' }, desde: 'C1-01' }
+};

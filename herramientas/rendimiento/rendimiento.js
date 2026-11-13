@@ -52,7 +52,7 @@ function crearRenderer() {
 }
 function rehacerFlotas() {
   if (flota) for (const id in flota.dis) for (const l of flota.dis[id].lods) { scene.remove(l.mesh); l.mesh.geometry.dispose(); }
-  if (flota) scene.remove(flota.pts);
+  if (flota) for (const b in flota.balizas) scene.remove(flota.balizas[b].pts);
   if (vieja) vieja.limpiar();
   flota = new Flota(scene, IDS, { max: 40, detalleTex });
   vieja = new FlotaVieja(scene, IDS, detalleTex);
@@ -65,7 +65,6 @@ function aplicarForma() {
 }
 
 /* ---------- Naves y vuelo ---------- */
-const MARCAS = [null, [0.95, 0.85, 0.25], [0.35, 0.8, 1], [1, 0.45, 0.3], null];
 let naves = [];
 function armarNaves(n) {
   let s = 7;
@@ -76,7 +75,7 @@ function armarNaves(n) {
     const dis = DISENOS[id];
     const ala = i >= 1 && i <= 3; // 3 compañeros en formación cerca tuyo
     naves.push({
-      id, pintura: dis.pintura, marca: ala ? MARCAS[i] : null, propia: i === 0,
+      id, pintura: dis.pintura, propia: i === 0,
       pos: new T.Vector3(), quat: new T.Quaternion(), anim: [0, 0, 0, 0, 0, 0, 0], lod: 0,
       ala, offset: new T.Vector3((i % 2 ? -1 : 1) * (14 + i * 4), (i - 2) * 2, 12 + i * 9),
       dist: 60 + Math.pow(rnd(), 1.4) * 900, lat: (rnd() - 0.5) * 500, altOff: (rnd() - 0.5) * 160, r: 30 + rnd() * 160,

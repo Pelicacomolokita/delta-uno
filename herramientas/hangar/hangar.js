@@ -5,7 +5,7 @@ import * as T from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { NAVES, PALETAS, naveGeometria, naveMaterial, naveTextura } from '../../src/nave.js';
 import { Flota } from '../../src/naves/flota.js';
-import { DISENOS, PINTURAS, MARCAS } from '../../src/naves/disenos.js';
+import { DISENOS, PINTURAS, BANDOS } from '../../src/naves/disenos.js';
 import { CANAL } from '../../src/naves/generador.js';
 import { crearMandos, actualizarMandos, MANIOBRAS } from '../../src/naves/mandos.js';
 
@@ -43,7 +43,7 @@ const sprite = color => new T.Sprite(new T.SpriteMaterial({ map: glowTex, color,
 const IDS = Object.keys(DISENOS);
 const LECTURAS = [['aleron', 'Alerón', 0.42], ['elevador', 'Elevador', 0.4], ['timon', 'Timón', 0.45], ['tobera', 'Tobera', 0], ['freno', 'Freno', 0.95]];
 const state = {
-  sistema: 'nuevas', diseno: 'A', pintura: 'guardia', marca: 'ninguna', modelo: 'guardia', paleta: 'guardia',
+  sistema: 'nuevas', diseno: 'A', pintura: 'guardia', modelo: 'guardia', paleta: 'guardia',
   vista: 'tres', lod: 0, auto: !quieto, maniobra: null
 };
 const mandos = crearMandos();
@@ -62,20 +62,21 @@ for (const id of IDS) {
 const tiene = (id, k) => medidas[id].canales.has(CANAL[k]);
 const naves = [];
 const efectos = new T.Group(); scene.add(efectos);
-const marcaRgb = id => (MARCAS.find(m => m.id === id) || {}).rgb || null;
+// "De lejos": dos naves de cada bando; la última es un R1 capturado por los Desligados (lleva su marca)
+const LEJOS = [['A', 'guardia', 'guardia'], ['A', 'guardia', 'guardiaNoche'], ['R1', 'directorio', 'directorio'], ['R1', 'directorio', 'directorio'], ['X1', 'desligados', 'desligados'], ['R1', 'desligados', 'capturada']];
 function armarNaves() {
   naves.length = 0;
   efectos.clear();
   $('etiquetas').replaceChildren();
   let lista;
-  if (state.vista === 'fila') lista = IDS.map(id => ({ id, x: 0, z: 0, marca: null, pintura: DISENOS[id].pintura }));
-  else if (state.vista === 'lejos') lista = MARCAS.map((m, i) => ({ id: state.diseno, marca: m.rgb, nombre: m.nombre, x: (i - 2.5) * 30, z: -90 - i * 45, pintura: state.pintura }));
-  else lista = [{ id: state.diseno, x: 0, z: 0, marca: marcaRgb(state.marca), pintura: state.pintura }];
+  if (state.vista === 'fila') lista = IDS.map(id => ({ id, x: 0, z: 0, pintura: DISENOS[id].pintura }));
+  else if (state.vista === 'lejos') lista = LEJOS.map(([id, bando, pintura], i) => ({ id, bando, pintura, nombre: BANDOS[bando].nombre + (pintura === 'capturada' ? ' (capturada)' : ''), x: (i - 2.5) * 30, z: -90 - i * 45 }));
+  else lista = [{ id: state.diseno, x: 0, z: 0, pintura: state.pintura }];
   const sep = state.vista === 'fila' ? Math.max(...IDS.map(id => medidas[id].ancho)) + 2.5 : 0;
   lista.forEach((it, i) => {
     const pos = state.vista === 'fila' ? new T.Vector3((i - (lista.length - 1) / 2) * sep, 0, 0) : new T.Vector3(it.x, state.vista === 'lejos' ? 25 + i * 6 : 0, it.z);
     const D = DISENOS[it.id];
-    const n = { id: it.id, pos, quat: new T.Quaternion(), anim: mandos.anim, pintura: PINTURAS[it.pintura] ? it.pintura : D.pintura, marca: it.marca,
+    const n = { id: it.id, pos, quat: new T.Quaternion(), anim: mandos.anim, pintura: PINTURAS[it.pintura] ? it.pintura : D.pintura, bando: it.bando || D.bando,
       lodFijo: state.vista === 'lejos' ? undefined : state.lod, base: pos.clone(), lod: 0 };
     const P = flota.dis[it.id].puntos;
     n.grupo = new T.Group(); n.grupo.position.copy(pos); efectos.add(n.grupo);
@@ -120,7 +121,7 @@ function info() {
     `<div><span class="k">Largo × ancho × alto</span> ${fmt(M.largo)} × ${fmt(M.ancho)} × ${fmt(M.alto)} m</div>` +
     `<div><span class="k">Triángulos 0/1/2</span> ${tri.join(' / ')}</div>`;
   $('desc').textContent = state.vista === 'lejos'
-    ? 'De lejos: seis naves con los seis colores de marca, entre 100 y 330 m, con el cielo y la niebla del juego. Desde los 80 m cada una lleva su luz de identificación.'
+    ? 'De lejos: dos naves de cada bando entre 100 y 330 m, con el cielo y la niebla del juego. Desde los 80 m llevan la baliza de su bando: Guardia círculo cian, Directorio cuadrado ámbar, Desligados rombo magenta. La última es un R1 capturado por los Desligados.'
     : 'Planos: lienzo "Delta Uno · Planos de naves". Las medidas ya llevan la escala de la clase.';
 }
 function marcar() {
@@ -128,7 +129,7 @@ function marcar() {
   document.querySelectorAll('[data-man]').forEach(b => b.setAttribute('aria-pressed', String(state.maniobra === b.dataset.man)));
   document.querySelectorAll('[data-t]').forEach(b => b.setAttribute('aria-pressed', String(!!mandos[b.dataset.t])));
   const nuevas = state.sistema === 'nuevas';
-  for (const id of ['marcas', 'lods']) $(id).hidden = !nuevas;
+  $('lods').hidden = !nuevas;
   $('tab-piezas').hidden = !nuevas;
   if (!nuevas && $('tab-piezas').getAttribute('aria-selected') === 'true') tab('nave');
   document.querySelectorAll('#views [data-v="fila"], #views [data-v="planta"], #views [data-v="perfil"], #views [data-v="trasera"], #views [data-v="lejos"]').forEach(b => { b.hidden = !nuevas; });
@@ -148,7 +149,6 @@ function filasNave() {
     fila('models', 'diseno', IDS.map(id => [id, `${id} · ${DISENOS[id].nombre}`]), id => { state.pintura = DISENOS[id].pintura; if (state.vista === 'fila') state.vista = 'tres'; filasNave(); rehacer(); });
     const D = DISENOS[state.diseno], ps = [...new Set([...(D.pinturas || [D.pintura]), 'clasica'])];
     fila('palettes', 'pintura', ps.map(p => [p, PINTURAS[p].nombre]), rehacer);
-    fila('marcas', 'marca', [['ninguna', 'Sin marca', 'transparent'], ...MARCAS.map(m => [m.id, 'Marca ' + m.nombre.toLowerCase(), `rgb(${m.rgb.map(x => Math.round(x * 255)).join(',')})`])], rehacer, { swatch: true });
   } else {
     fila('models', 'modelo', Object.entries(NAVES).map(([k, n]) => [k, n.nombre]), rehacer);
     fila('palettes', 'paleta', Object.entries(PALETAS).map(([k, p]) => [k, p.nombre]), rehacer);

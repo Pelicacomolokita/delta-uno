@@ -43,7 +43,10 @@ function desplaz(d, canal, anim) {
 
 (async () => {
   const { armarDiseno, puntosDiseno, LOD_PARAM } = await imp('src/naves/generador.js');
-  const { DISENOS, ESCALA_CLASE, PINTURAS } = await imp('src/naves/disenos.js');
+  const { DISENOS, ESCALA_CLASE, PINTURAS, BANDOS, ESCUADRONES } = await imp('src/naves/disenos.js');
+  const colores = Object.values(BANDOS).map(b => b.color.join()), formas = Object.values(BANDOS).map(b => b.forma);
+  check('cada bando tiene su color y su forma de baliza', new Set(colores).size === 3 && new Set(formas).size === 3, Object.entries(BANDOS).map(([k, b]) => k + ' ' + b.forma).join(', '));
+  check('los escuadrones usan pinturas y diseños que existen', Object.values(ESCUADRONES).every(e => PINTURAS[e.pintura] && BANDOS[e.bando] && Object.values(e.disenos).every(d => DISENOS[d])), Object.keys(ESCUADRONES).join(', '));
   const TOPE = { 0: { normal: 5000, ataque: 8000 }, 1: 1500, 2: 400 };
   const LARGO = { interceptor: [5.5, 7.5], caza: [5.8, 7.6], infiltracion: [5.8, 7.6], ataque: [8, 10.5] };
 
@@ -129,8 +132,10 @@ function desplaz(d, canal, anim) {
   r = await page.evaluate(async () => { const H = window.__hangar; H.empezar('tonel'); const t0 = Date.now(); while (H.state.maniobra && Date.now() - t0 < 30000) await new Promise(res => setTimeout(res, 200)); return { maniobra: H.state.maniobra }; });
   check('una maniobra termina sola', r.maniobra === null, f(r));
   await page.evaluate(() => window.__hangar.ponerVista('lejos')); await new Promise(res => setTimeout(res, 500));
-  r = await page.evaluate(() => { const F = window.__hangar.flota; return { naves: window.__hangar.naves.length, luces: F.ptsGeo.drawRange.count, marcas: new Set(window.__hangar.naves.map(n => n.marca && n.marca.join())).size }; });
-  check('"De lejos": seis naves con seis marcas distintas y su luz de identificación', r.naves === 6 && r.marcas === 6 && r.luces === 6, f(r));
+  r = await page.evaluate(() => { const F = window.__hangar.flota; return { naves: window.__hangar.naves.length, balizas: F.balizasPorBando(), marcasR1: F.dis.R1.lods.flatMap(l => Array.from({ length: l.mesh.count }, (_, i) => Array.from(l.mesh.geometry.attributes.iMarca.array.slice(i * 3, i * 3 + 3)).map(v => +v.toFixed(2)).join(','))) }; });
+  check('"De lejos": dos naves por bando, cada una con la baliza de su bando', r.naves === 6 && r.balizas.guardia === 2 && r.balizas.directorio === 2 && r.balizas.desligados === 2, f(r));
+  // hay tres R1: dos del Directorio y uno capturado por los Desligados
+  check('un R1 capturado por los Desligados lleva la marca de los Desligados', r.marcasR1.length === 3 && r.marcasR1.filter(m => m === '0.95,0.25,0.75').length === 1 && r.marcasR1.filter(m => m === '1,0.62,0.05').length === 2, r.marcasR1.join(' | '));
   for (const v of ['planta', 'perfil', 'trasera', 'juego', 'fila']) await page.evaluate(v => window.__hangar.ponerVista(v), v);
   r = await page.evaluate(() => ({ naves: window.__hangar.naves.length, etiquetas: document.querySelectorAll('.etq').length }));
   check('"Todas a escala" pone los 6 diseños uno al lado del otro', r.naves === 6 && r.etiquetas === 6, f(r));
