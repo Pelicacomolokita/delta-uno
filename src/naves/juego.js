@@ -8,6 +8,7 @@ import { Flota } from './flota.js';
 import { DISENOS, ESCALA_CLASE, BANDOS } from './disenos.js';
 import { crearMandos, actualizarMandos } from './mandos.js';
 import { siluetaDiseno, golpea } from './silueta.js';
+import { Danos, flamear } from './danos.js';
 
 // Primer arco: qué diseño usa cada tipo de nave que ya existe en el juego (ENEMY_DEF de main.js)
 export const TIPO_ENEMIGO = { caza: 'R1', interceptor: 'I4', pesada: 'P3' };
@@ -22,7 +23,10 @@ export class NavesJuego {
      bandoPropio: el del jugador (sus naves no llevan baliza). max: naves por diseño a la vez. */
   constructor(scene, { ids = DISENOS_ARCO1, detalleTex = null, bandoPropio = 'guardia', max = 40 } = {}) {
     this.flota = new Flota(scene, ids, { max, detalleTex, bandoPropio });
+    this.danos = new Danos(scene, this.flota);
     this.naves = [];
+    this.t = 0;
+    this.renderer = null; // si se lo pasan, el humo calcula bien su tamaño en pantalla
   }
   /* Agrega una nave y la devuelve. Después, en cada cuadro: copiar nave.pos y nave.quat (en el mismo sistema
      que la escena) y cargar nave.mandos (roll, pitch, yaw de -1 a 1; empuje de 0 a 1; turbo, freno: sí o no;
@@ -42,10 +46,18 @@ export class NavesJuego {
   limpiar() { this.naves.length = 0; }
   // qué bandos son aliados en esta misión (sin baliza). Ej.: en la campaña 3, ['guardia', 'desligados'].
   setAliados(bandos) { this.flota.setAliados(bandos); }
+  /* Cada nave puede llevar n.dano (0 entera … 1 a punto de caer) y n.disparados (misiles colgados que ya salieron). */
   actualizar(dt, camera) {
-    for (const n of this.naves) actualizarMandos(n.mandos, dt);
+    this.t += dt;
+    for (const n of this.naves) { actualizarMandos(n.mandos, dt); flamear(n, this.t); }
     this.flota.actualizar(this.naves.filter(n => n.visible), camera);
+    this.danos.actualizar(dt, this.naves, camera, this.renderer);
   }
+  /* La nave cae: se parte en sus piezas, que siguen con su velocidad y caen hacia el centro del planeta.
+     Llamarlo antes de quitar(n). vel: su velocidad en m/s (Vector3). */
+  romper(n, vel) { return this.danos.romper(n, vel); }
+  // dónde está el centro del planeta (hacia ahí caen los pedazos y desde ahí sube el humo). plano: sin planeta, cae en -Y
+  setCentro(v, plano = false) { this.danos.centro.copy(v); this.danos.plano = plano; }
   setVisible(v) { this.flota.setVisible(v); }
   // salida de llamas, de tiros y luces de navegación, en coordenadas de la nave y ya escaladas
   puntos(id) { return this.flota.dis[id].puntos; }

@@ -312,6 +312,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--bolt);outl
 .pick.locked{border-style:dashed}
 .pick.locked b{opacity:.6}
 #misInfo,#classInfo{display:grid;gap:7px}
+.vitrina{display:block;width:min(100%,420px,calc(40vh*36/19));aspect-ratio:36/19;height:auto;margin:2px auto;border:1px solid var(--line);border-radius:3px;background:radial-gradient(ellipse at 50% 60%,rgba(170,190,215,.16),rgba(0,0,0,0) 70%)}
 #classInfo small,#classSide{font:700 11px/1.2 var(--font-data);letter-spacing:.1em;text-transform:uppercase;color:var(--paper-dim)}
 #classDesc,.prepNote,#paintDesc{margin:0;font-size:12.5px;line-height:1.45;color:var(--paper-dim)}
 #briefFacts{margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px 14px}

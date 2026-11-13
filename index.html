@@ -280,6 +280,7 @@
           <div id="classInfo">
             <small id="classSide"></small>
             <h2 id="className"></h2>
+            <canvas id="classShip" class="vitrina" width="360" height="190" aria-hidden="true"></canvas>
             <p id="classDesc"></p>
             <div id="classStats"></div>
           </div>
@@ -289,15 +290,16 @@
           <p class="prepNote">Las armas nuevas llegan con las campañas 2 y 3. Cada clase de nave va a aceptar las suyas.</p>
         </div>
         <div class="prep one" data-step="diseno" hidden>
+          <canvas id="designShip" class="vitrina" width="360" height="190" aria-hidden="true"></canvas>
           <section class="opt wide">
-            <h3>Pintura</h3>
-            <div class="seg" data-key="shipPaint" id="paintSeg"><button type="button" data-val="actual">Clásica</button><button type="button" data-val="guardia">Guardia</button></div>
+            <h3>Pintura del escuadrón</h3>
+            <div class="seg" data-key="shipPaint" id="paintSeg"><button type="button" data-val="guardia">Guardia</button><button type="button" data-val="guardiaNoche">Guardia nocturna</button></div>
             <p id="paintDesc"></p>
           </section>
           <section class="opt wide">
-            <h3>Carrocería de prueba</h3>
-            <div class="seg" data-key="shipModel"><button type="button" data-val="actual">Actual</button><button type="button" data-val="guardia">Guardia</button><button type="button" data-val="interceptor">Interceptor</button><button type="button" data-val="blindado">Blindado</button></div>
-            <p>Bocetos del caza mientras se hace el modelo definitivo. Todos vuelan igual.</p>
+            <h3>Carrocería</h3>
+            <div id="bodyList" class="pickList"></div>
+            <p id="bodyDesc"></p>
           </section>
         </div>
         <div id="prepFoot">

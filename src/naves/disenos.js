@@ -26,6 +26,7 @@ export const DISENOS = {
       { tipo: 'freno', x0: 0.06, x1: 0.34, z0: 0.05, z1: 0.7, y: 0.45 },
       { tipo: 'canon', x: 0.8, y: -0.06, z0: -1.0, z1: -0.35 },
       // detalle del piloto: armas a la vista, antena, sensor, rejillas y cercos de ala
+      { tipo: 'carga', x: 1.62, y: -0.18, z0: 0.3, z1: 1.4, r: 0.065, misil: true }, // dos pares: los 4 misiles del caza, se van gastando de afuera hacia adentro
       { tipo: 'carga', x: 1.25, y: -0.22, z0: -0.35, z1: 0.95, r: 0.075, misil: true },
       { tipo: 'caja', x0: -0.015, x1: 0.015, y0: 0.44, y1: 0.72, z0: -0.5, z1: -0.32, fill: 'oscuro', espejo: false },
       { tipo: 'caja', x0: -0.13, x1: 0.13, y0: 0.42, y1: 0.5, z0: -0.85, z1: -0.05, fill: 'base2', espejo: false },

@@ -2,7 +2,8 @@
    - Una malla por diseño y nivel de detalle, compartida por todas las naves de ese diseño (InstancedMesh).
    - Un solo material para todas: las piezas se mueven en la placa de video (bisagras guardadas en la malla)
      y el color sale de una tabla chica de pinturas (8 zonas × 64 pinturas).
-   - Por nave se mandan 11 números: 8 de animación/pintura y 3 del color de marca (el de su bando).
+   - Por nave se mandan 12 números: 8 de animación/pintura, 3 del color de marca (el de su bando) y uno de estado:
+     misiles disparados (parte entera) y daño de 0 a 1 (parte decimal).
    - El nivel de detalle se elige por distancia, con margen para que no parpadee. Lo muy lejano es un punto. */
 import * as T from 'three';
 import { armarDiseno, puntosDiseno } from './generador.js';
@@ -54,13 +55,16 @@ attribute float aZona;
 attribute float aTono;
 attribute vec4 iAnimA;
 attribute vec4 iAnimB;
-attribute vec3 iMarca;
+attribute vec4 iMarca;
 uniform sampler2D uPaleta;
 ` + sh.vertexShader
       .replace('#include <begin_vertex>', `
 vec3 transformed = vec3(position);
 float canal = aBis.w;
-if (canal > -0.5) {
+if (canal > 7.5) {
+  // misil colgado: si ya se disparó, se achica hasta desaparecer en su centro
+  if (aEje.w < floor(iMarca.w + 0.001)) transformed = aBis.xyz;
+} else if (canal > -0.5) {
   // valor de su canal: alerón, timón, elevador, freno | tobera, compuertas, camuflaje
   float v = dot(iAnimA, vec4(equal(vec4(canal), vec4(0.0, 1.0, 2.0, 3.0))))
           + dot(vec4(iAnimB.xyz, 0.0), vec4(equal(vec4(canal), vec4(4.0, 5.0, 6.0, 7.0))));
@@ -79,10 +83,17 @@ if (canal > -0.5) {
 }`)
       .replace('#include <color_vertex>', `
 vec3 colZ = texture2D(uPaleta, vec2((aZona + 0.5) / 8.0, (iAnimB.w + 0.5) / 64.0)).rgb;
-if (aZona > 3.5 && aZona < 4.5 && iMarca.r >= 0.0) colZ = iMarca;
+if (aZona > 3.5 && aZona < 4.5 && iMarca.r >= 0.0) colZ = iMarca.rgb;
+// daño: placas quemadas que aparecen de a poco, siempre las mismas en cada nave
+float dano = fract(iMarca.w);
+if (dano > 0.01) {
+  vec3 q = floor(position * 2.2);
+  float h = fract(sin(dot(q, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+  colZ *= mix(1.0, 0.18 + 0.12 * h, step(1.0 - dano * 0.8, h));
+}
 vColor = colZ * aTono;`);
   };
-  mat.customProgramCacheKey = () => 'flota-v2' + (detalleTex ? '-d' : '');
+  mat.customProgramCacheKey = () => 'flota-v3' + (detalleTex ? '-d' : '');
   return mat;
 }
 
@@ -113,7 +124,7 @@ export class Flota {
         const g = geometriaDiseno(dis, l);
         const mesh = new T.InstancedMesh(g, this.mat, max);
         mesh.instanceMatrix.setUsage(T.DynamicDrawUsage);
-        for (const [n, s, init] of [['iAnimA', 4, 0], ['iAnimB', 4, 0], ['iMarca', 3, -1]]) {
+        for (const [n, s, init] of [['iAnimA', 4, 0], ['iAnimB', 4, 0], ['iMarca', 4, -1]]) {
           const a = new T.InstancedBufferAttribute(new Float32Array(max * s).fill(init), s);
           a.setUsage(T.DynamicDrawUsage); g.setAttribute(n, a);
         }
@@ -172,7 +183,7 @@ export class Flota {
       const g = mesh.geometry, A = g.attributes.iAnimA.array, B = g.attributes.iAnimB.array, M = g.attributes.iMarca.array, a = n.anim;
       A[i * 4] = a[0]; A[i * 4 + 1] = a[1]; A[i * 4 + 2] = a[2]; A[i * 4 + 3] = a[3];
       B[i * 4] = a[4]; B[i * 4 + 1] = a[5]; B[i * 4 + 2] = a[6]; B[i * 4 + 3] = this.pint.indice[n.pintura] ?? 0;
-      M[i * 3] = marca[0]; M[i * 3 + 1] = marca[1]; M[i * 3 + 2] = marca[2];
+      M[i * 4] = marca[0]; M[i * 4 + 1] = marca[1]; M[i * 4 + 2] = marca[2]; M[i * 4 + 3] = (n.disparados || 0) + Math.min(0.99, Math.max(0, n.dano || 0));
     }
     for (const id in this.dis) for (const l of this.dis[id].lods) {
       const m = l.mesh; if (!m.count) continue;

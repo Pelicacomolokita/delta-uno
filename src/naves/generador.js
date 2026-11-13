@@ -9,7 +9,8 @@
 export const ZONA = { base: 0, base2: 1, acento: 2, panza: 3, marca: 4, oscuro: 5, vidrio: 6, parche: 7 };
 // canales de animación: los valores llegan por nave, de -1 a 1 (o de 0 a 1)
 // elevón (7): la misma superficie hace de alerón y de elevador (alas delta, estabilizadores de cola)
-export const CANAL = { ninguno: -1, aleron: 0, timon: 1, elevador: 2, freno: 3, tobera: 4, compuertas: 5, camuflaje: 6, elevon: 7 };
+export const CANAL = { ninguno: -1, aleron: 0, timon: 1, elevador: 2, freno: 3, tobera: 4, compuertas: 5, camuflaje: 6, elevon: 7, carga: 8 };
+// carga: cada misil colgado lleva su número de lugar (en aEje.w); el juego dice cuántos quedan y los demás no se dibujan
 const MAX = { 0: 0.42, 1: 0.45, 2: 0.4, 3: 0.95, 4: 0.28, 5: 1.25, 6: 0.5, 7: 0.4 }; // ángulo máximo (rad) o apertura de tobera
 
 // por nivel de detalle: lados de los tubos, cortes extra entre estaciones, subdivisión de superficies, piezas chicas
@@ -222,23 +223,26 @@ function compuertas(m, P, pz) {
   }
 }
 
-function carga(m, P, pz) {
+function carga(m, P, pz, lugar) {
   const { x, y, z0, z1, r } = pz, N = lod => Math.max(6, P.lados >> 1);
+  // el misil (no el pilón) se esconde cuando se dispara
+  const mis = { piv: [x, y, (z0 + z1) / 2], eje: [0, 0, 1], canal: CANAL.carga, max: lugar };
   caja(m, x - 0.02, x + 0.02, y + r * 0.8, y + r + 0.14, z0 + (z1 - z0) * 0.25, z1 - (z1 - z0) * 0.3, ZONA.oscuro); // pilón
   if (pz.misil) {
-    tubo(m, x, y, z0 + r * 2.5, z1, r, r, N(), ZONA.base2, undefined, 1, 1, false);
-    tubo(m, x, y, z0, z0 + r * 2.5, 0.01, r, N(), ZONA.marca, undefined, 1, 1, false);
-    m.poly([[x, y, z1], ...Array.from({ length: N() }, (_, i) => [x + Math.cos(i / N() * 6.283) * r, y + Math.sin(i / N() * 6.283) * r, z1])], ZONA.oscuro);
+    tubo(m, x, y, z0 + r * 2.5, z1, r, r, N(), ZONA.base2, mis, 1, 1, false);
+    tubo(m, x, y, z0, z0 + r * 2.5, 0.01, r, N(), ZONA.marca, mis, 1, 1, false);
+    m.poly([[x, y, z1], ...Array.from({ length: N() }, (_, i) => [x + Math.cos(i / N() * 6.283) * r, y + Math.sin(i / N() * 6.283) * r, z1])], ZONA.oscuro, mis);
     for (const [dx, dy] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) // aletas en cruz
-      m.poly([[x + dx * r, y + dy * r, z1 - r * 4], [x + dx * r * 2.6, y + dy * r * 2.6, z1 - r * 0.6], [x + dx * r * 2.6, y + dy * r * 2.6, z1], [x + dx * r, y + dy * r, z1]], ZONA.oscuro);
+      m.poly([[x + dx * r, y + dy * r, z1 - r * 4], [x + dx * r * 2.6, y + dy * r * 2.6, z1 - r * 0.6], [x + dx * r * 2.6, y + dy * r * 2.6, z1], [x + dx * r, y + dy * r, z1]], ZONA.oscuro, mis);
   } else tubo(m, x, y, z0, z1, r, r * 0.8, N(), ZONA.oscuro);
 }
 
-const ESPEJO = new Set(['superficie', 'motor', 'caja', 'canon', 'carga', 'freno', 'toma', 'placas']);
+export const ESPEJO = new Set(['superficie', 'motor', 'caja', 'canon', 'carga', 'freno', 'toma', 'placas']);
 
 /* Arma un diseño en un nivel de detalle. Devuelve arreglos listos para BufferGeometry. */
 export function armarDiseno(dis, lod = 0) {
   const P = LOD_PARAM[lod], m = malla();
+  let lugar = 0; // lugares de misiles: derecho, izquierdo, derecho, izquierdo… (el juego dispara alternando)
   for (const pz0 of dis.piezas) {
     const lados = pz0.espejo === false || !ESPEJO.has(pz0.tipo) ? [1] : [1, -1];
     for (const lado of lados) {
@@ -251,7 +255,7 @@ export function armarDiseno(dis, lod = 0) {
         case 'toma': caja(m, pz.x0, pz.x1, pz.y0, pz.y1, pz.z0, pz.z1, ZONA.oscuro); break;
         case 'caja': if (P.chicas || pz.grande) caja(m, pz.x0, pz.x1, pz.y0, pz.y1, pz.z0, pz.z1, ZONA[pz.fill || 'oscuro']); break;
         case 'canon': if (P.chicas) tubo(m, pz.x, pz.y, pz.z0, pz.z1, pz.r || 0.05, pz.r || 0.05, 6, ZONA.oscuro); break;
-        case 'carga': if (P.chicas) carga(m, P, pz); break;
+        case 'carga': if (P.chicas) carga(m, P, pz, pz.misil ? lugar++ : -1); break;
         case 'freno': if (P.moviles || lod < 2) freno(m, P, pz, lado); break;
         case 'compuertas': if (lod < 2) compuertas(m, P, pz); break;
         case 'placas': if (lod < 2) caja(m, pz.x0, pz.x1, pz.y - 0.01, pz.y + 0.02, pz.z0, pz.z1, ZONA.oscuro,
@@ -267,7 +271,7 @@ export function armarDiseno(dis, lod = 0) {
   return d;
 }
 
-function espejar(pz) {
+export function espejar(pz) {
   // solo se dan vuelta los puntos (no los rangos como mov, que también tienen 3 números)
   const o = { ...pz };
   for (const k of ['rle', 'tle']) if (o[k]) o[k] = [-o[k][0], o[k][1], o[k][2]];
@@ -280,7 +284,7 @@ function espejar(pz) {
 
 /* Puntos útiles del diseño, ya escalados: salida de llamas y de tiros */
 export function puntosDiseno(dis) {
-  const k = dis.escala || 1, motores = [], bocas = [], luces = [];
+  const k = dis.escala || 1, motores = [], bocas = [], luces = [], misiles = [];
   let cola = null;
   // las luces van en las alas: las superficies con alerón o elevón más anchas (no los estabilizadores de cola)
   const alas = dis.piezas.filter(pz => pz.tipo === 'superficie' && (pz.canal === 0 || pz.canal === 7) && pz.mov !== 'todo');
@@ -295,6 +299,8 @@ export function puntosDiseno(dis) {
       }
     }
     if (pz.tipo === 'superficie' && pz.canal === 1 && (!cola || pz.tle[1] > cola[1])) cola = [pz.tle[0], pz.tle[1], pz.tle[2] + pz.ct];
+    // misiles colgados, en el orden de sus lugares (derecho, izquierdo, …): de ahí sale cada misil que se dispara
+    if (pz.tipo === 'carga' && pz.misil) for (const sx of [1, -1]) misiles.push([pz.x * sx * k, pz.y * k, (pz.z0 + pz.z1) / 2 * k]);
     if (pz.tipo !== 'motor' && pz.tipo !== 'canon') continue;
     const lados = pz.espejo === false || pz.x === 0 ? [1] : [1, -1];
     for (const s of lados) {
@@ -303,5 +309,5 @@ export function puntosDiseno(dis) {
     }
   }
   if (cola) luces.push({ p: [cola[0] * k, cola[1] * k, cola[2] * k], color: 0xffffff, cola: true });
-  return { motores, bocas, luces };
+  return { motores, bocas, luces, misiles };
 }

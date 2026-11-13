@@ -144,7 +144,7 @@ function desplaz(d, canal, anim) {
   r = await page.evaluate(async () => { const H = window.__hangar; H.empezar('tonel'); const t0 = Date.now(); while (H.state.maniobra && Date.now() - t0 < 30000) await new Promise(res => setTimeout(res, 200)); return { maniobra: H.state.maniobra }; });
   check('una maniobra termina sola', r.maniobra === null, f(r));
   await page.evaluate(() => window.__hangar.ponerVista('lejos')); await new Promise(res => setTimeout(res, 500));
-  r = await page.evaluate(() => { const F = window.__hangar.flota; return { naves: window.__hangar.naves.length, balizas: F.balizasPorBando(), marcasR1: F.dis.R1.lods.flatMap(l => Array.from({ length: l.mesh.count }, (_, i) => Array.from(l.mesh.geometry.attributes.iMarca.array.slice(i * 3, i * 3 + 3)).map(v => +v.toFixed(2)).join(','))) }; });
+  r = await page.evaluate(() => { const F = window.__hangar.flota; return { naves: window.__hangar.naves.length, balizas: F.balizasPorBando(), marcasR1: F.dis.R1.lods.flatMap(l => Array.from({ length: l.mesh.count }, (_, i) => Array.from(l.mesh.geometry.attributes.iMarca.array.slice(i * 4, i * 4 + 3)).map(v => +v.toFixed(2)).join(','))) }; });
   check('"De lejos": solo las naves enemigas llevan baliza (las de la Guardia no)', r.naves === 6 && r.balizas.guardia === 0 && r.balizas.directorio === 2 && r.balizas.desligados === 2, f(r));
   // hay tres R1: dos del Directorio y uno capturado por los Desligados
   check('un R1 capturado por los Desligados lleva la marca de los Desligados', r.marcasR1.length === 3 && r.marcasR1.filter(m => m === '0.95,0.25,0.75').length === 1 && r.marcasR1.filter(m => m === '1,0.62,0.05').length === 2, r.marcasR1.join(' | '));
