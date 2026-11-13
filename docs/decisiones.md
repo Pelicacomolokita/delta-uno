@@ -264,7 +264,7 @@ El código está en `src/vuelo/`, fuera de `main.js`. Las naves están en `src/n
 
 - **Cabeceo más vivo que la rotación.** Con el teléfono horizontal se ve poco arriba y abajo, así que subir y bajar la trompa tiene que responder rápido. El cabeceo tiene su propia inercia, más seca que la de la rotación. Gira más a velocidad media que muy lento o a fondo.
 - **El resto acompaña la velocidad nueva:**
-  - enemigos un 50 % más rápidos y con alcances un 15 % mayores;
+  - enemigos al doble de velocidad que en la demo y con alcances un 15 % mayores. Se aprobó un 50 %, pero el crucero del caza se duplicó (de 65 a 130 m/s) y con un 50 % ningún enemigo te alcanzaba. Con el doble, un caza enemigo atacando va a la par de tu crucero, como antes;
   - tus balas a 600 m/s y tu misil a 450 m/s;
   - las balas enemigas a 380 m/s;
   - el misil enemigo a 160 m/s, siempre más lento que cualquier nave a fondo;
