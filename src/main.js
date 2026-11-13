@@ -536,7 +536,10 @@ function chartDir(u,v,out){
   out.set(A.x*PLANET_R+E.x*u+F.x*v,A.y*PLANET_R+E.y*u+F.y*v,A.z*PLANET_R+E.z*u+F.z*v);
   return out.normalize();
 }
-const rings=[6,12,24,48].map((s,k)=>{
+// Anillos de detalle alrededor del jugador. Con el planeta grande hacen falta más: antes el detalle
+// llegaba a 864 m y el horizonte está a 3.600 m, así que el resto se veía con los triángulos gigantes
+// de la esfera de fondo. Ahora el detalle llega a 3.456 m, que es hasta donde se ve.
+const rings=[6,12,24,48,96,192].map((s,k)=>{
   const vc=(RN+1)*(RN+1),pos=new Float32Array(vc*3),nor=new Float32Array(vc*3),col=new Float32Array(vc*3),mat=new Float32Array(vc*4);
   const geo=new T.BufferGeometry();
   geo.setAttribute('position',new T.BufferAttribute(pos,3).setUsage(T.DynamicDrawUsage));

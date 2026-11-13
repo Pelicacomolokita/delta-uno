@@ -196,6 +196,7 @@ Al principio pilota un caza básico. Más adelante habrá más naves para elegir
   - Antes, las mesetas eran el 1 % del planeta y Las Agujas es una región entera de mesetas. Ahora Las Agujas tiene 53 % de mesetas y Corona Negra 43 % de montaña.
 - **Mesetas es un bioma propio**, ya no depende de que haya desierto.
 - La misión 1 sigue en Costa Clara y su prueba pasa igual.
+- **Seis anillos de detalle alrededor del jugador** (6, 12, 24, 48, 96 y 192 m), no cuatro. Con el planeta grande el detalle llegaba a 864 m y el horizonte está a 3.600 m: todo lo de en medio se dibujaba con la esfera de fondo, cuyos triángulos pasaron de 60 a 360 m de lado. Ahora el detalle llega a 3.456 m. Cuesta 39 llamadas de dibujo en lugar de 27.
 - **Las zonas de Conquista van en un frente de 6,5 km** alrededor del punto de partida. Repartidas al azar por un planeta seis veces más grande quedaban a más de cuatro minutos de vuelo una de otra; ahora la más lejana está a 93 segundos.
 
 ### Texturas del mundo
