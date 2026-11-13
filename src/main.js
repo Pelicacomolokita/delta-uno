@@ -8,6 +8,7 @@ import { NAVES, PALETAS, naveGeometria, naveMaterial } from './nave.js';
 import { createEffects, createShield } from './efectos.js';
 import { createSound } from './sonido.js';
 import { runIntro } from './intro.js';
+import { cargarTexturas, afinar } from './texturas.js';
 import { CLASES, STAT_NOMBRE, ARMAS, RANURA_NOMBRE, PINTURAS, EQUIPO_INICIAL } from './hangar/catalogo.js';
 window.THREE = THREE; // las pruebas lo usan para armar matrices
 
@@ -46,7 +47,9 @@ const TUNE={
 const SENS={suave:.72,media:1,rapida:1.3};
 
 /* ---------- Tamaño del planeta ---------- */
-const PLANET_R=3650;  // a empuje 100 % y altura baja, una vuelta completa tarda unos 3 minutos
+const PLANET_R=21900;   // 6 veces el de la demo: ver docs/historia/proyeccion-mapa.md
+const KD=PLANET_R/3650; // el relieve se mide en metros, no en grados: sin esto el planeta grande queda liso
+// A empuje 100 % la vuelta entera lleva unos 15 minutos, pero entre dos regiones hay medio minuto.
 const MAX_H=820;      // la cima más alta posible
 const CEIL_WARN=1200; // sobre el nivel del mar: empieza el aviso de falta de presión
 const CEIL_PUSH=1300; // empieza a empujar hacia abajo
@@ -131,19 +134,56 @@ function vn3(x,y,z){
   const y0=x00+(x10-x00)*v,y1=x01+(x11-x01)*v;
   return y0+(y1-y0)*w;
 }
+/* Las 7 regiones de la historia. Cada una empuja el clima y el relieve a su alrededor;
+   el ruido sigue poniendo el detalle. Las direcciones salen de docs/historia/anclas-regiones.json.
+   mar: cuánto tira a océano (negativo) o a tierra firme (positivo).
+   temp y wet: clima. mesa: mesetas y paredes. alto: cuánto empuja la montaña. */
+const REGIONES=[
+  { id:'costa',    nom:'Costa Clara',         u:[-0.295,+0.534,-0.792], r:0.17, mar:-0.02, temp:+0.01, wet:+0.05, mesa:0,    alto:-0.25, volc:-1 },
+  { id:'cuenca',   nom:'Cuenca Verde',        u:[+0.112,-0.086,-0.990], r:0.17, mar:+0.12, temp:+0.08, wet:+0.34, mesa:0,    alto:-0.10, volc:-1 },
+  { id:'columnas', nom:'Mar de las Columnas', u:[+0.569,+0.486,-0.663], r:0.17, mar:-0.45, temp:+0.16, wet:+0.10, mesa:0,    alto:-0.60, volc:-1 },
+  { id:'agujas',   nom:'Las Agujas',          u:[-0.539,-0.533,-0.652], r:0.17, mar:+0.16, temp:-0.04, wet:-0.06, mesa:1.5,  alto:+0.18, volc:-1 },
+  { id:'salinas',  nom:'Salinas del Sur',     u:[+0.440,-0.634,-0.636], r:0.17, mar:+0.14, temp:+0.34, wet:-0.42, mesa:0.25, alto:-0.30, volc:-1 },
+  { id:'deshielo', nom:'Paso del Deshielo',   u:[-0.994,-0.105,-0.036], r:0.17, mar:+0.10, temp:-0.30, wet:+0.06, mesa:0.3,  alto:+0.10, volc:-1 },
+  { id:'corona',   nom:'Corona Negra',        u:[-0.389,-0.921,+0.019], r:0.17, mar:+0.14, temp:-0.16, wet:+0.08, mesa:0,    alto:+1.00, volc:+0.9 }
+];
+const REGW=new Float32Array(REGIONES.length);
+// Peso de cada región en un punto: 1 en el centro y 0 pasado su radio. Suave, para que no haya costuras.
+function regionWeights(x,y,z){
+  let sum=0;
+  for(let i=0;i<REGIONES.length;i++){
+    const R=REGIONES[i],u=R.u,d=x*u[0]+y*u[1]+z*u[2],t=(d-(1-R.r))/(R.r*.55);
+    const w=t<=0?0:t>=1?1:t*t*(3-2*t);
+    REGW[i]=w;sum+=w;
+  }
+  if(sum>1)for(let i=0;i<REGIONES.length;i++)REGW[i]/=sum;   // donde se tocan, se reparten
+  return sum;
+}
+function regionAt(x,y,z){
+  regionWeights(x,y,z);
+  let b=-1,bw=0.18;
+  for(let i=0;i<REGIONES.length;i++)if(REGW[i]>bw){bw=REGW[i];b=i;}
+  return b<0?null:REGIONES[b];
+}
 const BIOMES=['Mar','Playa','Pradera','Bosque','Desierto','Mesetas','Hielo','Montaña','Volcán'];
 const S={r:0,g:0,b:0,water:0,lava:0,strata:0,canopy:0,biome:0}; // resultado de la última muestra completa
 // lod: tamaño de la malla que pregunta, para no calcular detalle que no puede mostrar. full: también calcula color y material.
 function terrain(x,y,z,lod,full){
-  const cont=vn3(x*1.5+11.3,y*1.5+4.1,z*1.5+7.7)*.66+vn3(x*3.4+2.2,y*3.4+9.6,z*3.4+1.3)*.34;
+  regionWeights(x,y,z);
+  let rMar=0,rTemp=0,rWet=0,rMesa=0,rAlto=0,rVolc=0;
+  for(let i=0;i<REGIONES.length;i++){
+    const w=REGW[i];if(w<=0)continue;
+    const R=REGIONES[i];rMar+=w*R.mar;rTemp+=w*R.temp;rWet+=w*R.wet;rMesa+=w*R.mesa;rAlto+=w*R.alto;rVolc+=w*R.volc;
+  }
+  const cont=vn3(x*1.5+11.3,y*1.5+4.1,z*1.5+7.7)*.66+vn3(x*3.4+2.2,y*3.4+9.6,z*3.4+1.3)*.34+rMar;
   const land=sstep(.40,.50,cont);
   if(land<=0&&!full)return 0;
   // Clima: más frío hacia los polos, con manchas para que las zonas no sean franjas
-  const temp=1-Math.abs(x)*1.05+(vn3(x*2.3+5.1,y*2.3+.7,z*2.3+9.3)-.5)*.6;
-  const wet=vn3(x*2.7+31.2,y*2.7+17.4,z*2.7+2.8);
+  const temp=1-Math.abs(x)*1.05+(vn3(x*2.3+5.1,y*2.3+.7,z*2.3+9.3)-.5)*.6+rTemp;
+  const wet=vn3(x*2.7+31.2,y*2.7+17.4,z*2.7+2.8)+rWet;
   const ice=1-sstep(.12,.28,temp);
-  const mount=sstep(.62,.72,vn3(x*2.6+41.7,y*2.6+23.1,z*2.6+13.9))*land;
-  const volc=sstep(.75,.80,vn3(x*3.3+71.3,y*3.3+37.6,z*3.3+59.2))*land*(1-mount)*(1-ice);
+  const mount=sstep(.62-rAlto*.34,.72-rAlto*.34,vn3(x*2.6+41.7,y*2.6+23.1,z*2.6+13.9))*land;
+  const volc=sstep(.75-rVolc*.14,.80-rVolc*.14,vn3(x*3.3+71.3,y*3.3+37.6,z*3.3+59.2))*land*(1-mount)*(1-ice)*(rVolc<-.5?0:1);
   let wDe=sstep(.58,.74,temp)*(1-sstep(.40,.54,wet))*(1-ice);
   let wFo=sstep(.46,.60,wet)*sstep(.24,.40,temp)*(1-ice);
   let wPl=Math.max(0,1-ice-wDe-wFo),wIc=ice;
@@ -151,28 +191,28 @@ function terrain(x,y,z,lod,full){
 
   let h=0,mesa=0,ridge=0;
   if(land>0){
-    const hA=vn3(x*9.1+3.3,y*9.1+8.8,z*9.1+1.9),hB=vn3(x*21.3+6.1,y*21.3+2.7,z*21.3+4.4);
+    const hA=vn3(x*9.1*KD+3.3,y*9.1*KD+8.8,z*9.1*KD+1.9),hB=vn3(x*21.3*KD+6.1,y*21.3*KD+2.7,z*21.3*KD+4.4);
     if(wIc>0)h+=wIc*(22+hA*50+hB*14);           // hielo: lomas suaves
     if(wPl>0)h+=wPl*(18+hA*38+hB*10);           // pradera: lo más bajo de la tierra firme
     if(wFo>0){                                  // bosque: colinas más altas, con copas de árboles como relieve
       let f=40+hA*85+hB*22;
-      if(lod<=12)f+=vn3(x*230,y*230,z*230)*4.5;
+      if(lod<=12)f+=vn3(x*230*KD,y*230*KD,z*230*KD)*4.5;
       h+=wFo*f;
     }
-    if(wDe>0){                                  // desierto: dunas y mesetas de paredes empinadas
+    if(wDe>0||rMesa>0){                         // desierto y Las Agujas: dunas y mesetas de paredes empinadas
       let d=24+hA*42;
-      mesa=sstep(.66,.72,vn3(x*6.5+91.1,y*6.5+11.7,z*6.5+47.3)*.7+vn3(x*16.1+7.9,y*16.1+53.3,z*16.1+29.1)*.3);
+      mesa=sstep(.66-rMesa*.22,.72-rMesa*.22,vn3(x*6.5*KD+91.1,y*6.5*KD+11.7,z*6.5*KD+47.3)*.7+vn3(x*16.1*KD+7.9,y*16.1*KD+53.3,z*16.1*KD+29.1)*.3);
       d+=mesa*125;
       if(lod<=48){
-        const ph=(x*.62+y*.38+z*.69)*PLANET_R/46+vn3(x*8.7+3.1,y*8.7+29.3,z*8.7+77.7)*9,dn=Math.sin(ph)*.5+.5;
+        const ph=(x*.62+y*.38+z*.69)*PLANET_R/46+vn3(x*8.7*KD+3.1,y*8.7*KD+29.3,z*8.7*KD+77.7)*9,dn=Math.sin(ph)*.5+.5;
         d+=dn*dn*(1-mesa)*(5+11*hB);
       }
-      h+=wDe*d;
+      h+=Math.max(wDe,rMesa*(1-wIc)*.75)*d;
     }
     if(mount>0||volc>0){                        // montaña y volcán: crestas, lo más alto del planeta
-      const r1=1-Math.abs(2*vn3(x*7.3+13.1,y*7.3+5.3,z*7.3+31.9)-1),r2=1-Math.abs(2*vn3(x*15.7+29.9,y*15.7+41.3,z*15.7+3.7)-1);
+      const r1=1-Math.abs(2*vn3(x*7.3*KD+13.1,y*7.3*KD+5.3,z*7.3*KD+31.9)-1),r2=1-Math.abs(2*vn3(x*15.7*KD+29.9,y*15.7*KD+41.3,z*15.7*KD+3.7)-1);
       ridge=r1*r1*.62+r2*r2*r1*.28;
-      if(lod<=64){const r3=1-Math.abs(2*vn3(x*33.1+2.3,y*33.1+19.1,z*33.1+67.3)-1);ridge+=r3*r3*r1*r2*.10;}
+      if(lod<=64){const r3=1-Math.abs(2*vn3(x*33.1*KD+2.3,y*33.1*KD+19.1,z*33.1*KD+67.3)-1);ridge+=r3*r3*r1*r2*.10;}
       if(mount>0)h+=(150+ridge*640-h)*mount;
       if(volc>0)h+=(90+ridge*240-h)*volc;
     }
@@ -184,6 +224,8 @@ function terrain(x,y,z,lod,full){
     let r=wPl*(.50+hot*.20)+wFo*.11+wDe*(.80-mesa*.12)+wIc*.87;
     let g=wPl*(.62-hot*.08)+wFo*.27+wDe*(.56-mesa*.17)+wIc*.93;
     let b=wPl*(.30-hot*.08)+wFo*.14+wDe*(.30-mesa*.08)+wIc*.98;
+    // Mesetas: roca gris parda, no arena. Las Agujas se tiene que ver distinta del desierto.
+    if(mesa>0&&rMesa>0){const k=mesa*rMesa;r+=(.47-r)*k;g+=(.42-g)*k;b+=(.36-b)*k;}
     if(mount>0){r+=(.40-r)*mount;g+=(.37-g)*mount;b+=(.38-b)*mount;}
     if(volc>0){r+=(.11-r)*volc;g+=(.10-g)*volc;b+=(.11-b)*volc;}
     // Nieve por altura, en cualquier zona lo bastante alta
@@ -202,9 +244,9 @@ function terrain(x,y,z,lod,full){
     }
     S.r=r;S.g=g;S.b=b;S.water=water;
     S.lava=volc*(1-sstep(.10,.24,ridge));
-    S.strata=wDe*(1-mount)*(1-volc);
+    S.strata=Math.max(wDe,mesa*rMesa)*(1-mount)*(1-volc);
     S.canopy=wFo*land*(1-mount)*(1-volc);
-    S.biome=h<1.2?(ice>.5?6:0):land<.45?1:volc>.5?7+1:mount>.5?7:wDe>.5?(mesa>.5?5:4):wIc>.5?6:wFo>.5?3:2;
+    S.biome=h<1.2?(ice>.5?6:0):land<.45?1:volc>.5?8:mount>.5?7:(mesa>.5&&(rMesa>.4||wDe>.5))?5:wDe>.5?4:wIc>.5?6:wFo>.5?3:2;
   }
   return h;
 }
@@ -291,6 +333,16 @@ const stars=(function(){
   const m=new T.Points(g,new T.PointsMaterial({size:1.5,sizeAttenuation:false,vertexColors:true,transparent:true,blending:T.AdditiveBlending,depthWrite:false,fog:false}));
   m.frustumCulled=false;scene.add(m);return m;
 })();
+// Cúpula de la Vía Láctea: aparece cuando llega la foto y deja los puntos como brillo encima
+const viaLactea=(function(){
+  const g=new T.SphereGeometry(12500,32,20);
+  const m=new T.MeshBasicMaterial({color:0xffffff,side:T.BackSide,transparent:true,opacity:0,depthWrite:false,fog:false});
+  const o=new T.Mesh(g,m);o.frustumCulled=false;o.visible=false;scene.add(o);return o;
+})();
+function ponerCieloNocturno(tex){
+  if(!tex)return;
+  viaLactea.material.map=tex;viaLactea.material.needsUpdate=true;viaLactea.visible=true;
+}
 
 /* Textura de ruido compartida: mucho más liviana para el teléfono que calcular ruido en cada píxel */
 const noiseTex=(function(){
@@ -304,7 +356,7 @@ const noiseTex=(function(){
 
 /* ---------- Mallas del suelo: una esfera completa fija, y anillos finos que acompañan a la nave ---------- */
 const GU={
-  uNoise:{value:noiseTex},uSun:{value:SUN},uMoon:{value:MOON},uTime:{value:0},uAir:airU,
+  uNoise:{value:noiseTex},uDet:{value:null},uRoca:{value:null},uOrg:{value:new T.Vector3()},uSun:{value:SUN},uMoon:{value:MOON},uTime:{value:0},uAir:airU,
   uG:{value:new V3()},uT1:{value:new V3()},uT2:{value:new V3()},uE0:{value:new V3()},uE1:{value:new V3()},uE2:{value:new V3()},uShadow:{value:0},
   uCenter:{value:new V3(0,1,0)},uSinkA:{value:Math.cos(720/PLANET_R)},uSinkB:{value:Math.cos(640/PLANET_R)}
 };
@@ -329,24 +381,51 @@ const GROUND_FS=`
   varying vec3 vP;varying vec3 vN;varying vec3 vC;varying vec4 vM;
   float tn(vec2 p){return texture2D(uNoise,p/256.).r;}
   float tri(vec3 p,vec3 w){return w.x*tn(p.yz)+w.y*tn(p.zx)+w.z*tn(p.xy);}
+  #ifdef CON_TEXTURA
+  uniform sampler2D uDet;uniform sampler2D uRoca;uniform vec3 uOrg;
+  // Proyecta la foto según hacia dónde mira el terreno: no hace falta desplegar la esfera en UV.
+  // Las coordenadas van restando uOrg (un punto cercano, redondeado a 100 m) porque a 22 km del centro
+  // del planeta los números son tan grandes que la placa de video pierde el detalle y la foto sale lisa.
+  vec3 triC(sampler2D s,vec3 p,vec3 w){return w.x*texture2D(s,p.yz).rgb+w.y*texture2D(s,p.zx).rgb+w.z*texture2D(s,p.xy).rgb;}
+  #endif
   void main(){
     vec3 up=normalize(vP);
     vec3 rel=vP-cameraPosition;
     float dist=length(rel);
     vec3 n=normalize(vN);
     vec3 w=abs(up);w*=w;w*=w;w/=(w.x+w.y+w.z);
-    float big=tri(vP/90.,w),fine=tri(vP/9.,w);
     float water=vM.x,lava=vM.y,strata=vM.z,canopy=vM.w;
+    #ifdef CON_TEXTURA
+    // El bioma sigue poniendo el color (vC); la foto pone el grano y un poco de su tono
+    vec3 vL=vP-uOrg;
+    vec3 dA=triC(uDet,vL/25.,w),dB=triC(uDet,vL/5.,w);
+    float big=dot(dA,vec3(.3333)),fine=dot(dB,vec3(.3333));
+    // la foto manda de cerca y se va diluyendo con la distancia, donde ya no se distingue
+    float cerca=1.-smoothstep(300.,1800.,dist);
+    vec3 cA=dA/max(big,.04),cB=dB/max(fine,.04);          // el tono de la foto, sin su brillo
+    vec3 c=vC*(1.+((big-.5)*(.55+canopy*.7)+(fine-.5)*(.50+canopy*.6))*(1.-water));
+    c*=mix(vec3(1.),mix(cA,cB,.45),.52*(1.-water)*cerca);
+    #else
+    float big=tri(vP/90.,w),fine=tri(vP/9.,w);
     vec3 c=vC*(1.+((big-.5)*(.30+canopy*.7)+(fine-.5)*(.26+canopy*.6))*(1.-water));
+    #endif
     float rock=smoothstep(.16,.38,1.-dot(n,up))*(1.-water)*(1.-canopy);
     if(rock>.002){ // paredes empinadas: roca gris, o con estratos rojos en el desierto
       float st=mix(.5+.5*sin(length(vP)*.36+big*4.),.5,smoothstep(250.,900.,dist));
       vec3 rc=mix(vec3(.36,.33,.34)*(.62+big*.5)*(.7+fine*.6),mix(vec3(.30,.13,.10),vec3(.60,.35,.23),st),strata);
+      #ifdef CON_TEXTURA
+      vec3 rk=triC(uRoca,(vP-uOrg)/12.5,w);
+      rc*=.30+rk*1.55;   // la roca de verdad, sobre el color del bioma
+      #endif
       c=mix(c,rc,rock);
     }
     if(dist<150.){ // grano fino, solo en vuelo rasante: es lo que da la sensación de velocidad
+      #ifdef CON_TEXTURA
+      float micro=dot(triC(uDet,(vP-uOrg)/1.25,w),vec3(.3333));
+      #else
       float micro=tri(vP/1.7,w);
-      c*=1.+(micro-.5)*(.34+canopy*.3)*(1.-water)*(1.-smoothstep(30.,150.,dist));
+      #endif
+      c*=1.+(micro-.5)*(.52+canopy*.3)*(1.-water)*(1.-smoothstep(30.,150.,dist));
     }
     if(water>.01){ // el mar: marejada grande, olas y espuma de cerca; dan escala y movimiento para calcular la distancia
       float sw=tri(vP/75.+vec3(uTime*.018,0.,uTime*.012),w);
@@ -377,7 +456,7 @@ const GROUND_FS=`
     c=mix(c,hz,(1.-exp(-dist*.00026))*mix(.35,1.,uAir));
     gl_FragColor=vec4(c,1.);
   }`;
-const ringMat=new T.ShaderMaterial({uniforms:GU,fog:false,vertexShader:GROUND_VS,fragmentShader:GROUND_FS});
+const ringMat=new T.ShaderMaterial({uniforms:GU,fog:false,defines:{},vertexShader:GROUND_VS,fragmentShader:GROUND_FS});
 const baseMat=new T.ShaderMaterial({uniforms:GU,fog:false,defines:{SINK:1},vertexShader:GROUND_VS,fragmentShader:GROUND_FS});
 
 /* Esfera completa con relieve, dividida en 20 caras para no dibujar las que quedan fuera de cámara. Se calcula una sola vez. */
@@ -776,13 +855,15 @@ function stepCamera(dt,time){
   camera.lookAt(_look.copy(ship.pos).addScaledVector(camFwd,20+camBlend*16).addScaledVector(U,-Math.min(Math.tan(dip*.5),.2)*31*(1-camBlend)));
   const fov=reduceMotion?60:62+tf*15;
   if(Math.abs(fov-lastFov)>.04){camera.fov=fov;camera.updateProjectionMatrix();lastFov=fov;}
-  sky.position.copy(cp);stars.position.copy(cp);
+  sky.position.copy(cp);stars.position.copy(cp);viaLactea.position.copy(cp);
+  GU.uOrg.value.set(Math.round(cp.x/100)*100,Math.round(cp.y/100)*100,Math.round(cp.z/100)*100);
   // Luz y aire según dónde está la cámara: más alto hay menos aire, y del otro lado del planeta es de noche
   const air=Math.exp(-Math.max(camR-PLANET_R,0)/550),sunH=_cd.dot(SUN),dayL=sstep(-.14,.14,sunH);
   airU.value=air;
   skyU.uU.value.copy(_cd);skyU.uCamR.value=camR;
   GU.uTime.value=time;
   stars.material.opacity=clamp(1-sstep(-.2,.2,sunH)*air*1.2,0,1);
+  if(viaLactea.visible)viaLactea.material.opacity=stars.material.opacity*.85;
   hemi.position.copy(_cd);hemi.intensity=.28+.26*dayL;
   sunLight.intensity=.72*dayL;
   scene.fog.color.copy(fogNight).lerp(fogDay,sstep(-.22,.18,sunH));
@@ -1853,9 +1934,15 @@ function buildZones(){
   makeZone(_v.copy(startU).multiplyScalar(Math.cos(a)).addScaledVector(startF,Math.sin(a)).normalize().clone());
   let s=2718;
   const rnd=()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};
-  for(let tries=0;tries<500&&zones.length<6;tries++){
-    const y=rnd()*1.6-.8,t=rnd()*Math.PI*2,r=Math.sqrt(1-y*y);
-    const d=new V3(Math.cos(t)*r,y,Math.sin(t)*r);
+  // Las zonas van en un frente de unos 6,5 km alrededor del punto de partida, no repartidas por todo
+  // el planeta: con el planeta grande, al azar quedarían a cuatro minutos de vuelo una de otra.
+  const FRENTE=6500/PLANET_R;
+  const b1=new V3(Math.abs(startU.y)<.9?0:1,Math.abs(startU.y)<.9?1:0,0);
+  b1.addScaledVector(startU,-b1.dot(startU)).normalize();
+  const b2=new V3().crossVectors(b1,startU).normalize();
+  for(let tries=0;tries<900&&zones.length<6;tries++){
+    const a=FRENTE*Math.sqrt(rnd()),t=rnd()*Math.PI*2,sa=Math.sin(a);
+    const d=new V3().copy(startU).multiplyScalar(Math.cos(a)).addScaledVector(b1,sa*Math.cos(t)).addScaledVector(b2,sa*Math.sin(t)).normalize();
     if(arcTo(d,startU)<ZONE_KIND.dispersa.r+1100)continue;
     if(zones.every(z=>arcTo(d,z.dir)>3400))makeZone(d);
   }
@@ -4088,6 +4175,15 @@ function autoQuality(){
   if(mobile)return weakGpu||mem<=3||cores<=4?'baja':strongGpu&&mem>=6?'alta':'media';
   return weakGpu||mem<=4?'media':'alta';
 }
+// Las fotos del terreno solo en Media y Alta: en Baja el grano sigue siendo el de siempre
+function aplicarTexturaTerreno(){
+  const on=GQ.name!=='baja'&&!!GU.uDet.value;
+  for(const m of [ringMat,baseMat]){
+    if(!!m.defines.CON_TEXTURA===on)continue;
+    if(on)m.defines.CON_TEXTURA=1;else delete m.defines.CON_TEXTURA;
+    m.needsUpdate=true;
+  }
+}
 function applyQuality(){
   const want=settings.quality==='auto'?autoQ:settings.quality;
   const prev=GQ;
@@ -4097,6 +4193,7 @@ function applyQuality(){
   if(prev.ship!==GQ.ship){buildPlayerShip();restyleAllies();}
   const note=$('#qualityNote');
   if(note)note.textContent=settings.quality==='auto'?'Automática: en este equipo usa '+QUALITY[autoQ].label+'.':'Elegida a mano: '+GQ.label+'.';
+  aplicarTexturaTerreno();
 }
 // Cuadros por segundo para los datos de uso: promedio y el peor segundo de cada minuto jugado
 const perf={f:0,t:0,secF:0,secT:0,min:999,runF:0,runT:0};
@@ -4188,6 +4285,14 @@ function boot(data){
   try{if(window.claude&&window.claude.hot&&window.claude.hot.snapshot)window.claude.hot.snapshot(()=>({ship:{world:'esfera',pos:ship.pos.toArray(),q:ship.q.toArray(),throttle:ship.throttle,rocks:ship.rocks}}));}catch(e){}
   $('#loading').hidden=true;
   autoQ=autoQuality();applyQuality();
+  // Las texturas del mundo llegan después y se encienden solas: el juego no espera por ellas
+  cargarTexturas(T,tex=>{
+    if(tex.suelo&&tex.roca){
+      afinar(tex.suelo,renderer);afinar(tex.roca,renderer);
+      GU.uDet.value=tex.suelo;GU.uRoca.value=tex.roca;aplicarTexturaTerreno();
+    }
+    ponerCieloNocturno(tex.cielo);
+  });
   // La intro de la productora va antes del menú, una sola vez por sesión
   if(window.__sinIntro||settings.intro===false)openMenu();
   else{introOn=true;layout();runIntro({root:document,sound:settings.sound!==false,unlock,done:info=>{introOn=false;layout();stats.track('intro',info);openMenu();}});}
@@ -4200,7 +4305,7 @@ function boot(data){
   window.DeltaUno={renderer,ship,input,settings,TUNE,rocks,activeRocks,rings,chart,chartDir,straighten,terrain,heightAt,S,BIOMES,PLANET_R,CEIL:{CEIL_WARN,CEIL_PUSH,CEIL_MAX},buildMs,flags:()=>({dead,inv,warning,thinWarn}),
     zones,groups,enemies,lost,drops,DROP_KIND,damage,spawnDrop,dodge,tryDodge,rockets,lockCancel,AIM,seenVel,ZONE_KIND,eBolts,boltHitsShip,
     tgt:()=>camTarget,camBlend:()=>camBlend,camera,
-    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
+    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
     vit:()=>({hull,shield,heat,overheat,score,record,combo,curZone:curZone&&zones.indexOf(curZone),target:!!target,fov:camera.fov,missiles,missileT,lockOn,lockP,hasLock:!!lockTarget,repairT,repairCool})};
   last=performance.now();
   requestAnimationFrame(frame);

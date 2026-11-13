@@ -187,6 +187,24 @@ Al principio pilota un caza básico. Más adelante habrá más naves para elegir
 - **Vuelo libre:** se va a poder elegir la región donde arrancar.
 - **Formato de las misiones:** está en `docs/historia/formato.md`.
 
+## El planeta y sus regiones
+
+- **Tamaño: radio 21.900 m**, seis veces el de la demo. Decidido por Santiago, con el argumento de que hacían falta ciudades y escenas de desplazamiento. Medido: el planeta grande **sale más barato** que el chico (25 llamadas de dibujo contra 44), porque el terreno se arma en anillos alrededor del jugador.
+- **El relieve se mide en metros, no en grados** (`KD` en `src/main.js`). Sin eso, al agrandar el planeta las lomas se estiran y queda liso. Las octavas de relieve se multiplican por el factor de crecimiento; las de clima y continentes quedan angulares, así que **los continentes crecen con el planeta**.
+- **Las 7 regiones de la historia están sembradas** (`REGIONES` en `src/main.js`). Cada una empuja mar, temperatura, humedad, mesetas y altura a su alrededor; el ruido sigue poniendo el detalle. Así se construye la geografía que pide la historia en lugar de buscarla.
+  - Las direcciones salen de `docs/historia/anclas-regiones.json` y la explicación de `docs/historia/proyeccion-mapa.md`.
+  - Antes, las mesetas eran el 1 % del planeta y Las Agujas es una región entera de mesetas. Ahora Las Agujas tiene 53 % de mesetas y Corona Negra 43 % de montaña.
+- **Mesetas es un bioma propio**, ya no depende de que haya desierto.
+- La misión 1 sigue en Costa Clara y su prueba pasa igual.
+- **Las zonas de Conquista van en un frente de 6,5 km** alrededor del punto de partida. Repartidas al azar por un planeta seis veces más grande quedaban a más de cuatro minutos de vuelo una de otra; ahora la más lejana está a 93 segundos.
+
+### Texturas del mundo
+
+- El terreno usa dos fotos (suelo y roca) muestreadas según hacia dónde mira cada cara, encima del color del bioma: la foto pone el grano y parte del tono, el bioma sigue poniendo el color.
+- En calidad Baja no se cargan: el terreno se queda con el grano hecho en código.
+- **Las coordenadas de la textura se cuentan desde un punto cercano** (`uOrg`), redondeado a 100 m. A 22 km del centro del planeta los números son tan grandes que la placa de video pierde el detalle y la foto sale lisa. Costó encontrarlo: la textura cargaba bien y se veía un color plano.
+- El cielo nocturno es una foto de la Vía Láctea, con los puntos de estrellas encima.
+
 ## Gráficos y sonido
 
 - **Calidad:** Automática, Baja, Media o Alta, en Ajustes → Gráficos.

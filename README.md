@@ -94,6 +94,7 @@ src/main.js                 todo el juego (por ahora en un solo archivo, ver "Pr
 src/historia/               las misiones como datos (textos, partes, eventos de radio); formato en docs/historia/formato.md
 src/nave.js                 los diseños de la nave (Actual, Guardia, Interceptor, Blindado) y su textura de paneles
 src/hangar/catalogo.js       clases de nave, armas y pinturas que muestra la pantalla Preparar la salida
+src/texturas.js              carga las fotos del mundo (ambientCG, CC0)
 src/intro.js                 la intro de la productora (el video está en src/intro/)
 src/efectos.js              fuego, humo, restos, onda expansiva y escudo
 src/sonido.js               todos los sonidos, sintetizados en el momento (motor, cañón, explosiones, radio)

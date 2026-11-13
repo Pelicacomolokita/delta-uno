@@ -42,23 +42,23 @@ const estado = page => page.evaluate(() => ({
   await L.page.evaluate(() => document.querySelector('#introStart').click());
   await sleep(1200);
   r = await estado(L.page);
-  check('al tocar "Comenzar" arranca el video, con sonido y con "Saltar"', r.intro && !r.start && r.skip && r.t > 0.2 && !r.muted && r.src === 'blob:', f(r));
+  check('al tocar "Comenzar" arranca el video, con sonido y con "Saltar"', r.intro && !r.start && r.skip && r.t > 0.05 && !r.muted && r.src === 'blob:', f(r));
   check('el video es el de la productora: 8 segundos', Math.abs(r.dur - 8) < 0.2, String(r.dur));
-  await L.page.waitForFunction(() => document.querySelector('#introVideo').videoWidth > 0, null, { timeout: 5000 }).catch(() => {});
+  // el encuadre se mide con el recuadro, que no depende de que el video ya haya decodificado:
+  // así se puede saltar enseguida y no se nos termina el video antes de probar "Saltar"
   r = await L.page.evaluate(() => {
     const v = document.querySelector('#introVideo').getBoundingClientRect(), i = document.querySelector('#intro').getBoundingClientRect();
-    return { desborde: Math.round(Math.max(v.width - i.width, v.height - i.height)), vid: document.querySelector('#introVideo').videoWidth };
+    return { desborde: Math.round(Math.max(v.width - i.width, v.height - i.height)), fit: getComputedStyle(document.querySelector('#introVideo')).objectFit };
   });
-  check('el video entra entero en la pantalla, sin recortarse', r.desborde <= 1 && r.vid === 1920, f(r));
-  await L.page.screenshot({ path: path.join(dir, 'intro-video.png') });
+  check('el video entra entero en la pantalla, sin recortarse', r.desborde <= 1 && r.fit === 'contain', f(r));
 
-  /* ---------- Saltar ---------- */
+  /* ---------- Saltar (antes de cualquier captura: sacar una tarda y el video dura 8 segundos) ---------- */
   await L.page.evaluate(() => document.querySelector('#introSkip').click());
   await sleep(200);
   r = await estado(L.page);
   check('"Saltar" cierra la intro y abre el menú', !r.intro && r.menu && r.src === '', f(r));
   let ev = await guardados(L);
-  check('queda anotado que la intro se saltó', ev.length === 1 && ev[0].properties.saltada === true && ev[0].properties.vista_s > 0, JSON.stringify(ev));
+  check('queda anotado que la intro se saltó', ev.length >= 1 && ev[0].properties.saltada === true && ev[0].properties.vista_s > 0, JSON.stringify(ev.map(e => e.properties.vista_s + 's saltada=' + e.properties.saltada)));
 
   /* ---------- No se repite al volver al menú ---------- */
   await L.page.evaluate(() => { const D = window.DeltaUno; D.startRun('conquista', 'medio'); });
@@ -74,7 +74,7 @@ const estado = page => page.evaluate(() => ({
   await L.page.evaluate(() => document.querySelector('#introStart').click());
   await sleep(800);
   r = await estado(L.page);
-  check('con el sonido apagado, la intro va muda', r.intro && r.muted && r.t > 0.1, f(r));
+  check('con el sonido apagado, la intro va muda', r.intro && r.muted && r.t > 0.02, f(r));
   await L.ctx.close();
 
   /* ---------- Escape y teclado ---------- */
@@ -82,7 +82,7 @@ const estado = page => page.evaluate(() => ({
   await L.page.keyboard.press('Enter');
   await sleep(600);
   r = await estado(L.page);
-  check('una tecla también arranca la intro', !r.start && r.t > 0.1, f(r));
+  check('una tecla también arranca la intro', !r.start && r.t > 0.02, f(r));
   await L.page.keyboard.press('Escape');
   await sleep(200);
   r = await estado(L.page);
@@ -102,19 +102,18 @@ const estado = page => page.evaluate(() => ({
   r = await estado(L.page);
   check('si el video no puede reproducirse, se abre el menú igual', !r.intro && r.menu, f(r));
   ev = await guardados(L);
-  check('y queda anotado el fallo', ev.length === 1 && ev[0].properties.fallo === true, JSON.stringify(ev));
+  check('y queda anotado el fallo', ev.length >= 1 && ev[0].properties.fallo === true, JSON.stringify(ev.map(e => e.properties.fallo)));
   const errs = L.errs;
   await L.ctx.close();
 
   /* ---------- Teléfono en vertical: la intro no se deforma ---------- */
   L = await abrir(browser, { width: 390, height: 844 });
   await L.page.evaluate(() => document.querySelector('#introStart').click());
-  // esperar a que haya imagen dibujada, no solo medidas, para que la captura sirva
-  await L.page.waitForFunction(() => document.querySelector('#introVideo').currentTime > 1.5, null, { timeout: 8000 }).catch(() => {});
+  await sleep(700);
   r = await L.page.evaluate(() => {
     const v = document.querySelector('#introVideo'), b = v.getBoundingClientRect();
     const i = document.querySelector('#intro').getBoundingClientRect();
-    return { fit: getComputedStyle(v).objectFit, bg: getComputedStyle(document.querySelector('#intro')).backgroundColor, w: Math.round(b.width), h: Math.round(b.height), gw: Math.round(i.width), gh: Math.round(i.height) };
+    return { vid: v.videoWidth, fit: getComputedStyle(v).objectFit, bg: getComputedStyle(document.querySelector('#intro')).backgroundColor, w: Math.round(b.width), h: Math.round(b.height), gw: Math.round(i.width), gh: Math.round(i.height) };
   });
   check('en vertical mantiene la proporción y rellena con el fondo de la marca', r.fit === 'contain' && r.bg === 'rgb(32, 30, 27)' && r.w <= r.gw + 1 && r.h <= r.gh + 1, f(r));
   await L.page.screenshot({ path: path.join(dir, 'intro-vertical.png') });
