@@ -88,7 +88,7 @@ H.autostart = true;
     const gear = await center(L.page, '#gear');
     await L.page.touchscreen.tap(gear[0], gear[1]); await sleep(300);
     const sh = await L.page.evaluate(() => ({ over: [...document.querySelectorAll('.seg button')].filter(x => x.scrollWidth > x.clientWidth + 1).map(x => x.textContent), n: [...document.querySelectorAll('#sheetGrid .opt')].filter(o => !o.hidden).length }));
-    check('ajustes sin textos cortados a ' + vp.width, sh.over.length === 0 && sh.n === 8, sh.over.join());
+    check('ajustes sin textos cortados a ' + vp.width, sh.over.length === 0 && sh.n === 9, sh.over.join());
     const m = await center(L.page, '#optModeM'); await L.page.touchscreen.tap(m[0], m[1]);
     const note = await L.page.evaluate(() => document.querySelector('#modeNote').textContent);
     check('al elegir Manual la explicación habla del timón en la palanca', /palanca a los costados es el timón/.test(note), note);
