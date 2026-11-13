@@ -42,8 +42,8 @@ export function siluetaDiseno(id) {
   return (cache[id] = { id, radio: r, formas, area: formas[1].area });
 }
 
-// punto en coordenadas de la nave (sin girar): ¿pega? margen: medio grosor de la bala (el juego usa 0,45 m)
-export function golpea(sil, x, y, z, margen = 0.45) {
+// punto en coordenadas de la nave (sin girar): ¿pega? margen: medio grosor de la bala (0,35 m; con 0,45 una bala que pasaba 1 m debajo del caza pegaba)
+export function golpea(sil, x, y, z, margen = 0.35) {
   if (x * x + y * y + z * z > (sil.radio + margen) ** 2) return false;
   for (const f of sil.formas) {
     if (Math.abs(y - f.yc) > f.h + margen) continue;

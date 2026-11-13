@@ -2449,7 +2449,8 @@ function fireEnemyBolt(e,dP){
   }
   b.q.setFromUnitVectors(Z_AXIS,_eA);
   b.v.copy(_eA).multiplyScalar(speed);
-  b.life=1.7;b.dmg=e.def.dmg*(e.dmgK||1);b.on=true;b.dmg*=run.ventaja; // dmgK: munición de práctica; ventaja: la dificultad // dmgK: munición de práctica en las misiones
+  b.life=1.7;b.dmg=e.def.dmg*(e.dmgK||1);b.on=true;b.dmg*=run.ventaja;b.area=e.def.area||0;
+  if(navesActivas())naves.fogonazo(b.p,e.def.scale||1); // dmgK: munición de práctica; ventaja: la dificultad // dmgK: munición de práctica en las misiones
   if(dP+80>speed*1.7)b.life=(dP+80)/speed; // las torretas tiran más lejos
   sfxEnemyShot(b.p);
 }
@@ -2459,7 +2460,7 @@ const _hInv=new Q(),_hS=new V3(),_hP=new V3();
 function boltHitsShip(a,b){
   if(navesActivas()&&navePropia){   // silueta de verdad del diseño nuevo, no el triángulo
     _hS.copy(b).sub(a);
-    const n=Math.min(48,Math.ceil(_hS.length()/.35));
+    const n=Math.max(1,Math.min(48,Math.ceil(_hS.length()/.35))); // al menos 1: con un tramo de largo 0, i/n daba NaN y contaba como golpe
     for(let i=0;i<=n;i++){
       _hP.copy(a).addScaledVector(_hS,i/n);
       if(naves.golpea(navePropia,_hP))return true;
@@ -2469,7 +2470,7 @@ function boltHitsShip(a,b){
   if(!segmentSphereHit(a,b,ship.pos,3.4))return false;
   _hInv.copy(ship.q).invert();
   _hS.copy(b).sub(a);
-  const n=Math.min(48,Math.ceil(_hS.length()/.35));
+  const n=Math.max(1,Math.min(48,Math.ceil(_hS.length()/.35))); // al menos 1: con un tramo de largo 0, i/n daba NaN y contaba como golpe
   for(let i=0;i<=n;i++){
     _hP.copy(a).addScaledVector(_hS,i/n).sub(ship.pos).applyQuaternion(_hInv);
     if(Math.abs(_hP.y-.12)>.62)continue;
@@ -2480,6 +2481,39 @@ function boltHitsShip(a,b){
     return true;
   }
   return false;
+}
+// distancia de un punto a un tramo (de dónde a dónde viajó la bala en este cuadro)
+const _sdA=new V3(),_sdB=new V3();
+function segDist(a,b,p){
+  _sdA.copy(b).sub(a);const l2=_sdA.lengthSq();
+  const t=l2>0?clamp(_sdB.copy(p).sub(a).dot(_sdA)/l2,0,1):0;
+  return _sdB.copy(a).addScaledVector(_sdA,t).distanceTo(p);
+}
+/* Compañeros: todavía no tienen vida (llega con las misiones que la necesiten). Mientras tanto simulan los golpes:
+   un tiro que les pega larga chispas y les deja humo y placas quemadas por un rato, pero nunca los derriba.
+   Un tiro que pasa cerca los hace esquivar. */
+const ALIADO_DANO_MAX=.7; // humo y placas quemadas, sin fuego ni caída
+function aliadoTocado(b){
+  if(!allies.length)return false;
+  for(const a of allies){
+    if(!a.mesh.visible)continue;
+    const d=segDist(b.prev,b.p,a.pos);
+    if(d<3.2){
+      b.on=false;
+      a.danoSim=Math.min(ALIADO_DANO_MAX,(a.danoSim||0)+b.dmg/45);
+      if(navesActivas())naves.chispas(b.p,7);else burst(b.p,6,20,.4,1,.8,.5);
+      esquivarAliado(a,b);
+      return true;
+    }
+    if(d<28)esquivarAliado(a,b);
+  }
+  return false;
+}
+function esquivarAliado(a,b){
+  if(a.man||a.evade>0)return;
+  _aX.copy(a.pos).sub(b.p);
+  // para el costado contrario al tiro
+  a.evade=1.1;a.evDir=_aX.dot(_aR)>=0?1:-1;
 }
 function stepEnemyBolts(dt){
   let count=0;
@@ -2493,6 +2527,12 @@ function stepEnemyBolts(dt){
       b.on=false;damage(b.dmg,b.v);
       continue;
     }
+    // la pesada: un tiro que pasa cerca igual hace parte del daño, con una explosión chica
+    if(b.area&&dead<=0&&inv<=0&&dodge.t<=0&&segDist(b.prev,b.p,ship.pos)<b.area){
+      b.on=false;burst(b.p,10,26,.5,1,.7,.4);damage(b.dmg*.4,b.v);
+      continue;
+    }
+    if(aliadoTocado(b))continue;
     _m.compose(b.p,b.q,_one);eBoltMesh.setMatrixAt(count++,_m);
   }
   eBoltMesh.count=count;eBoltMesh.instanceMatrix.needsUpdate=true;
@@ -3852,6 +3892,8 @@ function stepAlly(a,dt){
   const p=a.pos,r=p.length(),ps=Math.max(ship.speed,40);
   _aU.copy(p).divideScalar(r);
   let want=ps;a.lat=0;
+  if(a.evade>0)a.evade=Math.max(0,a.evade-dt);
+  if(a.danoSim>0)a.danoSim=Math.max(0,a.danoSim-dt*.015); // se va "reparando" de a poco
   if(a.man)want=firmaStep(a,dt,ps);
   else if(a.mode==='orbita'&&mis.sector){ // en círculo arriba del sector
     a.orbitA+=dt*55/560;
@@ -3891,7 +3933,11 @@ function stepAlly(a,dt){
     _q.setFromAxisAngle(_aA,step);a.fwd.applyQuaternion(_q).normalize();
     turnRate=_aA.dot(_aU)*step/dt;
   }
-  const bankT=a.man&&a.man.bank!==undefined?a.man.bank:clamp(turnRate*1.1,-1.2,1.2);
+  let bankT=a.man&&a.man.bank!==undefined?a.man.bank:clamp(turnRate*1.1,-1.2,1.2);
+  if(a.evade>0&&!a.man){ // esquiva: se tira de costado inclinado y vuelve
+    const k=Math.sin(Math.PI*(1-a.evade/1.1));
+    a.lat=a.evDir*55*k;bankT=-a.evDir*1.1*k;
+  }
   a.bank+=(bankT-a.bank)*(1-Math.exp(-6*dt));
   a.speed+=(want-a.speed)*(1-Math.exp(-(a.man?3:1.4)*dt));
   p.addScaledVector(a.fwd,a.speed*dt);
@@ -3907,6 +3953,7 @@ function stepAlly(a,dt){
   a.mesh.position.copy(p);
   if(a.nueva){ // la nave nueva va en el mismo lugar, y sus piezas se mueven según cómo giró
     a.nueva.pos.copy(p);a.nueva.quat.copy(a.mesh.quaternion);a.nueva.visible=a.mesh.visible!==false;
+    a.nueva.dano=a.danoSim||0;
     mandosDesdeGiro(a.nueva,a.qPrev,dt,{empuje:clamp(a.speed/TUNE.vmax,0,1),velocidad:a.speed});
     a.qPrev.copy(a.mesh.quaternion);
   }

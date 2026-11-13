@@ -179,6 +179,14 @@ export class Danos {
     for (let k = 0; k < 10; k++) emitir(this.humo, 1, n.pos.x + (Math.random() - .5) * 3, n.pos.y + (Math.random() - .5) * 3, n.pos.z + (Math.random() - .5) * 3, (Math.random() - .5) * 6, (Math.random() - .5) * 6, (Math.random() - .5) * 6, 3, 2 + Math.random());
     return hechos;
   }
+  fogonazo(p, tam) {
+    emitir(this.fuego, 3, p.x, p.y, p.z, 0, 0, 0, 1.6 * tam, 0.07);
+    emitir(this.fuego, 2, p.x, p.y, p.z, 0, 0, 0, 1.1 * tam, 0.1);
+  }
+  // chispas de un tiro que pega en el casco
+  chispas(p, n = 6) {
+    for (let k = 0; k < n; k++) emitir(this.fuego, 3, p.x, p.y, p.z, (Math.random() - .5) * 24, (Math.random() - .5) * 24, (Math.random() - .5) * 24, 0.35, 0.4);
+  }
   /* Un cuadro: humo y fuego de las naves dañadas, superficies sueltas, pedazos que caen. */
   actualizar(dt, naves, camera, renderer) {
     this.t += dt;

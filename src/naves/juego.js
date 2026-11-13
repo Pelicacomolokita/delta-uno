@@ -56,6 +56,9 @@ export class NavesJuego {
   /* La nave cae: se parte en sus piezas, que siguen con su velocidad y caen hacia el centro del planeta.
      Llamarlo antes de quitar(n). vel: su velocidad en m/s (Vector3). */
   romper(n, vel) { return this.danos.romper(n, vel); }
+  // fogonazo en la boca de un cañón (pos en el mundo), un destello cortito
+  fogonazo(pos, tam = 1) { this.danos.fogonazo(pos, tam); }
+  chispas(pos, n) { this.danos.chispas(pos, n); }
   // dónde está el centro del planeta (hacia ahí caen los pedazos y desde ahí sube el humo). plano: sin planeta, cae en -Y
   setCentro(v, plano = false) { this.danos.centro.copy(v); this.danos.plano = plano; }
   setVisible(v) { this.flota.setVisible(v); }
@@ -64,7 +67,7 @@ export class NavesJuego {
   escala(id) { return ESCALA_CLASE[DISENOS[id].clase] || 1; }
   silueta(id) { return siluetaDiseno(id); }
   // ¿un punto del mundo está adentro de la nave? (para los tiros; reemplaza al triángulo de boltHitsShip)
-  golpea(n, punto, margen = 0.45) {
+  golpea(n, punto, margen = 0.35) {
     _inv.copy(n.quat).invert();
     _p.copy(punto).sub(n.pos).applyQuaternion(_inv);
     return golpea(siluetaDiseno(n.id), _p.x, _p.y, _p.z, margen);

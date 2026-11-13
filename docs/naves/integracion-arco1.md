@@ -57,7 +57,9 @@ Medir en el A34 con `?flota=40` y `?flota=60`, 10 minutos, con el medidor del ju
 - Tiros del jugador a enemigos: `naves.golpea(naveEnemiga, punto)` en vez del radio `def.hit`.
 - **Ojo, cambia la dificultad:** las siluetas reales son más grandes que el triángulo de hoy (11 m²). En planta: A 18,9 m², I4 19,1 m², R1 22,4 m², P1 51,4 m², P3 54,6 m². Hay que volarlo y ajustar con Santiago (distancias, vida, o un margen más chico).
 
-## Paso 5 — Escala del mundo, cámara y vuelo (esperar aprobación)
+## Paso 5 — Escala del mundo, cámara y vuelo
+
+> **Reemplazado el 13/11.** El planeta quedó en 21.900 m. Las velocidades, el fijado y los alcances se aprobaron con otros valores, que están en `src/vuelo/` y en `docs/decisiones.md`. Lo de abajo queda como historia.
 
 Propuestas de la especificación técnica, **sin aplicar hasta que Santiago las apruebe volando** con el mapa nuevo: `PLANET_R` 3650 → 4400, `TUNE.vmax` 130 → 150, zonas ×1,2, `LOCK_RANGE` 900 → 1050, alcances enemigos ×1,15, cámara 11,5 m × escala × 0,9 atrás y 5,2 m × escala × 0,9 arriba (Caza: 13,5 m y 6,1 m).
 
@@ -109,3 +111,39 @@ Lo que esto cambia para ustedes:
 - Las propuestas de cámara (11,5 m × escala × 0,9 atrás, 5,2 m × escala × 0,9 arriba) no dependen del planeta: ésas las puedo aplicar cuando Santiago las apruebe volando.
 
 Detalle en `docs/historia/proyeccion-mapa.md`, sección 2 bis.
+
+# Segunda tanda (13 de noviembre, rama `naves/prueba-rendimiento`)
+
+Ya está conectada en `main.js`. Esto es lo que se agregó a `NavesJuego` y qué hace el juego con cada cosa.
+
+## Estado por nave
+
+| Campo | Qué es | Quién lo carga |
+|---|---|---|
+| `n.dano` | 0 (entera) a 1 (a punto de caer). Desde 0,4 hay humo y placas quemadas; desde 0,75, fuego y superficies que flamean. | El jugador con su vida; los enemigos con `hp/hpMax`; los compañeros con su daño simulado |
+| `n.disparados` | Misiles colgados que ya salieron: esos no se dibujan. | Solo el jugador: lugares del diseño menos los misiles que le quedan |
+
+## Funciones nuevas
+
+- **`naves.romper(n, vel)`** parte la nave en cuerpo, alas y cola. Los pedazos siguen con su velocidad, caen hacia el centro del planeta y humean unos 5 segundos. Hay que llamarla antes de `quitar(n)`. Se usa en `killEnemy` y cuando derriban al jugador (no cuando choca contra el suelo).
+- **`naves.setCentro(v)`** dice dónde está el centro del planeta. En el juego es el (0, 0, 0).
+- **`naves.renderer = renderer`** hace falta para que el humo calcule bien su tamaño en pantalla.
+- **`naves.fogonazo(pos, tam)`** dibuja el destello del cañón. Lo usan los tiros enemigos.
+- **`naves.chispas(pos, n)`** dibuja las chispas de un tiro que pega en un compañero.
+- **`naves.puntos(id).misiles`** da dónde cuelga cada misil, en el orden en que salen. El misil del jugador sale de ahí.
+
+## Costo
+
+Todo se dibuja con muy pocas llamadas. El humo es una nube de puntos, el fuego otra y el brillo de motores otra; las tres son sumables. Los pedazos usan una malla por diseño y pedazo, y solo mientras hay pedazos en el aire. Cuando no pasa nada, no se dibuja nada de esto.
+
+## Compañeros
+
+Todavía no tienen vida. Simulan los golpes:
+- un tiro que les pega larga chispas y les deja humo y placas quemadas (hasta 0,7: nunca fuego ni caída), que se va de a poco;
+- un tiro que pasa a menos de 28 m los hace esquivar de costado.
+
+Cuando una misión necesite que puedan caer, conviene un dato en la misión (por ejemplo `aliadosConVida: true`) que use esa misma vía con vida de verdad.
+
+## Choques
+
+El margen de la silueta bajó de 0,45 a 0,35 m. Con 0,45, una bala que pasaba 1 m por debajo del caza pegaba (prueba 2).

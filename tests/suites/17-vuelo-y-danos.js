@@ -112,6 +112,39 @@ H.autostart = false;
   check('al caer se parte en sus piezas', r.pedazos >= 3, f(r));
   check('el caza lleva 4 misiles colgados y se van gastando', r.lugares === 4 && r.antes === 0 && r.despues === 1, f(r));
 
+  /* ---------- Compañeros: simulan los golpes y esquivan, pero no caen ---------- */
+  await page.evaluate(() => { const D = window.DeltaUno; D.startRun('historia', 'medio', D.MISIONES[0].id); });
+  await waitGrace(page);
+  r = await page.evaluate(async () => {
+    const D = window.DeltaUno, s = D.ship, wait = sec => new Promise(res => { const t0 = s.t, i = setInterval(() => { if (s.t - t0 >= sec) { clearInterval(i); res(); } }, 15); });
+    const a = D.allies[0], b = D.eBolts[0];
+    if (!a) return { sinAliados: true };
+    // diez tiros que le pegan de lleno
+    for (let k = 0; k < 10; k++) {
+      b.on = true; b.life = 1; b.dmg = 9; b.area = 0;
+      b.v.copy(a.fwd).multiplyScalar(-300); b.p.copy(a.pos).addScaledVector(a.fwd, 2); b.prev.copy(b.p);
+      await wait(.05);
+    }
+    const dano = a.danoSim, nueva = a.nueva && a.nueva.dano, sigue = a.mesh.visible && D.allies.includes(a);
+    // un tiro que pasa cerca: esquiva
+    const c = D.allies[1]; c.evade = 0;
+    b.on = true; b.life = 1; b.dmg = 9; b.p.copy(c.pos).addScaledVector(D.ship.pos.clone().normalize(), 15); b.prev.copy(b.p).addScaledVector(c.fwd, -5); b.v.copy(c.fwd).multiplyScalar(-300);
+    await wait(.05);
+    return { dano: +(dano || 0).toFixed(2), nueva: +(nueva || 0).toFixed(2), sigue, esquiva: c.evade > 0 };
+  });
+  check('un compañero alcanzado larga humo pero no cae', r.dano >= .4 && r.dano <= .7 && r.nueva > .3 && r.sigue, f(r));
+  check('un tiro que pasa cerca lo hace esquivar', r.esquiva === true, f(r));
+  r = await page.evaluate(async () => {
+    const D = window.DeltaUno, s = D.ship, b = D.eBolts[1], wait = sec => new Promise(res => { const t0 = s.t, i = setInterval(() => { if (s.t - t0 >= sec) { clearInterval(i); res(); } }, 15); });
+    D.setInv(0); D.allies.forEach(a => { a.mesh.visible = false; }); D.eBolts.forEach(x => { x.on = false; }); D.enemies.forEach(e => { e.cool = 99; });
+    const v0 = D.vit(), side = new s.pos.constructor(1, 0, 0).applyQuaternion(s.q);
+    b.on = true; b.life = 1; b.dmg = 16; b.area = 9; b.p.copy(s.pos).addScaledVector(side, 6); b.prev.copy(b.p); b.v.set(0, 0, 0);
+    await wait(.05);
+    const v1 = D.vit(); D.allies.forEach(a => { a.mesh.visible = true; });
+    return { antes: v0.shield + v0.hull, despues: v1.shield + v1.hull, sigue: b.on };
+  });
+  check('la pesada hace parte del daño aunque el tiro pase a unos metros', Math.abs(r.antes - r.despues - 16 * .4) < .5 && !r.sigue, f(r));
+
   /* ---------- Preparar la salida: la nave nueva, con su pintura ---------- */
   await page.evaluate(() => window.DeltaUno.openMenu()); await sleep(200);
   await page.evaluate(() => document.querySelector('.mode[data-mode="libre"]').click()); await sleep(100);

@@ -8,6 +8,7 @@ import { Flota } from '../../src/naves/flota.js';
 import { DISENOS, PINTURAS, BANDOS } from '../../src/naves/disenos.js';
 import { CANAL } from '../../src/naves/generador.js';
 import { crearMandos, actualizarMandos, MANIOBRAS } from '../../src/naves/mandos.js';
+import { Danos, flamear } from '../../src/naves/danos.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
@@ -52,6 +53,9 @@ const actitud = new T.Vector3(); // alabeo, cabeceo, guiñada que muestra la nav
 
 /* ---------- Naves nuevas ---------- */
 const flota = new Flota(scene, IDS, { max: 8, detalleTex: (() => { const t = naveTextura(T); t.wrapS = t.wrapT = T.RepeatWrapping; t.needsUpdate = true; return t; })() });
+// daño y destrucción: en el Hangar no hay planeta, así que los pedazos caen hacia abajo
+const danos = new Danos(scene, flota); danos.plano = true;
+const estado = { dano: 0, disparados: 0, rota: 0 };
 const medidas = {};
 for (const id of IDS) {
   const g = flota.dis[id].lods[0].mesh.geometry; g.computeBoundingBox();
@@ -167,6 +171,21 @@ function simulador() {
     b.addEventListener('click', () => { pararAuto(); mandos[k] = !mandos[k]; marcar(); });
     tg.appendChild(b);
   }
+  // armas y daño: para ver los misiles colgados, el humo, el fuego y cómo se parte
+  const lug = flota.dis[id] && flota.dis[id].puntos.misiles.length;
+  if (lug) {
+    const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Disparar misil'; b.dataset.extra = 'misil';
+    b.addEventListener('click', () => { estado.disparados = estado.disparados >= lug ? 0 : estado.disparados + 1; b.textContent = estado.disparados >= lug ? 'Recargar misiles' : 'Disparar misil'; });
+    tg.appendChild(b);
+  }
+  const bd = document.createElement('button'); bd.type = 'button'; bd.dataset.extra = 'dano';
+  const nivel = ['Sin daño', 'Dañada', 'Muy dañada'], val = [0, 0.55, 0.9];
+  bd.textContent = nivel[val.indexOf(estado.dano)] || nivel[0];
+  bd.addEventListener('click', () => { const k = (val.indexOf(estado.dano) + 1) % 3; estado.dano = val[k]; bd.textContent = nivel[k]; });
+  tg.appendChild(bd);
+  const br = document.createElement('button'); br.type = 'button'; br.textContent = 'Derribar'; br.dataset.extra = 'romper';
+  br.addEventListener('click', () => { if (estado.rota > 0) return; const n = naves[0]; if (n) { danos.romper(n, new T.Vector3(0, 0, -6)); estado.rota = 4; } });
+  tg.appendChild(br);
   const mr = $('maniobras'); mr.querySelectorAll('button').forEach(b => b.remove());
   const auto = document.createElement('button'); auto.type = 'button'; auto.textContent = 'Piloto automático'; auto.dataset.k = 'auto'; auto.dataset.v = 'true';
   auto.addEventListener('click', () => { state.auto = !state.auto; if (state.auto) { autoI = 0; empezar(listaManiobras()[0]); } else terminar(); marcar(); });
@@ -322,7 +341,15 @@ renderer.setAnimationLoop(now => {
         n.etq.style.left = ((_v.x + 1) / 2 * innerWidth) + 'px'; n.etq.style.top = ((1 - _v.y) / 2 * innerHeight + 8) + 'px';
       }
     }
-    flota.actualizar(naves, camera);
+    const enPiezas = $('tab-piezas').getAttribute('aria-selected') === 'true';
+    if (estado.rota > 0) estado.rota = Math.max(0, estado.rota - dt);
+    for (const n of naves) {
+      n.dano = enPiezas ? estado.dano : 0; n.disparados = enPiezas ? estado.disparados : 0;
+      n.visible = !(enPiezas && estado.rota > 0); if (n.grupo) n.grupo.visible = n.visible;
+      flamear(n, t);
+    }
+    flota.actualizar(naves.filter(n => n.visible !== false), camera);
+    danos.actualizar(dt, naves, camera, renderer);
     lectT += dt; if (lectT > 0.1) { lectT = 0; lecturas(); }
   } else {
     vieja.position.y = Math.sin(t * 1.3) * 0.06;
