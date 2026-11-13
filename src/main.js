@@ -2449,7 +2449,7 @@ function fireEnemyBolt(e,dP){
   }
   b.q.setFromUnitVectors(Z_AXIS,_eA);
   b.v.copy(_eA).multiplyScalar(speed);
-  b.life=1.7;b.dmg=e.def.dmg*(e.dmgK||1)*run.ventaja;b.on=true; // dmgK: munición de práctica en las misiones
+  b.life=1.7;b.dmg=e.def.dmg*(e.dmgK||1);b.on=true;b.dmg*=run.ventaja; // dmgK: munición de práctica; ventaja: la dificultad // dmgK: munición de práctica en las misiones
   if(dP+80>speed*1.7)b.life=(dP+80)/speed; // las torretas tiran más lejos
   sfxEnemyShot(b.p);
 }
@@ -3928,7 +3928,7 @@ function firmaStep(a,dt,ps){
     case 'ir':{ // se adelanta
       ahead();
       if(p.distanceTo(_aT)<16||m.t>12){m.step='mostrar';m.t=0;}
-      return ps+45;
+      return ps*1.3+20; // alcanza al jugador aunque vaya rápido
     }
     case 'mostrar':{ // adelante y a la vista
       ahead();

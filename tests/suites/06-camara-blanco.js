@@ -81,9 +81,20 @@ const view = page => page.evaluate(() => {
   await L.page.screenshot({ path: path.join(dir, 't-1-blanco.png') });
   await setRender(L.page, false);
 
+  // El Blanco solo elige lo que tenés adelante: pone otro enemigo delante de la trompa
+  const adelante = () => L.page.evaluate(() => {
+    const D = window.DeltaUno, s = D.ship, V = s.pos.constructor, cur = D.tgt();
+    const e = D.enemies.find(x => x.on && x !== cur && !x.def.ground) || D.enemies.find(x => x.on && x !== cur);
+    clearInterval(window.__ade); if (!e) return false;
+    window.__ade = setInterval(() => { if (!e.on) return; const fw = new V(0, 0, -1).applyQuaternion(s.q); e.pos.copy(s.pos).addScaledVector(fw, 400).addScaledVector(s.pos.clone().normalize(), 10); e.fwd.copy(fw); e.speed = s.speed; e.breakT = 9; }, 4);
+    return true;
+  });
+  const soltarAdelante = () => L.page.evaluate(() => clearInterval(window.__ade));
+
   /* cambiar */
   const before = await L.page.evaluate(() => window.DeltaUno.enemies.indexOf(window.DeltaUno.tgt()));
-  await tap();
+  await adelante(); await simWait(L.page, .05);
+  await tap(); await soltarAdelante();
   const after = await L.page.evaluate(() => window.DeltaUno.enemies.indexOf(window.DeltaUno.tgt()));
   check('tocar de nuevo pasa a otro enemigo', after >= 0 && after !== before, before + ' -> ' + after);
 
@@ -137,6 +148,7 @@ const view = page => page.evaluate(() => {
 
   /* solo marcar */
   await L.page.evaluate(() => { window.DeltaUno.settings.tgtCam = 'marca'; });
+  await adelante(); await simWait(L.page, .05);
   await tap();
   await simWait(L.page, 2);
   const vm = await view(L.page);
@@ -145,7 +157,9 @@ const view = page => page.evaluate(() => {
 
   /* teclado */
   await holdBtn();
+  await adelante(); await simWait(L.page, .05);
   await L.page.keyboard.down('KeyT'); await sleep(60); await L.page.keyboard.up('KeyT');
+  await soltarAdelante();
   check('la tecla T también elige', !!(await L.page.evaluate(() => window.DeltaUno.tgt())));
 
   /* al morir se suelta */

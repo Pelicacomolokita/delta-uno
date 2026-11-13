@@ -87,10 +87,14 @@ const { check, sleep, launch, open, center, setRender, st, f, simWait, waitGrace
     const u = s.pos.clone().normalize(), fw = new s.pos.constructor(0, 0, -1).applyQuaternion(s.q), rt = new s.pos.constructor(1, 0, 0).applyQuaternion(s.q);
     const g = D.makeGroup(D.roamZone, ['pesada'], s.pos.clone().addScaledVector(fw, -260).addScaledVector(rt, 120), u, 1, false);
     window.__e = g.leader; g.leader.speed = 0;
-    window.__hold = setInterval(() => { const e = window.__e; if (e && e.on) e.pos.copy(s.pos).addScaledVector(new s.pos.constructor(0, 0, -1).applyQuaternion(s.q), -260).addScaledVector(new s.pos.constructor(1, 0, 0).applyQuaternion(s.q), 120); }, 4);
+    // el Blanco solo elige lo que tenés adelante: se lo elige ahí y después se pasa atrás
+    window.__atras = -1;
+    window.__hold = setInterval(() => { const e = window.__e; if (e && e.on) e.pos.copy(s.pos).addScaledVector(new s.pos.constructor(0, 0, -1).applyQuaternion(s.q), window.__atras < 0 ? 260 : -260).addScaledVector(new s.pos.constructor(1, 0, 0).applyQuaternion(s.q), window.__atras < 0 ? 0 : 120); }, 4);
   });
+  await simWait(P, .1);
   const tb = await center(P, '#tgtBtn');
   await L.touch('touchStart', [[tb[0], tb[1], 0]]); await L.touch('touchEnd', []);
+  await P.evaluate(() => { window.__atras = 1; });
   await simWait(P, 2.5);
   r = await P.evaluate(() => { const D = window.DeltaUno, s = D.ship, fw = new s.pos.constructor(0, 0, -1).applyQuaternion(s.q); return { sel: !!D.tgt(), ang: Math.acos(Math.max(-1, Math.min(1, D.camFwd.dot(fw)))) * 57.3 }; });
   check('con un blanco atrás, la cámara gira como mucho 35° desde la trompa', r.sel && r.ang <= 36.5, f(r));

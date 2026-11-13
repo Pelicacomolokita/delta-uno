@@ -61,7 +61,7 @@ H.autostart = true;
     const D = window.DeltaUno, s = D.ship, V = s.pos.constructor; let best = null, bs = -1, seed = 77;
     const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
     for (let i = 0; i < 800; i++) { const z = rnd() * 2 - 1, t = rnd() * 6.283, r = Math.sqrt(1 - z * z), u = new V(Math.cos(t) * r, z, Math.sin(t) * r); const m = Math.min(...D.zones.map(q => Math.acos(u.dot(q.dir)))); if (m > bs) { bs = m; best = u; } }
-    s.pos.copy(best).multiplyScalar(D.PLANET_R + 950); s.throttle = .2; s.speed = 26; D.straighten();
+    s.pos.copy(best).multiplyScalar(D.PLANET_R + 950); s.throttle = D.TUNE.cruise; s.speed = D.TUNE.cruise * D.TUNE.vmax; D.straighten(); // a crucero: muy lento, la nave se hunde
   });
   const full = await L.page.evaluate(async () => {
     const D = window.DeltaUno, s = D.ship, t0 = s.t;

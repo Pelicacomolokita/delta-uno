@@ -98,6 +98,8 @@ H.autostart = false;
     if (s.step) steps.add(s.step);
     if (s.step === 'esquiva' && seenAt < 0) { seenAt = s.seen; await page.screenshot({ path: path.join(dir, 'h-firma.png') }); }
     if (s.done) break;
+    // a 130 m/s la nave cruza el sector en unos 25 s: de vez en cuando se la vuelve a apuntar al centro
+    if (i % 8 === 7 && await page.evaluate(() => { const D = window.DeltaUno; return D.ship.pos.clone().normalize().angleTo(D.mis.sector.dir) * D.PLANET_R > 900; })) await faceCenter();
     await simWait(page, .25);
   }
   await setRender(page, false);

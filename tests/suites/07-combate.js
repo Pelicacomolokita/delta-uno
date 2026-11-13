@@ -14,7 +14,7 @@ H.autostart = true;
 
   /* velocidad y recalentamiento */
   let a = await st(L.page);
-  check('velocidad inicial en crucero 50 %', Math.abs(a.thr - .5) < .001 && Math.abs(a.speed - 65) < 3, f({ thr: a.thr, speed: a.speed }));
+  check('velocidad inicial en crucero (la ficha del caza: 130 m/s)', Math.abs(a.thr - .65) < .001 && Math.abs(a.speed - 130) < 3, f({ thr: a.thr, speed: a.speed }));
   const zinfo = await L.page.evaluate(() => { const D = window.DeltaUno, u = D.ship.pos.clone().normalize(); return { n: D.zones.length, arcs: D.zones.map(z => Math.round(Math.acos(u.dot(z.dir)) * D.PLANET_R)), minSep: Math.min(...D.zones.flatMap((z, i) => D.zones.filter((_, j) => j > i).map(o => Math.acos(z.dir.dot(o.dir)) * D.PLANET_R))) }; });
   check('hay 6 zonas separadas, ninguna encima del inicio', zinfo.n === 6 && Math.min(...zinfo.arcs) > 800 && zinfo.minSep > 3000, JSON.stringify(zinfo));
 
