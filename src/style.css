@@ -330,7 +330,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--bolt);outl
 #brief .scrollHint{display:none}
 
 /* Intro de la productora: proporción intacta, con el fondo de la marca en los costados */
-#intro{position:fixed;inset:0;z-index:8;display:grid;place-items:center;background:#201e1b}
+#intro{position:absolute;inset:0;z-index:8;display:grid;place-items:center;background:#201e1b}
 /* absoluto, no grid: con place-items el alto en % no resuelve y el video se desborda */
 #introVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#201e1b}
 #introStart{min-height:48px;padding:0 26px;background:var(--paper);color:var(--void);border-radius:3px;font:700 15px/1 var(--font-label);letter-spacing:.06em;text-transform:uppercase}

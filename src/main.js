@@ -86,7 +86,7 @@ const ZONE_ORDER=['dispersa','normal','densa','dispersa','normal','densa'];
 
 const STORE='delta-uno-ajustes-v3';
 // v3: "lateral" cambió de significado, así que de los ajustes viejos se conserva todo menos eso
-const settings=Object.assign({mode:'asistido',invert:true,invertX:false,lateral:'dobla',sens:'media',sound:true,intro:true,flip:false,tgtCam:'camara',diff:'medio',lastMode:'conquista',touchUI:'auto',vibrate:true,stats:true,statsSeen:false,quality:'auto',shipModel:'actual',shipPaint:'actual',navesNuevas:false},(()=>{
+const settings=Object.assign({mode:'asistido',invert:true,invertX:false,lateral:'dobla',sens:'media',sound:true,intro:true,flip:false,tgtCam:'camara',diff:'medio',lastMode:'conquista',touchUI:'auto',vibrate:true,stats:true,statsSeen:false,quality:'auto',shipModel:'actual',shipPaint:'actual'},(()=>{
   try{
     const cur=localStorage.getItem(STORE);if(cur)return JSON.parse(cur)||{};
     const old=JSON.parse(localStorage.getItem('delta-uno-ajustes-v2'))||{};delete old.lateral;return old;
@@ -636,23 +636,17 @@ function shipMat(fog){
   return GQ.ship==='lisa'?new T.MeshLambertMaterial({vertexColors:true,fog,emissive:0x15151c,side:T.DoubleSide}):naveMaterial(T,{fog});
 }
 /* ---------- Naves nuevas por piezas (src/naves/) ----------
-   Se prenden con el ajuste navesNuevas. Mientras están apagadas, el juego usa las mallas de siempre.
+   Reemplazan a las mallas viejas del jugador, los compañeros y los enemigos caza, interceptor y pesada.
+   Los drones, las torretas, los lanzamisiles y la nodriza siguen con las mallas de antes.
    main.js solo copia posición, rotación y mandos; todo lo demás vive en src/naves/. */
 let naves=null,navePropia=null;
-const navesActivas=()=>!!(settings.navesNuevas&&naves);
+const navesActivas=()=>!!naves;
 function navesIniciar(){
-  if(!settings.navesNuevas){navesSoltar();return;}
   if(naves)return;
   naves=new NavesJuego(scene,{detalleTex:GQ.name==='baja'?null:naveTextura(T)});
   navePropia=naves.agregar({id:NAVE_PROPIA,propia:true,pintura:'guardia'});
   if(shipMesh)shipMesh.visible=false;
   acomodarPuntosNave();
-}
-function navesSoltar(){
-  if(!naves)return;
-  naves.setVisible(false);naves.limpiar();naves=null;navePropia=null;
-  if(shipMesh)shipMesh.visible=true;
-  buildPlayerShip();   // vuelve a dejar llamas y bocas donde las quiere la malla de siempre
 }
 // Las llamas, las bocas de los cañones y las luces salen del diseño nuevo, no de NAVES[modelo]
 function acomodarPuntosNave(){
@@ -1362,7 +1356,7 @@ function applySound(){sfx.apply();}
 /* ---------- Pantalla: siempre en horizontal, aunque el teléfono tenga bloqueada la rotación ---------- */
 let rot=0,gw=1,gh=1,viewW=1,viewH=1;
 const coarse=!!(window.matchMedia&&matchMedia('(pointer:coarse)').matches);
-let cueDone=false,introOn=false;
+let cueDone=false;
 function hideCue(){$('#turnCue').hidden=true;}
 function dismissCue(){cueDone=true;hideCue();}
 function layout(){
@@ -1377,7 +1371,7 @@ function layout(){
   renderer.setSize(gw,gh,false);
   camera.aspect=gw/gh;camera.updateProjectionMatrix();
   $('#flipBtn').hidden=!rot;
-  if(!rot||introOn)hideCue();else if(!cueDone)$('#turnCue').hidden=false;
+  if(!rot)hideCue();else if(!cueDone)$('#turnCue').hidden=false;
   if(rot!==prevRot)releaseAll();
 }
 function toGame(cx,cy){
@@ -1856,7 +1850,6 @@ document.querySelectorAll('.seg').forEach(seg=>{
     if(k==='stats'&&!v)stats.optOut();
     if(k==='quality')applyQuality();
     if(k==='shipModel'||k==='shipPaint'){buildPlayerShip();restyleAllies();prepSummary();}
-    if(k==='navesNuevas'){if(settings.navesNuevas)navesIniciar();else navesSoltar();}
     if(!menuEl.hidden)syncMenu();
   });
 });
@@ -4377,7 +4370,7 @@ function boot(data){
   });
   // La intro de la productora va antes del menú, una sola vez por sesión
   if(window.__sinIntro||settings.intro===false)openMenu();
-  else{introOn=true;layout();runIntro({root:document,sound:settings.sound!==false,unlock,done:info=>{introOn=false;layout();stats.track('intro',info);openMenu();}});}
+  else runIntro({root:document,sound:settings.sound!==false,unlock,done:info=>{stats.track('intro',info);openMenu();}});
   // Primer dato de uso: con qué equipo se juega y de dónde vino el jugador
   const ini={calidad:GQ.name,calidad_elegida:settings.quality,primera_vez:stats.firstTime,gpu:gpuName(),dpr:window.devicePixelRatio||1,memoria_gb:navigator.deviceMemory,nucleos:navigator.hardwareConcurrency,idioma:navigator.language,carga_ms:Math.round(buildMs),resolucion:pr};
   try{ini.$referrer=document.referrer||'$direct';ini.$referring_domain=document.referrer?new URL(document.referrer).hostname:'$direct';}catch(e){}
