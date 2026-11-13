@@ -55,6 +55,7 @@ const COLOR = [
   t => [1.0, 0.85, 0.5, 1 - t]
 ];
 const CRECE = [2.6, 3.2, 1.2, 0.2];
+const COLOR_MOTOR = { guardia: [0.5, 0.95, 0.9], directorio: [1, 0.62, 0.3], desligados: [0.9, 0.5, 1] };
 
 function emitir(N, tipo, x, y, z, vx, vy, vz, tam, dur) {
   const i = N.prox; N.prox = (N.prox + 1) % N.n;
@@ -109,7 +110,8 @@ export class Danos {
   constructor(scene, flota) {
     this.scene = scene; this.flota = flota;
     this.humo = nube(700, false); this.fuego = nube(500, true);
-    scene.add(this.humo.p); scene.add(this.fuego.p);
+    this.llamas = nube(400, true); // brillo de los motores de las otras naves (la propia tiene las suyas en el juego)
+    scene.add(this.humo.p); scene.add(this.fuego.p); scene.add(this.llamas.p);
     this.pedazos = [];     // { malla, i, pos, quat, vel, giro, vida, humo }
     this.mallas = {};      // id → [{ mesh, centro }]
     this.t = 0;
@@ -240,9 +242,32 @@ export class Danos {
     this.abajo(camera ? camera.position : this._v.set(0, 0, 0), this._u);
     arr[0] = -this._u.x; arr[1] = -this._u.y; arr[2] = -this._u.z;
     pasoNube(this.humo, dt, arr); pasoNube(this.fuego, dt, arr);
+    if (camera) this.llamas.m.uniforms.uEscala.value = this.humo.m.uniforms.uEscala.value;
+    this.motores(naves);
+  }
+  // Un punto de luz por tobera, más grande y más blanco con el empuje y el turbo. Se rearma en cada cuadro.
+  motores(naves) {
+    const N = this.llamas, P = N.g.attributes.position.array, C = N.g.attributes.aCol.array, S = N.g.attributes.aTam.array;
+    let k = 0;
+    for (const n of naves) {
+      if (n.propia || !n.visible || (n.lod !== undefined && n.lod >= 3)) continue;
+      const D = this.flota.dis[n.id]; if (!D) continue;
+      const m = n.mandos || {}, emp = Math.max(0, Math.min(1, m.empuje ?? 0.6)), tb = m.turbo ? 1 : 0;
+      const col = COLOR_MOTOR[n.bando || D.dis.bando] || COLOR_MOTOR.guardia, tam = (0.9 + emp * 1.1 + tb * 0.9) * (D.dis.escala || 1);
+      for (const e of D.puntos.motores) {
+        if (k >= N.n) break;
+        this._v.set(e[0], e[1], e[2] + 0.15).applyQuaternion(n.quat).add(n.pos);
+        P[k * 3] = this._v.x; P[k * 3 + 1] = this._v.y; P[k * 3 + 2] = this._v.z;
+        const w = 0.35 * tb;
+        C[k * 4] = col[0] + (1 - col[0]) * w; C[k * 4 + 1] = col[1] + (1 - col[1]) * w; C[k * 4 + 2] = col[2] + (1 - col[2]) * w; C[k * 4 + 3] = 0.55 + 0.35 * emp;
+        S[k] = tam; k++;
+      }
+    }
+    N.g.setDrawRange(0, k); N.p.visible = k > 0;
+    if (k) for (const a of ['position', 'aCol', 'aTam']) N.g.attributes[a].needsUpdate = true;
   }
   // cuántas cosas hay vivas (para pruebas e informe)
-  resumen() { return { pedazos: this.pedazos.length, humo: this.humo.vivas, fuego: this.fuego.vivas }; }
+  resumen() { return { pedazos: this.pedazos.length, humo: this.humo.vivas, fuego: this.fuego.vivas, motores: this.llamas.g.drawRange.count }; }
 }
 
 // Superficies sueltas: con la nave muy dañada, los alerones y el timón flamean solos.

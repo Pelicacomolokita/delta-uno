@@ -241,10 +241,65 @@ Al principio pilota un caza básico. Más adelante habrá más naves para elegir
 - En Historia se entra por "Ver la misión". En los otros modos, por el botón "Nave y equipo" del menú; "Despegar" sigue saliendo directo.
 - Todo sale de `src/hangar/catalogo.js`. Hoy hay una sola nave disponible (Caza), un arma por ranura y dos pinturas. Las otras clases se ven, con la misión que las desbloquea, pero no se pueden elegir.
 - Las naves y las pinturas se desarrollan en otro chat (`docs/naves/prompt-naves.md`). Tienen que ser modificables: piezas y zonas de pintura separadas.
-- En Diseño queda "Carrocería de prueba" con los cuatro bocetos, hasta que esté el modelo definitivo.
+- En Diseño quedaban los cuatro bocetos como "Carrocería de prueba". Desde el 13/11 están las pinturas del escuadrón y las carrocerías del caza (ver más abajo).
 
 ### Lo que falta programar para la campaña
 
 Aliados que combaten y pueden caer, bombarderos, el convoy, derribos guionados (el líder alcanzado por un misil), la retirada de un enemigo por un punto de salida, y más tipos de sector.
 
 La historia la escribe otra IA con `docs/prompt-historia.md`. Su primer reporte está en `docs/historia/reporte-01.md`.
+
+## Vuelo, fijado, dificultad y daño (decidido por Santiago, 13/11)
+
+El código está en `src/vuelo/`, fuera de `main.js`. Las naves están en `src/naves/`.
+
+- **Cada clase vuela distinto.** Las fichas están en `src/vuelo/ficha.js` y se aplican al empezar la partida según la clase elegida. Para el planeta grande las naves son más rápidas y recalientan mucho más lento:
+
+  | Clase | Vel. máx. | Crucero | Recalienta | Enfría | Cabeceo | Rotación | Casco |
+  |---|---|---|---|---|---|---|---|
+  | Caza | 200 m/s | 130 m/s | 22 s | 5 s | 125°/s | 170°/s | 100 |
+  | Interceptor | 235 m/s | 155 m/s | 16 s | 4 s | 115°/s | 205°/s | 75 |
+  | Ataque | 170 m/s | 115 m/s | 30 s | 6 s | 85°/s | 110°/s | 160 |
+  | Infiltración | 195 m/s | 120 m/s | 26 s | 5 s | 110°/s | 160°/s | 85 |
+
+- **Cabeceo más vivo que la rotación.** Con el teléfono horizontal se ve poco arriba y abajo, así que subir y bajar la trompa tiene que responder rápido. El cabeceo tiene su propia inercia, más seca que la de la rotación. Gira más a velocidad media que muy lento o a fondo.
+- **El resto acompaña la velocidad nueva:**
+  - enemigos un 50 % más rápidos y con alcances un 15 % mayores;
+  - tus balas a 600 m/s y tu misil a 450 m/s;
+  - las balas enemigas a 380 m/s;
+  - el misil enemigo a 160 m/s, siempre más lento que cualquier nave a fondo;
+  - el fijado del misil llega a 1.300 m.
+- **Gravedad regulada.**
+  - Hasta 600 m sobre el mar es normal.
+  - De 600 a 1.300 m va creciendo: frena al subir y baja la trompa.
+  - Arriba de 1.300 m está el techo de antes.
+  - Con menos de un tercio de la velocidad máxima las alas no sostienen y la nave se hunde (frenar en seco).
+  - El aviso dice "Gravedad alta". Queda para el guía de la historia contar por qué el planeta tiene un regulador.
+- **Fijado (botón Blanco y misil):**
+  - solo lo que tenés adelante, unos 20° para el Blanco;
+  - solo lo que se ve: ni montañas ni la curva del planeta en el medio;
+  - solo los enemigos de tu sector o los que te atacan;
+  - a menos de 250 m también los que están a los costados, nunca los de atrás.
+- **Dificultad por stats.** Cada tipo de enemigo tiene su puntería y su daño:
+  - el interceptor es el más certero;
+  - la pesada pega fuerte pero falla;
+  - la torreta es precisa.
+
+  Cada nivel les da ventaja o desventaja:
+
+  | Nivel | Vida, daño y puntería de los enemigos | Extra |
+  |---|---|---|
+  | Fácil | −30 % | |
+  | Medio | parejo | |
+  | Difícil | +30 % | |
+  | Extremo | +50 % | 2 misiles, 1 reparación y sin ayudas para apuntar |
+
+  La Historia también tiene selector de dificultad.
+- **Daño visible:**
+  - con la vida bajo el 60 %: humo gris y placas quemadas;
+  - bajo el 25 %: fuego, humo negro y superficies que flamean sueltas;
+  - al caer, la nave se parte en sus piezas, que caen girando y humeando.
+- **Armas visibles.** El caza lleva sus 4 misiles colgados de las alas. Cada misil sale de su lugar y desaparece del ala; cuando recarga, vuelve a aparecer. Las otras naves muestran el brillo de sus motores. Esto es la base del selector de armas.
+- **Preparar la salida:**
+  - la pestaña Nave muestra la nave de verdad girando, con barras que salen de su ficha;
+  - en Diseño se elige entre las pinturas del escuadrón (Guardia y Guardia nocturna) y entre las cuatro carrocerías del caza (B, C y D bloqueadas hasta que lleguen sus escuadrones).

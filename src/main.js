@@ -765,7 +765,8 @@ function stepFlight(dt){
 
   let wx=py*TUNE.pitch*k*factorCabeceo(s.speed,TUNE.vmax),wy=0,wz=0,headingInput=0;
   if(thin>0&&fu>-.25)wx-=thin*1.7;
-  if(fu>-.5)wx-=grav*.25+(1-sust)*.7*horiz; // la trompa se va hacia abajo
+  if(fu>0)wx-=grav*.4*Math.min(1,fu*4); // subiendo con gravedad, la trompa se va hacia abajo (volando nivelado no molesta)
+  if(fu>-.5)wx-=(1-sust)*.7*horiz;          // sin velocidad, las alas no sostienen y la trompa cae
   if(assisted){
     headingInput=-turnIn*TUNE.yaw*k*horiz;
     if(Math.abs(rollIn)>.02){wz=rollIn*TUNE.roll*k;}

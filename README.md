@@ -95,7 +95,10 @@ src/historia/               las misiones como datos (textos, partes, eventos de 
 src/nave.js                 los diseños de la nave (Actual, Guardia, Interceptor, Blindado) y su textura de paneles
 src/hangar/catalogo.js       clases de nave, armas y pinturas que muestra la pantalla Preparar la salida
 src/texturas.js              carga las fotos del mundo (ambientCG, CC0)
-src/naves/                  naves nuevas por piezas: generador (malla y niveles de detalle), diseños, flota instanciada
+src/naves/                  naves nuevas por piezas: generador (malla y niveles de detalle), diseños, flota instanciada,
+                            daño y destrucción (danos.js) y la vitrina de Preparar la salida (vitrina.js)
+src/vuelo/                  fuera de main.js: fichas de vuelo por clase y gravedad (ficha.js), fijado (fijado.js),
+                            enemigos y dificultad (dificultad.js)
 src/intro.js                 la intro de la productora (el video está en src/intro/)
 src/efectos.js              fuego, humo, restos, onda expansiva y escudo
 src/sonido.js               todos los sonidos, sintetizados en el momento (motor, cañón, explosiones, radio)
