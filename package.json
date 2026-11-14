@@ -1,6 +1,6 @@
 {
   "name": "delta-uno",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "private": true,
   "description": "Juego de naves en 3D para teléfono, sobre un planeta esférico.",
   "scripts": {

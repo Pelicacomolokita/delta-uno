@@ -27,7 +27,15 @@ En Brasil, Indonesia, Singapur y Tailandia, Android puede no dejar instalarla to
 - Intro de Cebado Producciones al abrir el juego (se puede saltar, y apagar en Ajustes).
 - Pantalla para preparar la salida: misión, nave, equipo y diseño antes de despegar.
 - Modo Historia: misión 1 (entrenamiento), con radio y compañeros de escuadrón.
-- Gráficos: calidad Automática, Baja, Media o Alta; explosiones con fuego, humo y restos; escudo que se ilumina donde pega el tiro; cuatro diseños de nave para probar.
+- Naves nuevas armadas por piezas, con alerones, timón, frenos y toberas que se mueven como en un avión. Los misiles cuelgan de las alas y se van gastando.
+- Cada clase de nave vuela distinto, más rápido que antes y con un motor que tarda más en recalentar. Subir y bajar la trompa responde rápido.
+- Gravedad regulada: arriba de 600 m se siente cada vez más, y si vas muy lento te hundís.
+- Fijado más justo: el botón Blanco y el misil solo marcan enemigos que tenés adelante, a la vista y de tu zona.
+- Daño a la vista: con poca vida las naves humean, se prenden fuego y les flamean los alerones; al caer se parten en pedazos.
+- Dificultad por stats: cada enemigo apunta y pega distinto, y cada nivel los hace más flojos o más fuertes. La Historia también tiene dificultad.
+- Los compañeros de escuadrón esquivan los tiros y muestran los golpes.
+- Al preparar la salida se ve la nave de verdad girando, con su pintura del escuadrón.
+- Gráficos: calidad Automática, Baja, Media o Alta; explosiones con fuego, humo y restos; escudo que se ilumina donde pega el tiro.
 - Sonido nuevo: motor, viento, cañón, explosiones que suenan según dónde pasan y radio con estática.
 
 ## Tu opinión

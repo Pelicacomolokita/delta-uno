@@ -128,7 +128,7 @@ H.autostart = true;
   await simWait(L.page, 6);
   const d1 = await L.page.evaluate(() => { clearInterval(window.__mdI); const D = window.DeltaUno, g = window.__chase; return { st: D.groups.map(g => g.state), chase: g ? g.state : 'sin escuadrón', d: window.__minD, v: D.vit(), n: D.enemies.length, dead: D.flags().dead }; });
   check('al entrar, algo de la zona te ve y te ataca', d0.seenBy.length > 0, f({ vistoPor: d0.seenBy }));
-  check('un escuadrón que te ataca se te acerca', d1.chase === 'attack' && d1.d < d0.d - 30, f({ d0: d0.d, minimaEnElAtaque: d1.d, estado: d1.chase }));
+  check('un escuadrón que te ataca se te acerca', d1.chase === 'attack' && (d1.d < d0.d - 30 || d1.d < 25), f({ d0: d0.d, minimaEnElAtaque: d1.d, estado: d1.chase })); // si ya arrancó encima, alcanza con que pase a menos de 25 m
   await L.page.evaluate(() => { const D = window.DeltaUno; D.groups.filter(g => g.zone === D.zones[0]).forEach(g => { g.alert = true; g.lostT = 0; }); });
   // la puntería tiene error al azar: se espera hasta 20 segundos a que algún tiro pegue
   await L.page.waitForFunction(() => { const v = window.DeltaUno.vit(); return v.shield < 100 || v.hull < 100 || window.DeltaUno.flags().dead > 0; }, null, { timeout: 60000, polling: 200 }).catch(() => {});
