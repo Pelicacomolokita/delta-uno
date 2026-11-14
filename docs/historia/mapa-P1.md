@@ -14,10 +14,10 @@ Commit: ver el pie. Rama: `main`.
 | Regiones sembradas | 7, con clima y relieve propios |
 | Hitos construidos | **37 de 37**, con los IDs del plano |
 | Piezas | 189 cajas, **una sola llamada de dibujo** |
-| Conexiones trazadas | 39 (0,92 a 7,59 km; mediana 2,35 km) |
+| Conexiones trazadas | 39 (0,84 a 7,5 km; mediana 2,45 km) |
 | Itinerarios cargados | 30 misiones, con su ruta y duración objetivo |
 
-Los lugares salen de `src/mundo/lugares.js`, generado por `scripts/plano.mjs` desde `docs/historia/plano-maestro.json`. **No se edita a mano.** La conversión al marco del motor es exacta: el Sol del plano cae sobre el Sol del motor con error cero y el peor desvío de distancia contra el plano, sobre las 39 conexiones, es de **3 m**.
+Los lugares salen de `src/mundo/lugares.js`, generado por `scripts/plano.mjs` desde `docs/historia/plano-maestro.json`. **No se edita a mano.** La conversión al marco del motor es exacta: el polo del plano cae sobre el polo del motor (1,0000 / 0,0000 / 0,0000) y el peor desvío de distancia contra el plano, sobre las 39 conexiones, es de **5 m**.
 
 ### Cómo se lee cada lugar desde el aire
 
@@ -48,49 +48,62 @@ En **Vuelo libre**, el menú ahora tiene "Desde dónde salís": cualquiera de lo
 
 ## 2. Cambios respecto del plano, y por qué
 
-**Diecinueve de los 37 hitos se corrieron de lugar.** El plano propone dónde va cada cosa; el relieve decide dónde se puede construir. Catorce caían en laderas donde el suelo cambia más de 25 m cada 60 m —hasta **172 m** en el caso de la arena de las tres nodrizas—, y ahí los edificios quedan flotando o enterrados.
+**Doce de los 37 hitos se corrieron de lugar.** El plano propone dónde va cada cosa; el relieve decide dónde se puede construir. Varios caían en laderas donde el suelo cambia más de 25 m cada 60 m, y ahí los edificios quedan flotando o enterrados.
 
 Cada hito busca el terreno más parejo hasta 420 m alrededor, con una penalización por moverse: si el lugar del plano ya es plano, no se mueve nada.
 
-| | Antes | Después |
+| | Sin asentar | Asentados |
 |---|---:|---:|
-| Hitos en terreno empinado (>25 m cada 60 m) | 14 | **4** |
-| Peor desnivel | 172 m | **55 m** |
+| Hitos en terreno empinado (>25 m cada 60 m) | 14 | **2** |
+| Peor desnivel | 172 m | **62 m** |
 | Corrimiento máximo | — | 420 m |
 
-Los que se movieron: CO04 84 m · CU01 84 m · AG01 168 m · AG02 84 m · AG03 168 m · AG05 84 m · SA01 84 m · SA02 84 m · SA05 84 m · DE04 336 m · DE05 420 m · DE06 168 m · DE07 84 m · CN01 84 m · CN02 336 m · CN03 336 m · CN04 252 m · CN05 420 m · CN06 252 m.
+Los que se movieron: AG02 252 m · AG03 84 m · AG05 84 m · SA01 84 m · SA05 168 m · DE07 168 m · CN01 84 m · CN02 336 m · CN03 252 m · CN04 252 m · CN05 420 m · CN06 168 m.
 
-**Esto no deforma el plano.** Las conexiones miden entre 0,92 y 7,59 km; corrimientos de 84 a 420 m las cambian en centímetros de mapa. Las distancias totales de los itinerarios se movieron menos del 2 %.
+Los dos que siguen empinados (CN03 y CN06) están en la montaña de Corona Negra y se resuelven con la falda de cada caja.
 
-Además, cada caja se apoya en su propio terreno y se alarga hacia abajo lo que haga falta: en una ladera ninguna queda colgada del aire. Los cuatro que siguen empinados (DE04, DE06, CN04, CN06) están en montaña de verdad y se resuelven así.
+**Esto no deforma el plano.** Las conexiones miden entre 0,84 y 7,5 km; corrimientos de 84 a 420 m las cambian en centímetros de mapa. Las distancias totales de los itinerarios se movieron menos del 2 %.
+
+Además, cada caja se apoya en su propio terreno y se alarga hacia abajo lo que haga falta: en una ladera ninguna queda colgada del aire.
 
 ---
 
-## 3. Lo que hay que decidir
+## 3. El día del planeta
 
-### El Sol fijo deja tres regiones en noche permanente
+El Sol gira alrededor del eje del planeta y da una vuelta entera cada **40 minutos**. Todo lo que ya existía reacciona solo —el cielo, las estrellas, la Vía Láctea, la niebla, la luz del hemisferio y el shader del terreno leen el mismo vector—, así que girarlo no cuesta un cuadro.
 
-El motor tiene un solo Sol, quieto. Con la rotación que elegimos para encajar el plano, la altura del Sol sobre el horizonte queda así:
+| Región | Horas de luz | Sol más alto |
+|---|---:|---:|
+| Costa Clara | 12 h | 90° |
+| Cuenca Verde | 12 h | 82° |
+| Las Agujas | 12 h | 82° |
+| Mar de las Columnas | 12 h | 74° |
+| Salinas del Sur | 12 h | 80° |
+| Paso del Deshielo | 12 h | 72° |
+| Corona Negra | 12 h | 87° |
 
-| Región | Sol | |
-|---|---:|---|
-| Costa Clara | 28,8° | día |
-| Cuenca Verde | 18,1° | día |
-| Mar de las Columnas | 10,1° | sol bajo |
-| Las Agujas | 2,6° | atardecer permanente |
-| Paso del Deshielo | −12,4° | **noche** |
-| Salinas del Sur | −12,9° | **noche** |
-| Corona Negra | −34,0° | **noche** |
+**Quién manda la hora:**
+- **La Historia la fija y la congela.** La luz es parte de cómo se cuenta cada misión. La ficha puede pedirla por nombre (`hora: 'amanecer'`, `'mañana'`, `'mediodia'`, `'tarde'`, `'atardecer'`, `'noche'`, `'cerrada'`) y se resuelve sobre el centro del sector de esa misión, así que "amanecer" es el amanecer de ahí. También acepta el número crudo del día (0 a 1). Sin nada, luz de día.
+- **Los modos libres la dejan correr.** El día pasa mientras volás.
+- **El selector de salida de Vuelo libre la acomoda**: si vas a mirar Corona Negra, te pone la hora en que ahí hay sol (32° en los siete que probé).
 
-Esto es una medición, no un juicio. Puede ser exactamente lo que querés: la campaña 1 entera transcurre con luz, la 2 y la 3 se van a la oscuridad, y eso es un arco visual que no habría que fabricar. Corona Negra a oscuras le queda bien al nombre, y el corredor nocturno del Deshielo (DE02) ya pide noche.
+### Por qué se rehízo la conversión
 
-Pero Salinas del Sur es un desierto de sal, y nunca ver el sol ahí puede no ser lo buscado. Tres caminos:
+La primera versión de `scripts/plano.mjs` conservaba la **dirección del Sol** y repartía el resto con un giro de 328°, elegido para que Costa Clara no se moviera de donde ya estaba. Con el Sol girando eso es el invariante equivocado: el Sol dejó de ser un punto fijo del mundo y el **eje** sí lo es.
 
-1. **Dejarlo.** Medio planeta de día, medio de noche, y la campaña avanza hacia la oscuridad.
-2. **Girar el Sol** para que Salinas y Deshielo tengan luz. Cuesta: Costa Clara pierde la suya; es un intercambio, no una mejora.
-3. **Un Sol por misión.** Cada misión fija su propia dirección de luz. Es un uniforme del shader, así que es barato, y deja contar la historia con la luz que cada operación necesita sin tocar el mapa.
+Esa elección le tiraba la franja tropical del plano encima del polo del motor y dejaba a Salinas del Sur, el Paso del Deshielo y Corona Negra con **cero horas de luz** — noche polar permanente, medida. Las siete regiones del plano están entre latitud −15,7° y +18,3°: ninguna es polar, el polo lo inventaba la conversión.
 
-Yo iría por la 3, pero la decisión es de la historia, no mía. Decime.
+Ahora el polo del plano va al +X del motor y el giro sobrante alrededor de ese eje queda en 0, porque solo corre el reloj. La dirección del Sol a la hora 0 la exporta el script (`SOL_HORA0`) elegida para que Costa Clara arranque con el Sol a 35°, como venía siendo, y queda sobre el ecuador (x = 0), que es lo que hace que el día dure 12 h en todas las regiones.
+
+**El costo:** el eje de temperatura del terreno sale de |x|, así que ahora las siete regiones caen en la franja cálida (|x| entre 0,00 y 0,31). El hielo del Deshielo y el desierto de Salinas se sostienen porque el clima de cada región es **absoluto**, no un delta sobre la latitud. Verificado: DE sigue saliendo hielo en 6 de sus 8 hitos y SA desierto en los 5. Lo que cambia es que el terreno **entre** regiones es cálido, así que la transición hielo→tibio pasa en el borde de la región y no a lo largo de un hemisferio.
+
+---
+
+## 4. Lo que hay que decidir
+
+### (resuelto) El Sol fijo dejaba tres regiones en noche permanente
+
+Resuelto girando el Sol y rehaciendo la conversión: ver la sección 3. Queda anotado porque explica por qué los hitos se movieron respecto de la primera versión de `lugares.js`.
 
 ### Lo que todavía no existe
 
@@ -104,7 +117,7 @@ Siguiendo el criterio de registro del encargo (§9), al día de hoy:
 
 ---
 
-## 4. Cómo verlo
+## 5. Cómo verlo
 
 1. Menú → **Vuelo libre** → "Desde dónde salís" → elegí un hito → Despegar.
 2. `window.DeltaUno.hitos().debug()` en la consola da el recuento y los corrimientos.

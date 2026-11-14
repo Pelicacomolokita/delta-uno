@@ -90,10 +90,17 @@ Esto es lo que más me preocupa después de lo de la interfaz, porque son suposi
 | Decisión | Quién | Bloquea |
 |---|---|---|
 | ¿Las clases de nave vuelan distinto? | Santiago | Toda la pantalla de preparación y la progresión de la campaña 2 |
-| Dificultad con las siluetas nuevas (casi el doble de grandes) | Santiago, volando | El equilibrio del combate |
 | Blancos civiles: ¿se pueden dañar? | Santiago | La capa civil |
-| Valor final de `PLANET_R` | Santiago, volando | El chat de naves, que dimensiona cámara y alcances |
 | Fichas de las misiones 2 y 3 | El chat de historia | Todo el contenido nuevo |
+
+**Cerradas el 14 de noviembre:**
+
+| Decisión | Resuelta |
+|---|---|
+| Velocidades nuevas (vmax 200, crucero 130) | **Aprobadas por Santiago.** El paso 5 de la integración de naves queda firme y el chat de naves puede dimensionar cámara y alcances. |
+| Valor final de `PLANET_R` | **21.900 m**, el del plano maestro. |
+| Dificultad con las siluetas nuevas | La silueta nueva queda. La frontera de impacto está medida (1,035 m arriba y abajo, 2,985 m de costado) y la prueba 02 ahora la cuida de los dos lados. Si hace falta más separación entre dificultades, la palanca elegida es la puntería enemiga (`apuntar()`), no el hitbox. |
+| El Sol y la noche permanente | **Resuelto:** el Sol gira (un día cada 40 min) y la conversión del plano se rehízo alineando polos. Las siete regiones tienen 12 h de luz. Ver `docs/historia/mapa-P1.md`. |
 
 ---
 

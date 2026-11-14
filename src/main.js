@@ -14,7 +14,7 @@ import { cargarTexturas, afinar } from './texturas.js';
 import { TUNE, SENS, aplicarFicha, FICHAS, factorCabeceo, COMBATE, GRAVEDAD, sustentacion } from './vuelo/ficha.js';
 import { ENEMY_DEF, AIM, DIFF, NOTA_HISTORIA } from './vuelo/dificultad.js';
 import { FIJADO, pasoFijado, mejorBlanco, siguienteBlanco, blancoPerdido, candidatosBlanco } from './vuelo/fijado.js';
-import { REGIONES_PLANO, LUGARES, CONEXIONES, ITINERARIOS } from './mundo/lugares.js';
+import { REGIONES_PLANO, LUGARES, CONEXIONES, ITINERARIOS, SOL_HORA0 } from './mundo/lugares.js';
 import { crearHitos } from './mundo/hitos.js';
 import { CLASES, STAT_NOMBRE, ARMAS, RANURA_NOMBRE, PINTURAS, CARROCERIAS, EQUIPO_INICIAL } from './hangar/catalogo.js';
 import { Vitrina } from './naves/vitrina.js';
@@ -277,13 +277,55 @@ const scene=new T.Scene();
 scene.fog=new T.Fog(0xb3c9e0,500,4200);
 const camera=new T.PerspectiveCamera(58,2,1,14000);
 const PRUEBA_FLOTA=leerPruebaFlota();let pruebaFlota=null; // ?flota=40: naves decorativas para medir rendimiento
-const SUN=new V3(.55,.45,-.7).normalize();
+/* ---------- El Sol, y la hora del planeta ----------
+   El Sol gira alrededor del eje del planeta (los polos son ±X), así que cada meridiano pasa por su mañana,
+   su mediodía y su noche. Con el Sol quieto, el plano maestro dejaba tres de las siete regiones en noche
+   permanente; girando, la hora es un dato de la misión y no una consecuencia de dónde cayó la región.
+   Todo lo que ya existía reacciona solo: el cielo, las estrellas, la Vía Láctea, la niebla, la luz del hemisferio
+   y el shader del terreno leen este mismo vector, así que girarlo no cuesta un cuadro más.
+   SUN_BASE queda fija: la generación del mundo (dónde van las zonas y el sector de inicio) la usa para elegir
+   laderas al sol, y eso tiene que dar lo mismo siempre, no depender de la hora en que se armó la partida. */
+const SUN_BASE=new V3(...SOL_HORA0).normalize();  // lo da el plano: el Sol de la hora 0, sobre el ecuador
+const SUN=SUN_BASE.clone();
 const MOON=new V3(-.62,.2,.76).normalize(); // casi opuesta al sol: se ve llena e ilumina el lado de noche
+const EJE=new V3(1,0,0);           // los polos del planeta: la temperatura del terreno sale de |x|
+const DIA_S=2400;                  // un día entero del planeta: 40 minutos
+let horaT=0;                       // segundos corridos dentro del día
 
 const hemi=new T.HemisphereLight(0xa8c8ff,0xb08a66,.72);scene.add(hemi);
 const sunLight=new T.DirectionalLight(0xfff0d8,.95);
 sunLight.position.copy(SUN).multiplyScalar(100);
 scene.add(sunLight);
+
+/* Pone la hora del planeta: 0 = el Sol donde estaba siempre (mediodía en Costa Clara), 0,5 = la medianoche de
+   ese mismo lugar. Las misiones la fijan para contar con la luz que necesitan; los modos libres la dejan correr. */
+function ponerHora(frac){
+  horaT=((frac%1)+1)%1*DIA_S;
+  SUN.copy(SUN_BASE).applyAxisAngle(EJE,horaT/DIA_S*Math.PI*2).normalize();
+  MOON.copy(SUN).negate().applyAxisAngle(EJE,.35).normalize();
+  sunLight.position.copy(SUN).multiplyScalar(100);
+}
+const horaActual=()=>horaT/DIA_S;
+let horaCorre=true;                // en las misiones se congela: la luz la decide la historia
+function pasarHora(dt){ if(horaCorre)ponerHora(horaActual()+dt/DIA_S); }
+/* Qué hora hay que poner para que en este punto del planeta el Sol esté a tantos grados sobre el horizonte.
+   Se usa al elegir desde dónde salir: si vas a mirar Corona Negra, no sirve llegar a medianoche.
+   Barre el día de a un paso y se queda con el más parecido, del lado en que el Sol está subiendo. */
+const _hv=new V3();
+function horaParaLuz(u,grados=32){
+  const obj=Math.sin(grados*Math.PI/180);
+  let mejor=0,dif=9;
+  for(let k=0;k<240;k++){
+    const f=k/240;
+    _hv.copy(SUN_BASE).applyAxisAngle(EJE,f*Math.PI*2).normalize();
+    const e=_hv.dot(u);
+    _hv.copy(SUN_BASE).applyAxisAngle(EJE,(f+.004)*Math.PI*2).normalize();
+    const subiendo=_hv.dot(u)>e;
+    const d=Math.abs(e-obj)+(subiendo?0:.08);  // con el Sol subiendo la luz es de mañana, que queda mejor
+    if(d<dif){dif=d;mejor=f;}
+  }
+  return mejor;
+}
 
 /* Cielo: solo pinta el fondo. El planeta lo tapa con su propia malla. Se oscurece al subir y al pasar al lado de noche. */
 const airU={value:1};
@@ -717,7 +759,7 @@ const camFwd=new V3(0,0,-1),camUp=new V3(0,1,0),_upT=new V3(),_look=new V3();
   let best=-1,bestU=new V3(0,1,0),bestF=new V3(0,0,-1),bestH=120;
   for(let c=0;c<220;c++){
     cand.set(rnd()*1.5-.75,1,rnd()*1.5-.75).normalize();
-    if(cand.dot(SUN)<.42)continue;
+    if(cand.dot(SUN_BASE)<.42)continue;
     const h0=terrain(cand.x,cand.y,cand.z,64,true),bio=S.biome;
     if((bio!==2&&bio!==3)||h0<3)continue;
     e.set(1,0,0).addScaledVector(cand,-cand.x).normalize();n.crossVectors(cand,e);
@@ -731,7 +773,7 @@ const camFwd=new V3(0,0,-1),camUp=new V3(0,1,0),_upT=new V3(),_look=new V3();
         const h=heightAt(q.x,q.y,q.z,64);
         if(t<=680)near=Math.max(near,h);else far=Math.max(far,h);
       }
-      const score=far-near*1.3+f.dot(SUN)*60;
+      const score=far-near*1.3+f.dot(SUN_BASE)*60;
       if(far>260&&near<h0+90&&score>best){best=score;bestU.copy(cand);bestF.copy(f);bestH=near;}
     }
   }
@@ -758,6 +800,8 @@ function ponerOrigen(id){
     if(_v.lengthSq()<1e-6)_v.set(1,0,0).addScaledVector(origenU,-origenU.x);
     origenF.copy(_v).normalize();
   }else origenF.copy(origenCasaF);
+  // y la hora se acomoda para que el lugar esté con luz: de noche no se ve nada de lo que vas a mirar
+  ponerHora(origenId?horaParaLuz(origenU):0);
   return origenId;
 }
 
@@ -3123,6 +3167,10 @@ function startRun(mode,diff,missionId){
   histStop();
   aplicarFicha(FICHAS[equipo().clase]||FICHAS.caza);
   run.mode=mode;run.diff=MODES[mode].diff?(diff||'medio'):'medio';
+  /* La hora del planeta. En la Historia la decide la misión y queda quieta: la luz es parte de cómo se cuenta
+     (el corredor nocturno del Deshielo pide noche). En los modos libres corre, así que el día pasa mientras volás. */
+  horaCorre=mode!=='historia';
+  if(mode!=='historia')ponerHora(origenId?horaParaLuz(origenU):horaActual());
   const D=DIFF[run.diff];
   Object.assign(AIM,D.aim);
   run.ventaja=MODES[mode].diff?D.ventaja:1;
@@ -3400,7 +3448,7 @@ function findSector(spec){
   for(let k=0;k<500;k++){
     const y=rnd()*1.6-.8,t=rnd()*Math.PI*2,r=Math.sqrt(1-y*y);
     c.set(Math.cos(t)*r,y,Math.sin(t)*r);
-    if(c.dot(SUN)<.4)continue;
+    if(c.dot(SUN_BASE)<.4)continue;
     basisOf(c,e1,e2);
     // centro: tierra firme y verde; el círculo de los anillos y el borde: algo de mar, nada de montaña
     let land=0,green=0,sea=0,bad=0,high=0;
@@ -3417,7 +3465,7 @@ function findSector(spec){
       }
     }
     if(land<6)continue;
-    const score=green*2-bad*3-Math.abs(sea-7)*1.5-Math.max(0,high-220)*.05+c.dot(SUN)*4;
+    const score=green*2-bad*3-Math.abs(sea-7)*1.5-Math.max(0,high-220)*.05+c.dot(SUN_BASE)*4;
     if(score>best){best=score;out.copy(c);}
   }
   sectorCache[key]=out;
@@ -3486,8 +3534,18 @@ function crossedRing(c,a,b){
 }
 
 /* Arranque, partes y final */
+/* La hora de una misión. La ficha puede pedirla por nombre ('amanecer', 'mediodia', 'tarde', 'noche') o
+   dar el número crudo del día (0 a 1). Por nombre se resuelve sobre el centro del sector, así que "amanecer"
+   es el amanecer de ahí y no de otro lado del planeta. Sin nada, luz de día. */
+const LUZ={amanecer:4,mañana:24,manana:24,mediodia:52,tarde:16,atardecer:3,noche:-16,cerrada:-32};
+function horaDeMision(def,u){
+  if(typeof def.hora==='number')return def.hora;
+  const g=LUZ[String(def.hora||'').toLowerCase()];
+  return horaParaLuz(u,g===undefined?32:g);
+}
 function histStart(def){
   mis.def=def;mis.sector=makeSector(def);
+  horaCorre=false;ponerHora(horaDeMision(def,mis.sector.dir));  // la luz la decide la misión y queda quieta
   mis.wall=zoneWall(mis.sector,[.25,.62,.95]);
   mis.sites=sectorSites(mis.sector,Math.max(0,...def.partes.map(p=>p.torretas||0)));
   mis.th0=0;mis.t=0;mis.falls=0;mis.dmg=0;mis.result=null;mis.state='jugando';mis.part=-1;
@@ -4387,6 +4445,7 @@ function frame(now){
     FX.step(dt,canvas.height*.9);
     stepTrails(dt);
     stepTerrain(false);
+    pasarHora(dt);          // el Sol se corre: en 40 minutos el planeta da una vuelta entera
     stepCamera(dt,ship.t);
   if(PRUEBA_FLOTA){if(!pruebaFlota)pruebaFlota=iniciarPruebaFlota(scene,PRUEBA_FLOTA,naveTextura(T));pruebaFlota.actualizar(dt,camera,ship.pos,ship.q,U);}
   if(navesActivas()){
@@ -4462,7 +4521,7 @@ function boot(data){
   window.DeltaUno={renderer,ship,input,settings,TUNE,FIJADO,FICHAS,GRAVEDAD,vitrina:()=>vitrina,fijable:e=>fijable(e),tgtBestForTest:()=>tgtBest(),launchMissileForTest:t=>launchMissile(t),ENEMY_DEF,DIFF,rocks,activeRocks,rings,chart,chartDir,straighten,terrain,heightAt,S,BIOMES,PLANET_R,CEIL:{CEIL_WARN,CEIL_PUSH,CEIL_MAX},buildMs,flags:()=>({dead,inv,warning,thinWarn}),
     zones,groups,enemies,lost,drops,DROP_KIND,damage,spawnDrop,dodge,tryDodge,rockets,lockCancel,AIM,seenVel,ZONE_KIND,eBolts,boltHitsShip,
     tgt:()=>camTarget,camBlend:()=>camBlend,camera,
-    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,LUGARES,CONEXIONES,ITINERARIOS,hitos:()=>hitos,naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
+    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,LUGARES,CONEXIONES,ITINERARIOS,hitos:()=>hitos,SUN,SUN_BASE,ponerHora,horaActual,horaParaLuz,DIA_S,horaCorre:()=>horaCorre,naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
     vit:()=>({hull,shield,heat,overheat,score,record,combo,curZone:curZone&&zones.indexOf(curZone),target:!!target,fov:camera.fov,missiles,missileT,lockOn,lockP,hasLock:!!lockTarget,repairT,repairCool})};
   last=performance.now();
   requestAnimationFrame(frame);
