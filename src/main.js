@@ -406,11 +406,25 @@ const GU={
   // La esfera de fondo se hunde debajo de los anillos de detalle para no asomar entre ellos.
   // El hundido tiene que cubrir TODO lo que tapan los anillos (3.456 m) y volver a cero justo antes
   // de que se terminen; si no, la esfera pelea con el terreno fino y las laderas parpadean.
-  uCenter:{value:new V3(0,1,0)},uSinkA:{value:Math.cos(3300/PLANET_R)},uSinkB:{value:Math.cos(3100/PLANET_R)}
+  uCenter:{value:new V3(0,1,0)},uSinkA:{value:Math.cos(3300/PLANET_R)},uSinkB:{value:Math.cos(3100/PLANET_R)},
+  uOla:{value:new T.Vector2(1.7,0)}   // x: altura de la marejada · y: cuánto la aplasta la nave rasante
 };
-const GROUND_VS=`
+/* El mar se mueve de verdad: la marejada levanta la superficie en lugar de solo pintarla. Antes el agua era
+   una capa plana —el terreno recortado en cero— y toda la ola era color, así que la luz le pegaba igual en
+   todos lados y contra el horizonte se veía como una chapa. Ahora los vértices de agua suben y bajan, y el
+   fragmento sombrea con la normal de la ola, no con la del planeta.
+   uOla.x = altura de la marejada en metros · uOla.y = cuánto la aplasta la nave al pasar rasante. */
+const OLA_VS=`
+  float olaH(vec3 p,float t){
+    // dos trenes largos cruzados más uno corto: alcanza para que no se vea un patrón
+    return sin(dot(p.xz,vec2(.0121,.0074))+t*.55)*.62
+          +sin(dot(p.yz,vec2(-.0093,.0135))+t*.42)*.48
+          +sin(dot(p.xy,vec2(.0247,.0191))+t*.91)*.22;
+  }`;
+const GROUND_VS=OLA_VS+`
   attribute vec3 aCol;attribute vec4 aMat;
-  varying vec3 vP;varying vec3 vN;varying vec3 vC;varying vec4 vM;
+  uniform float uTime;uniform vec2 uOla;uniform vec3 uG;
+  varying vec3 vP;varying vec3 vN;varying vec3 vC;varying vec4 vM;varying float vOla;
   #ifdef SINK
   uniform vec3 uCenter;uniform float uSinkA;uniform float uSinkB;
   #endif
@@ -422,13 +436,23 @@ const GROUND_VS=`
     // vértices se separan mucho del terreno de verdad, así que 70 m ya no alcanzaban
     p-=dr*smoothstep(uSinkA,uSinkB,dot(dr,uCenter))*320.;
     #endif
-    vP=position;vN=normal;vC=aCol;vM=aMat;
+    vOla=0.;
+    if(aMat.x>.01){
+      vec3 up=normalize(p);
+      float h=olaH(p,uTime)*uOla.x*aMat.x;
+      // y donde pasa la nave rasante, el chorro aplasta el agua y abre un hueco
+      float d=length(p-uG);
+      h-=uOla.y*aMat.x*exp(-d*d/700.)*1.6;
+      vOla=h;
+      p+=up*h;
+    }
+    vP=position;vN=normal;vC=aCol;vM=aMat;   // sin desplazar: el ruido y las texturas no se tienen que mover con la ola
     gl_Position=projectionMatrix*viewMatrix*vec4(p,1.);
   }`;
-const GROUND_FS=`
-  uniform sampler2D uNoise;uniform vec3 uSun;uniform vec3 uMoon;uniform float uTime;uniform float uAir;
+const GROUND_FS=OLA_VS+`
+  uniform sampler2D uNoise;uniform vec3 uSun;uniform vec3 uMoon;uniform float uTime;uniform float uAir;uniform vec2 uOla;
   uniform vec3 uG;uniform vec3 uT1;uniform vec3 uT2;uniform vec3 uE0;uniform vec3 uE1;uniform vec3 uE2;uniform float uShadow;
-  varying vec3 vP;varying vec3 vN;varying vec3 vC;varying vec4 vM;
+  varying vec3 vP;varying vec3 vN;varying vec3 vC;varying vec4 vM;varying float vOla;
   float tn(vec2 p){return texture2D(uNoise,p/256.).r;}
   float tri(vec3 p,vec3 w){return w.x*tn(p.yz)+w.y*tn(p.zx)+w.z*tn(p.xy);}
   #ifdef CON_TEXTURA
@@ -486,7 +510,23 @@ const GROUND_FS=`
       c+=vec3(.02,.05,.07)*(smoothstep(.55,.75,sw)+smoothstep(.6,.8,rp)*nearW)*water*(1.-farW*.6); // crestas más claras
       float fm=tri(vP/3.4+vec3(-uTime*.16,0.,uTime*.11),w);
       float foam=smoothstep(.70,.80,fm)*smoothstep(.45,.65,rp)*(1.-smoothstep(70.,320.,dist));
-      c=mix(c,vec3(.78,.86,.92),foam*.85*water);
+      // las crestas de la marejada se blanquean solas, que es lo que le da volumen de lejos
+      foam+=smoothstep(.74,1.06,vOla/max(uOla.x,.01))*.22;
+      // y el chorro de la nave rasante levanta espuma donde aplasta el agua
+      float dg=length(vP-uG);
+      foam+=uOla.y*exp(-dg*dg/520.)*.8;
+      c=mix(c,vec3(.78,.86,.92),min(foam,1.)*.85*water);
+    }
+    if(water>.01){
+      /* La normal de la ola. Antes el mar se sombreaba con la normal del planeta, que sobre el agua es
+         siempre "arriba": la luz le pegaba igual en todos lados y por eso se veía como una chapa.
+         Se toma la pendiente de la misma función de ola del vértice, con dos muestras cortas. */
+      vec3 t1=normalize(cross(up,vec3(0.,0.,1.)+up*.01)),t2=normalize(cross(up,t1));
+      float e=9.;
+      float h0=olaH(vP,uTime),hx=olaH(vP+t1*e,uTime),hy=olaH(vP+t2*e,uTime);
+      vec3 on=normalize(up*e-t1*(hx-h0)*uOla.x-t2*(hy-h0)*uOla.x);
+      // de lejos la ola no se resuelve: vuelve a ser plana y no hace ruido
+      n=normalize(mix(n,on,water*(1.-smoothstep(900.,3000.,dist))));
     }
     float sunUp=dot(up,uSun),dayH=smoothstep(-.22,.18,sunUp);
     float l=max(dot(n,uSun),0.)*smoothstep(-.12,.08,sunUp);
@@ -609,7 +649,7 @@ const rings=[6,12,24,48,96,192].map((s,k)=>{
 });
 const _t1=new V3(),_t2=new V3();
 function updateRing(r,cu,cv){
-  const s=r.s,di=Number.isNaN(r.cu)?1e6:Math.round((cu-r.cu)/s),dj=Number.isNaN(r.cv)?1e6:Math.round((cv-r.cv)/s);
+  const s=r.s*lodK,di=Number.isNaN(r.cu)?1e6:Math.round((cu-r.cu)/s),dj=Number.isNaN(r.cv)?1e6:Math.round((cv-r.cv)/s);
   const A=r.a,B=r.b;
   // Reutiliza lo ya calculado: al avanzar solo hacen falta las filas nuevas del borde
   for(let j=0;j<RW;j++)for(let i=0;i<RW;i++){
@@ -643,6 +683,47 @@ function updateRing(r,cu,cv){
   const at=r.geo.attributes;
   at.position.needsUpdate=true;at.normal.needsUpdate=true;at.aCol.needsUpdate=true;at.aMat.needsUpdate=true;
 }
+/* ---------- El detalle crece con la altura ----------
+   Los anillos de detalle cubren siempre la misma cantidad de celdas, así que su alcance es fijo: 3.456 m.
+   El horizonte, en cambio, se va cada vez más lejos a medida que subís: 2,96 km a 200 m de altura, pero
+   7,35 km a 1.200 m y 11,85 km a 3.000 m. Volando bajo el límite queda escondido detrás de la curva del
+   planeta y no se ve; apenas subís, el suelo se termina en un corte y aparece el escalón de la esfera base.
+
+   La salida es que las celdas se agranden con la altura. A 3 km no se distingue una celda de 6 m de una de
+   24 m, pero sí se nota que el mundo se termina. Se multiplica el tamaño de todas las celdas por lodK, que
+   va en potencias de 2 para que los anillos no se rearmen todo el tiempo, y con histéresis para que volando
+   justo en el límite no esté cambiando a cada rato. Los triángulos son los mismos: esto no cuesta nada. */
+const LOD_SUBE=[260,1050,4200],LOD_BAJA=[200,820,3400];  // a qué altura pasa a 2, 4 y 8 (y a qué altura vuelve)
+let lodK=1;
+function ajustarLOD(){
+  const alt=Math.max(ship.alt||0,0);
+  let n=lodK;
+  // sube de escalón antes de que el horizonte pase el alcance; baja más tarde, para no oscilar
+  while(n<8&&alt>LOD_SUBE[Math.log2(n)])n*=2;
+  while(n>1&&alt<LOD_BAJA[Math.log2(n)-1])n/=2;
+  if(n===lodK)return false;
+  lodK=n;
+  // el alcance cambió: la esfera base se tiene que hundir más lejos, si no asoma por abajo de los anillos
+  GU.uSinkA.value=Math.cos(3300*lodK/PLANET_R);
+  GU.uSinkB.value=Math.cos(3100*lodK/PLANET_R);
+  rings.forEach(r=>{r.cu=NaN;r.cv=NaN;});
+  return true;
+}
+/* Y la cámara tiene que llegar hasta el horizonte. A 6.000 m el horizonte está a 17,3 km y el plano lejano
+   cortaba en 14 km. El plano cercano sube con la altura: a 4 km de altura no hay nada a un metro de la nave,
+   y subirlo es lo que mantiene la precisión del buffer de profundidad con un plano lejano tan grande. */
+function ajustarCamara(){
+  const alt=Math.max(ship.alt||0,0);
+  const horizonte=Math.sqrt(2*PLANET_R*alt+alt*alt);
+  const lejos=Math.min(42000,Math.max(14000,horizonte*1.2+2000));
+  /* El plano cercano sube un poco con la altura, para no perder precisión del buffer de profundidad con un
+     plano lejano de 30 km. Tope de 4 m, y no más: la cámara va a unos 12 m detrás de la nave, así que un
+     plano cercano más grande que eso le recorta la nave al jugador. */
+  const cerca=Math.min(4,Math.max(1,alt/900));
+  if(Math.abs(lejos-camera.far)>600||Math.abs(cerca-camera.near)>.6){
+    camera.far=lejos;camera.near=cerca;camera.updateProjectionMatrix();
+  }
+}
 // Como mucho dos anillos por cuadro, empezando por los cercanos: evita tirones al volar rápido
 let anchored=false;
 function stepTerrain(force){
@@ -655,8 +736,9 @@ function stepTerrain(force){
     setAnchor(_v);anchored=true;u=0;w=0;budget=99;
     rings.forEach(r=>{r.cu=NaN;r.cv=NaN;});
   }
+  if(ajustarLOD())budget=99;
   for(const r of rings){
-    const st=r.s*2,cu=Math.round(u/st)*st,cv=Math.round(w/st)*st;
+    const st=r.s*lodK*2,cu=Math.round(u/st)*st,cv=Math.round(w/st)*st;
     if((cu!==r.cu||cv!==r.cv)&&budget>0){updateRing(r,cu,cv);budget--;}
   }
 }
@@ -1386,6 +1468,10 @@ function groundCheck(dt){
   ship.lava=S.lava;ship.volc=S.volc;   // roca volcánica caliente: de acá salen las térmicas (ver TERMICA)
   ship.alt=rad-PLANET_R-g;
   const overWater=S.water>.5;
+  /* Volar rasante sobre el mar lo aplasta y levanta espuma. Se apaga a los 60 m, porque más arriba el chorro
+     ya no llega al agua, y necesita velocidad: una nave quieta no abre nada. El shader hace el resto. */
+  const rasante=overWater?(1-sstep(8,60,Math.max(ship.alt,0)))*sstep(25,110,ship.speed):0;
+  GU.uOla.value.y+=(rasante-GU.uOla.value.y)*(1-Math.exp(-7*dt));
   const pr=S.r,pg=S.g,pb=S.b;
   if(inv>0){
     if(ship.alt<6){
@@ -4482,6 +4568,7 @@ function frame(now){
     stepTrails(dt);
     stepTerrain(false);
     pasarHora(dt);          // el Sol se corre: en 40 minutos el planeta da una vuelta entera
+    ajustarCamara();        // el plano lejano sigue al horizonte, que crece con la altura
     stepCamera(dt,ship.t);
   if(PRUEBA_FLOTA){if(!pruebaFlota)pruebaFlota=iniciarPruebaFlota(scene,PRUEBA_FLOTA,naveTextura(T));pruebaFlota.actualizar(dt,camera,ship.pos,ship.q,U);}
   if(navesActivas()){
@@ -4557,7 +4644,7 @@ function boot(data){
   window.DeltaUno={renderer,ship,input,settings,TUNE,FIJADO,FICHAS,GRAVEDAD,vitrina:()=>vitrina,fijable:e=>fijable(e),tgtBestForTest:()=>tgtBest(),launchMissileForTest:t=>launchMissile(t),ENEMY_DEF,DIFF,rocks,activeRocks,rings,chart,chartDir,straighten,terrain,heightAt,S,BIOMES,PLANET_R,CEIL:{CEIL_WARN,CEIL_PUSH,CEIL_MAX},buildMs,flags:()=>({dead,inv,warning,thinWarn}),
     zones,groups,enemies,lost,drops,DROP_KIND,damage,spawnDrop,dodge,tryDodge,rockets,lockCancel,AIM,seenVel,ZONE_KIND,eBolts,boltHitsShip,
     tgt:()=>camTarget,camBlend:()=>camBlend,camera,
-    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,LUGARES,CONEXIONES,ITINERARIOS,hitos:()=>hitos,SUN,SUN_BASE,ponerHora,horaActual,horaParaLuz,DIA_S,horaCorre:()=>horaCorre,toasts:()=>toastLog.slice(),TERMICA,termica:()=>termSuave,calor:()=>heat,naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
+    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,LUGARES,CONEXIONES,ITINERARIOS,hitos:()=>hitos,SUN,SUN_BASE,ponerHora,horaActual,horaParaLuz,DIA_S,horaCorre:()=>horaCorre,toasts:()=>toastLog.slice(),TERMICA,termica:()=>termSuave,calor:()=>heat,lod:()=>lodK,camaraFar:()=>camera.far,camaraNear:()=>camera.near,ola:()=>GU.uOla.value,naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
     vit:()=>({hull,shield,heat,overheat,score,record,combo,curZone:curZone&&zones.indexOf(curZone),target:!!target,fov:camera.fov,missiles,missileT,lockOn,lockP,hasLock:!!lockTarget,repairT,repairCool})};
   last=performance.now();
   requestAnimationFrame(frame);
