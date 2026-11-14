@@ -18,6 +18,7 @@ GitHub arma todo solo (`.github/workflows/demo.yml`), así que no hace falta ins
   - Directo de GitHub: `https://github.com/Pelicacomolokita/delta-uno/releases/latest/download/delta-uno.apk`
 - **Página de descarga, una sola vez:** hay que activar GitHub Pages en **Settings → Pages → Source: GitHub Actions**. Sin eso, la corrida marca error en el paso de la página (la versión en Releases se publica igual).
 - **Capturas de la página:** `node scripts/capturas.cjs` (después de `npm run build:test`) las saca jugando, en `pagina/img/`.
+- **Novedades:** cada publicación suma `docs/version/novedades.md` (lo nuevo y qué probar) y la lista de cambios desde la versión anterior. Las mismas novedades se ven en el juego, con el botón Novedades del menú. Los pasos están en `docs/version/como-publicar.md`.
 - **Versión:** sale de `package.json`. Se ve en el menú del juego y en el APK. Para una versión nueva hay que subir el número; si no, Android no la instala encima de la anterior.
 - **Firma del APK:** usa una clave de pruebas que está en el repositorio (`android/app/delta-uno-pruebas.jks`), así cada APK nuevo se instala encima del anterior. Para Google Play hace falta otra clave, privada.
 - **Identificador de la app:** `io.github.pelicacomolokita.deltauno`, provisorio. Está en `capacitor.config.json`, `android/app/build.gradle` (`namespace` y `applicationId`), `android/app/src/main/res/values/strings.xml` y la carpeta de `MainActivity.java`. Cambiarlo hace que sea otra app: quien tenga la anterior va a tener las dos.

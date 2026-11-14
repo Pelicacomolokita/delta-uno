@@ -18,6 +18,7 @@ import { REGIONES_PLANO, LUGARES, CONEXIONES, ITINERARIOS, SOL_HORA0 } from './m
 import { crearHitos } from './mundo/hitos.js';
 import { CLASES, STAT_NOMBRE, ARMAS, RANURA_NOMBRE, PINTURAS, CARROCERIAS, EQUIPO_INICIAL } from './hangar/catalogo.js';
 import { Vitrina } from './naves/vitrina.js';
+import NOVEDADES from '../docs/version/novedades.md?raw';
 window.THREE = THREE; // las pruebas lo usan para armar matrices
 
 (function(){
@@ -4353,6 +4354,25 @@ $('#endMenu').addEventListener('click',openMenu);
 $('#toMenu').addEventListener('click',openMenu);
 // Versión, aviso de datos de uso y "Dar tu opinión"
 $('#ver').textContent='v'+APP_VERSION;
+// Novedades de la versión: el mismo texto que acompaña la publicación (docs/version/novedades.md)
+const nov=$('#nov');
+function textoNovedades(md){
+  const esc=t=>t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+  let html='',lista=false;
+  for(const l of md.replace(/VERSION/g,APP_VERSION).split('\n')){
+    const t=l.trim();
+    if(t.startsWith('- ')){if(!lista){html+='<ul>';lista=true;}html+='<li>'+esc(t.slice(2))+'</li>';continue;}
+    if(lista){html+='</ul>';lista=false;}
+    if(!t||t.startsWith('# '))continue; // el título va en la cabecera
+    html+=t.startsWith('## ')?'<h3>'+esc(t.slice(3))+'</h3>':'<p>'+esc(t)+'</p>';
+  }
+  return html+(lista?'</ul>':'');
+}
+function openNov(){$('#novText').innerHTML=textoNovedades(NOVEDADES);$('#novHead h2').textContent='Novedades de la '+APP_VERSION;nov.hidden=false;$('#novBody').scrollTop=0;$('#novClose').focus();}
+function closeNov(){nov.hidden=true;$('#novBtn').focus();}
+$('#novBtn').addEventListener('click',openNov);
+$('#novClose').addEventListener('click',closeNov);
+nov.addEventListener('keydown',e=>{if(e.code==='Escape'){e.stopPropagation();closeNov();}});
 $('#statsOpt').hidden=!stats.configured;
 function syncStatsNote(){$('#statsNote').hidden=!stats.configured||settings.statsSeen||settings.stats===false;}
 $('#statsOk').addEventListener('click',()=>{settings.statsSeen=true;saveSettings();syncStatsNote();scrollHints();});

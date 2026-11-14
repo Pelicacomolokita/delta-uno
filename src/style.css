@@ -171,7 +171,7 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--bolt);outl
 
 /* Ajustes */
 /* La fila de la grilla mide lo mismo que la pantalla: así el panel no crece de más y se puede deslizar */
-#sheet,#menu,#end,#brief{position:absolute;inset:0;background:rgba(10,16,34,.55);display:grid;grid-template-rows:minmax(0,1fr);place-items:center;z-index:5;padding-block:10px;padding-left:max(16px,var(--sa-l));padding-right:max(16px,var(--sa-r))}
+#sheet,#menu,#end,#brief,#nov{position:absolute;inset:0;background:rgba(10,16,34,.55);display:grid;grid-template-rows:minmax(0,1fr);place-items:center;z-index:5;padding-block:10px;padding-left:max(16px,var(--sa-l));padding-right:max(16px,var(--sa-r))}
 #sheetBody,#menuBody,#endBody,#briefBody{width:100%;max-width:680px;max-height:100%;overflow-y:auto;overscroll-behavior:contain;touch-action:none;scrollbar-width:thin;background:var(--glass-strong);border:1px solid var(--line);border-radius:4px;padding:12px 16px;display:grid;gap:10px}
 #sheet[hidden],#menu[hidden],#end[hidden],#brief[hidden]{display:none}
 .scrollHint{position:sticky;bottom:-12px;margin:0 -16px -12px;height:22px;background:linear-gradient(transparent,rgba(10,16,34,.95));pointer-events:none;display:grid;place-items:end center;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--paper-dim)}
@@ -336,3 +336,12 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--bolt);outl
 #introVideo{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#201e1b}
 #introStart{min-height:48px;padding:0 26px;background:var(--paper);color:var(--void);border-radius:3px;font:700 15px/1 var(--font-label);letter-spacing:.06em;text-transform:uppercase}
 #introSkip{position:absolute;right:calc(14px + env(safe-area-inset-right,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));min-height:40px;padding:0 14px;border:1px solid rgba(246,234,214,.5);border-radius:3px;background:rgba(32,30,27,.6);color:#f6ead6;font:700 12px/1 var(--font-label);letter-spacing:.08em;text-transform:uppercase}
+
+/* Novedades de la versión: lo mismo que las notas de la publicación (docs/version/novedades.md) */
+#nov{z-index:7}
+#novBody{width:min(680px,100%);max-height:100%;overflow-y:auto;background:rgba(14,21,42,.98);border:1px solid var(--line);border-radius:4px;padding:12px 16px 16px;-webkit-overflow-scrolling:touch}
+#novHead{display:flex;justify-content:space-between;align-items:center;gap:12px;position:sticky;top:-12px;background:inherit;padding:4px 0 6px}
+#novHead h2{margin:0;font:700 16px/1.2 var(--font-label);letter-spacing:.12em;text-transform:uppercase}
+#novText h3{margin:14px 0 4px;font:700 13px/1.2 var(--font-label);letter-spacing:.1em;text-transform:uppercase;color:var(--paper-dim)}
+#novText p,#novText li{font:14px/1.45 var(--font-body,inherit);margin:4px 0}
+#novText ul{margin:0;padding-left:18px}

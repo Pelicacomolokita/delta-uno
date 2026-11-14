@@ -166,6 +166,17 @@ H.autostart = false;
   check('cambiar la pintura cambia la nave nueva', r.propia === 'guardiaNoche', f(r));
   await page.screenshot({ path: path.join(dir, 'prep-diseno-nueva.png') });
 
+  /* ---------- Novedades de la versión, desde el menú ---------- */
+  await page.evaluate(() => { document.querySelector('#brief') && (document.querySelector('#brief').hidden = true); window.DeltaUno.openMenu(); });
+  await sleep(200);
+  await page.evaluate(() => document.querySelector('#novBtn').click()); await sleep(200);
+  r = await page.evaluate(() => ({ abierto: !document.querySelector('#nov').hidden, secciones: [...document.querySelectorAll('#novText h3')].map(h => h.textContent), items: document.querySelectorAll('#novText li').length, titulo: document.querySelector('#novHead h2').textContent }));
+  check('el menú muestra las novedades de la versión', r.abierto && r.secciones.includes('Qué probar en el teléfono') && r.items > 15 && /Novedades de la \d/.test(r.titulo), f(r));
+  await page.screenshot({ path: path.join(dir, 'novedades.png') });
+  await page.evaluate(() => document.querySelector('#novClose').click());
+  r = await page.evaluate(() => document.querySelector('#nov').hidden);
+  check('Cerrar vuelve al menú', r === true, f(r));
+
   check('sin errores en la página', L.errs.length === 0, L.errs.join(' | '));
   await browser.close();
 })();

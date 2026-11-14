@@ -30,6 +30,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # con la historia completa y las etiquetas, para comparar con la versión anterior
 
       - uses: actions/setup-node@v6
         with:
@@ -70,7 +72,21 @@ jobs:
           cp dist/index.html "pc/Delta Uno.html"
           cp docs/version/LEEME-pc.txt pc/LEEME.txt
           (cd pc && zip -q -r ../salida/delta-uno-pc.zip .)
-          sed "s/VERSION/$V/g" docs/version/notas.md > notas.md
+          # Notas de la versión: lo de siempre + las novedades (docs/version/novedades.md) + la lista de cambios
+          # desde la última versión publicada (la etiqueta v* anterior), sacada de la historia.
+          ANT=$(git tag --list 'v*' --sort=-v:refname | grep -v "^v$V$" | head -1)
+          {
+            sed "s/VERSION/$V/g" docs/version/notas.md
+            echo; echo '---'; echo
+            sed "s/VERSION/$V/g" docs/version/novedades.md
+            if [ -n "$ANT" ]; then
+              N=$(git log --no-merges --format='%s' "$ANT"..HEAD | wc -l)
+              echo; echo "<details><summary>Detalle: $N cambios desde $ANT</summary>"; echo
+              git log --no-merges --format='- %s' "$ANT"..HEAD
+              echo; echo '</details>'
+            fi
+          } > notas.md
+          cp notas.md salida/novedades.md
           ls -la salida
 
       - name: Revisar el APK

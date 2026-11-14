@@ -214,6 +214,7 @@
         <div id="menuHead">
           <h1>Delta Uno <span id="ver"></span></h1>
           <div id="menuTools">
+            <button id="novBtn" type="button">Novedades</button>
             <button id="feedbackBtn" class="feedback" type="button" hidden>Dar tu opinión</button>
             <button id="menuGear" type="button">Ajustes</button>
           </div>
@@ -263,6 +264,12 @@
       </div>
     </div>
 
+    <div id="nov" role="dialog" aria-label="Novedades de la versión" hidden>
+      <div id="novBody">
+        <div id="novHead"><h2>Novedades</h2><button id="novClose" type="button">Cerrar</button></div>
+        <div id="novText"></div>
+      </div>
+    </div>
     <div id="brief" role="dialog" aria-label="Preparar la salida" hidden>
       <div id="briefBody">
         <div id="prepTabs" role="tablist">
