@@ -228,7 +228,9 @@ H.autostart = true;
   await L.page.waitForFunction(() => window.DeltaUno.vit().shield + window.DeltaUno.vit().hull < window.__h, null, { timeout: 15000 }).catch(() => {});
   await simWait(L.page, 2);
   const rk1 = await L.page.evaluate(() => { clearInterval(window.__t); const D = window.DeltaUno, r = window.__rock, s = D.ship; return { perdida: window.__h - D.vit().shield - D.vit().hull, minD: window.__minD, pos: r.pos.toArray(), radio: r.r, ahora: s.pos.distanceTo(r.pos), dead: D.flags().dead }; });
-  check('la roca hace 35 de daño, rebota y no se atraviesa', rk1.perdida >= 34 && rk1.perdida < 60 && rk1.minD > rk0.radio * .45 && rk1.dead <= 0, f(rk1));
+  /* Chocar un asteroide destruye la nave. Antes sacaba 35 de vida y rebotabas; Santiago decidió el 14 de
+     noviembre que una nave a 150 m/s contra una roca no se rasguña. Se sigue comprobando que no la atraviese. */
+  check('la roca te destruye y no se la atraviesa', rk1.dead > 0 && rk1.minD > rk0.radio * .45, f(rk1));
 
   /* derribo con toques reales y asistencia */
   await waitGrace(L.page);
