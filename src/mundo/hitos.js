@@ -119,7 +119,7 @@ export function crearHitos(T, scene, { PLANET_R, heightAt }) {
     if (!centro) {
       const a = asentar(T, up, { PLANET_R, heightAt });
       centro = { lugar: c.lugar, u: a.u.clone(), suelo: PLANET_R + a.h, desnivel: Math.round(a.d), corrido: a.corrido,
-                 pos: a.u.clone().multiplyScalar(PLANET_R + a.h) };
+                 pos: a.u.clone().multiplyScalar(PLANET_R + a.h), cajas: [], rotas: 0, total: 0 };
       centros.set(c.lugar.id, centro);
     }
     // el marco se arma sobre el punto asentado, no sobre el del plano
@@ -139,6 +139,17 @@ export function crearHitos(T, scene, { PLANET_R, heightAt }) {
     q.setFromRotationMatrix(base);
     esc.set(ax, alto, az);
     malla.setMatrixAt(i, m.compose(pos, q, esc));
+    /* La caja también se guarda del lado de JavaScript, para poder chocarla y romperla sin leer de la placa.
+       hp sale del volumen: un galpón cae con dos tiros, una muralla de 180 m aguanta bastante más. */
+    const vol = ax * alto * az;
+    const caja = {
+      i, lugar: c.lugar, centroLugar: centro, viva: true,
+      centro: pos.clone(), q: q.clone(), half: new T.Vector3(ax / 2, alto / 2, az / 2),
+      radio: Math.sqrt(ax * ax + alto * alto + az * az) / 2,
+      hpMax: Math.max(2, Math.min(14, Math.round(Math.cbrt(vol) / 9))), m0: m.clone()
+    };
+    caja.hp = caja.hpMax;
+    centro.cajas.push(caja); centro.total++;
     const k = COLOR[c.lugar.control] || COLOR.Disputado;
     // una pizca de variación por caja para que no se vean todas pintadas igual
     const v = 0.88 + ((i * 2654435761) % 1000) / 1000 * 0.24;
@@ -148,8 +159,58 @@ export function crearHitos(T, scene, { PLANET_R, heightAt }) {
   if (malla.instanceColor) malla.instanceColor.needsUpdate = true;
   scene.add(malla);
 
+  /* ---------- Choque y destrucción ----------
+     Las cajas se guardan también del lado de JavaScript (centro, rotación y medias medidas) para poder
+     preguntarles si algo las tocó sin leer nada de la placa de video. Son 189: primero se descarta por el
+     centro del hito, que son 37 cuentas, y después se prueban las pocas cajas de ese hito. */
+  const _l = new T.Vector3(), _iq = new T.Quaternion();
+  const cerca = [];
+  // Devuelve las cajas vivas a menos de "radio" del punto. Reutiliza el mismo arreglo: no genera basura.
+  function cajasCerca(p, radio) {
+    cerca.length = 0;
+    for (const c of centros.values()) {
+      if (c.rotas === c.total) continue;
+      if (p.distanceToSquared(c.pos) > (radio + 260) * (radio + 260)) continue;
+      for (const b of c.cajas) if (b.viva && p.distanceToSquared(b.centro) < (radio + b.radio) * (radio + b.radio)) cerca.push(b);
+    }
+    return cerca;
+  }
+  /* ¿El punto está dentro de alguna caja? margen es el grosor de lo que choca (la bala, el casco).
+     Devuelve la caja o null. */
+  function golpea(p, margen = 0) {
+    for (const b of cajasCerca(p, margen)) {
+      _l.copy(p).sub(b.centro).applyQuaternion(_iq.copy(b.q).invert());
+      if (Math.abs(_l.x) < b.half.x + margen && Math.abs(_l.y) < b.half.y + margen && Math.abs(_l.z) < b.half.z + margen) return b;
+    }
+    return null;
+  }
+  /* Le pega a una caja. Devuelve 'nada', 'daño' o 'rota'. Una caja aguanta según su tamaño: un galpón
+     cae con dos tiros, una muralla aguanta más. Al caer se achica a cero y deja de dibujarse. */
+  const _m = new T.Matrix4(), _cero = new T.Vector3(0, 0, 0);
+  function pegar(b, dano = 1) {
+    if (!b.viva) return 'nada';
+    b.hp -= dano;
+    if (b.hp > 0) return 'daño';
+    b.viva = false;
+    b.centroLugar.rotas++;
+    malla.setMatrixAt(b.i, _m.compose(b.centro, b.q, _cero));
+    malla.instanceMatrix.needsUpdate = true;
+    return 'rota';
+  }
+  // Vuelve a levantar todo: al empezar una partida nueva el mundo tiene que estar entero otra vez
+  function reconstruir() {
+    let n = 0;
+    for (const c of centros.values()) {
+      if (!c.rotas) continue;
+      for (const b of c.cajas) if (!b.viva) { b.viva = true; b.hp = b.hpMax; malla.setMatrixAt(b.i, b.m0); n++; }
+      c.rotas = 0;
+    }
+    if (n) malla.instanceMatrix.needsUpdate = true;
+    return n;
+  }
+
   return {
-    malla, lugares: LUGARES, centros,
+    malla, lugares: LUGARES, centros, golpea, pegar, reconstruir, cajasCerca,
     debug: () => {
       const cor = [...centros.values()].filter(c => c.corrido > 0);
       return {

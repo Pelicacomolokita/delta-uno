@@ -1259,6 +1259,17 @@ function stepRocks(dt){
   }
 }
 
+/* Le pega a una pieza de un hito. Si la tira abajo, la revienta con fuego y restos, como cae una nave.
+   mio: el tiro salió del jugador, así que suma puntos. Si no, es un choque o un tiro enemigo. */
+function romperCaja(caja,punto,mio,dano){
+  const r=hitos.pegar(caja,dano||1);
+  if(r==='nada')return false;
+  if(r==='daño'){burst(punto,16,38,.62,.58,.52,.9);sfxTick();return true;}
+  const tam=Math.max(caja.half.x,caja.half.y,caja.half.z);
+  explode(caja.centro,Math.min(tam,26));   // explode ya hace el ruido y el sacudón
+  if(mio)addScore(Math.round(10+tam*1.6),false);
+  return true;
+}
 /* ---------- Los 37 hitos del plano maestro ----------
    Los lugares con nombre, en bloques, para que el mundo se lea como habitado y las misiones tengan a dónde ir.
    Una sola malla instanciada: 37 lugares cuestan una llamada de dibujo. */
@@ -1328,6 +1339,10 @@ function stepBolts(dt){
       break;
     }
     if(!b.on)continue;
+    if(hitos){ // las construcciones de los 37 hitos también paran y se comen los tiros
+      const caja=hitos.golpea(b.p,.45);
+      if(caja){b.on=false;romperCaja(caja,b.p,true);continue;}
+    }
     _m.compose(b.p,b.q,_one);boltMesh.setMatrixAt(count++,_m);
   }
   boltMesh.count=count;boltMesh.instanceMatrix.needsUpdate=true;
@@ -2633,6 +2648,14 @@ function fireEnemyBolt(e,dP){
   if(dP+80>speed*1.7)b.life=(dP+80)/speed; // las torretas tiran más lejos
   sfxEnemyShot(b.p);
 }
+/* Cuánto se infla la silueta de la nave para decidir si una bala pegó: es el grosor de la bala.
+   Va atado a la dificultad, así que en Fácil te pasan más cerca sin tocarte y en Extremo te rozan.
+   Medido con bisección sobre la silueta del Caza A, la frontera arriba y abajo queda así:
+     Fácil 0,90 m · Medio 1,035 m · Difícil 1,17 m · Extremo 1,26 m
+   El casco llega a 1,04 m, así que en Extremo te pegan balas que pasan 22 cm por afuera y en Fácil ves
+   balas que lo atraviesan sin hacerte nada. Es el precio de que la dificultad se sienta, y está elegido. */
+const MARGEN_BASE=.45;
+function margenImpacto(){ return MARGEN_BASE*((DIFF[run.diff]||DIFF.medio).ventaja); }
 // ¿La bala tocó la nave? Primero una bola grande (barato) y después la forma real:
 // el triángulo de la nave visto desde arriba y su poco espesor.
 const _hInv=new Q(),_hS=new V3(),_hP=new V3();
@@ -2642,7 +2665,7 @@ function boltHitsShip(a,b){
     const n=Math.min(48,Math.ceil(_hS.length()/.35));
     for(let i=0;i<=n;i++){
       _hP.copy(a).addScaledVector(_hS,i/n);
-      if(naves.golpea(navePropia,_hP))return true;
+      if(naves.golpea(navePropia,_hP,margenImpacto()))return true;
     }
     return false;
   }
@@ -2711,6 +2734,41 @@ function damage(n,dir){
     dmgA=1;
   }
   if(hull<=0){hull=0;crash('combate');}
+}
+/* ---------- Chocar contra una construcción ----------
+   Las ciudades, las bases y los puentes paran la nave: antes se los atravesaba. Rebota como contra una roca,
+   te hace daño, y la pieza que golpeaste se viene abajo — un avión que se lleva puesto un hangar lo rompe. */
+const _cl=new V3(),_cn=new V3(),_cq=new Q();
+function stepChoqueHitos(){
+  // inv no se mira acá: aunque seas invulnerable el edificio te para igual, lo que no hace es dañarte
+  if(!hitos||dead>0||bounceT>0)return;
+  const caja=hitos.golpea(ship.pos,2.6);
+  if(!caja)return;
+  // de qué cara salir: la que está más cerca en proporción a lo que mide la caja en ese eje
+  _cl.copy(ship.pos).sub(caja.centro).applyQuaternion(_cq.copy(caja.q).invert());
+  const rx=Math.abs(_cl.x)/caja.half.x,ry=Math.abs(_cl.y)/caja.half.y,rz=Math.abs(_cl.z)/caja.half.z;
+  if(rx>=ry&&rx>=rz)_cn.set(Math.sign(_cl.x)||1,0,0);
+  else if(ry>=rz)_cn.set(0,Math.sign(_cl.y)||1,0);
+  else _cn.set(0,0,Math.sign(_cl.z)||1);
+  _cn.applyQuaternion(caja.q).normalize();
+  ship.pos.addScaledVector(_cn,3.2);
+  const vn=fwd.dot(_cn);
+  if(vn<0){
+    _d.copy(fwd).addScaledVector(_cn,-1.6*vn).normalize();
+    _q.setFromUnitVectors(fwd,_d);
+    ship.q.premultiply(_q).normalize();
+    fwd.copy(_d);right.set(1,0,0).applyQuaternion(ship.q);up.set(0,1,0).applyQuaternion(ship.q);
+  }
+  ship.vel.copy(_cn).multiplyScalar(Math.max(ship.speed*.75,40));
+  bounceT=.6;
+  if(hitInv<=0){
+    hitInv=.9;
+    // cuanto más rápido ibas, más caro sale: de 14 a 34 de daño
+    damage(Math.round(14+Math.min(1,ship.speed/TUNE.vmax)*20),_cn.clone().negate());
+    toast('Chocaste '+caja.lugar.nombre,1.3);
+  }
+  // una nave entera a 200 m/s se lleva puesta una manzana; despacio solo la abolla
+  romperCaja(caja,ship.pos,false,Math.round(2+Math.min(1,ship.speed/TUNE.vmax)*6));
 }
 const _n2=new V3();
 function rockHit(r){
@@ -3288,6 +3346,7 @@ function startRun(mode,diff,missionId){
   navesIniciar();
   histStop();
   aplicarFicha(FICHAS[equipo().clase]||FICHAS.caza);
+  if(hitos)hitos.reconstruir();   // lo que se rompió en la partida anterior vuelve a estar en pie
   run.mode=mode;run.diff=MODES[mode].diff?(diff||'medio'):'medio';
   /* La hora del planeta. En la Historia la decide la misión y queda quieta: la luz es parte de cómo se cuenta
      (el corredor nocturno del Deshielo pide noche). En los modos libres corre, así que el día pasa mientras volás. */
@@ -4567,6 +4626,7 @@ function frame(now){
     FX.step(dt,canvas.height*.9);
     stepTrails(dt);
     stepTerrain(false);
+    stepChoqueHitos();      // las construcciones de los hitos paran la nave
     pasarHora(dt);          // el Sol se corre: en 40 minutos el planeta da una vuelta entera
     ajustarCamara();        // el plano lejano sigue al horizonte, que crece con la altura
     stepCamera(dt,ship.t);
@@ -4644,7 +4704,7 @@ function boot(data){
   window.DeltaUno={renderer,ship,input,settings,TUNE,FIJADO,FICHAS,GRAVEDAD,vitrina:()=>vitrina,fijable:e=>fijable(e),tgtBestForTest:()=>tgtBest(),launchMissileForTest:t=>launchMissile(t),ENEMY_DEF,DIFF,rocks,activeRocks,rings,chart,chartDir,straighten,terrain,heightAt,S,BIOMES,PLANET_R,CEIL:{CEIL_WARN,CEIL_PUSH,CEIL_MAX},buildMs,flags:()=>({dead,inv,warning,thinWarn}),
     zones,groups,enemies,lost,drops,DROP_KIND,damage,spawnDrop,dodge,tryDodge,rockets,lockCancel,AIM,seenVel,ZONE_KIND,eBolts,boltHitsShip,
     tgt:()=>camTarget,camBlend:()=>camBlend,camera,
-    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,LUGARES,CONEXIONES,ITINERARIOS,hitos:()=>hitos,SUN,SUN_BASE,ponerHora,horaActual,horaParaLuz,DIA_S,horaCorre:()=>horaCorre,toasts:()=>toastLog.slice(),TERMICA,termica:()=>termSuave,calor:()=>heat,lod:()=>lodK,camaraFar:()=>camera.far,camaraNear:()=>camera.near,ola:()=>GU.uOla.value,naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
+    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,LUGARES,CONEXIONES,ITINERARIOS,hitos:()=>hitos,SUN,SUN_BASE,ponerHora,horaActual,horaParaLuz,DIA_S,horaCorre:()=>horaCorre,toasts:()=>toastLog.slice(),TERMICA,termica:()=>termSuave,calor:()=>heat,lod:()=>lodK,margenImpacto,camaraFar:()=>camera.far,camaraNear:()=>camera.near,ola:()=>GU.uOla.value,naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
     vit:()=>({hull,shield,heat,overheat,score,record,combo,curZone:curZone&&zones.indexOf(curZone),target:!!target,fov:camera.fov,missiles,missileT,lockOn,lockP,hasLock:!!lockTarget,repairT,repairCool})};
   last=performance.now();
   requestAnimationFrame(frame);
