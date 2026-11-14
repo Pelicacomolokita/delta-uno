@@ -14,7 +14,12 @@ H.autostart = true;
     return {
       'atraviesa el centro de atrás hacia adelante': seg([0, 0, 20], [0, 0, -20]),
       'pasa 1,5 m por arriba': seg([0, 1.5, 20], [0, 1.5, -20]),
-      'pasa 1 m por abajo': seg([0, -1, 20], [0, -1, -20]),
+      // La frontera de arriba y de abajo está en 1,035 m (silueta del Caza A más el grosor de la bala,
+      // medido con bisección). El casco llega a 1,04 m por debajo del centro, así que a 1 m hay metal.
+      // Se cuida de los dos lados: a 0,9 m tiene que pegar y a 1,3 m no. Si la silueta cambia, esto avisa.
+      'roza 0,9 m por abajo: pega': seg([0, -.9, 20], [0, -.9, -20]),
+      'pasa 1,3 m por abajo: no pega': seg([0, -1.3, 20], [0, -1.3, -20]),
+      'roza 0,9 m por arriba: pega': seg([0, .9, 20], [0, .9, -20]),
       'atraviesa el ala derecha (x 2)': seg([2, 0, 20], [2, 0, -20]),
       'pasa al costado del ala (x 3,2)': seg([3.2, 0, 20], [3.2, 0, -20]),
       'de arriba hacia abajo por el centro': seg([0, 20, 0], [0, -20, 0]),
@@ -22,7 +27,7 @@ H.autostart = true;
       'de costado por el medio': seg([20, 0, .5], [-20, 0, .5]),
     };
   });
-  const want = {'atraviesa el centro de atrás hacia adelante': true, 'pasa 1,5 m por arriba': false, 'pasa 1 m por abajo': false, 'atraviesa el ala derecha (x 2)': true, 'pasa al costado del ala (x 3,2)': false, 'de arriba hacia abajo por el centro': true, 'de arriba hacia abajo junto a la punta (x 1,8 z -2)': false, 'de costado por el medio': true};
+  const want = {'atraviesa el centro de atrás hacia adelante': true, 'pasa 1,5 m por arriba': false, 'roza 0,9 m por abajo: pega': true, 'pasa 1,3 m por abajo: no pega': false, 'roza 0,9 m por arriba: pega': true, 'atraviesa el ala derecha (x 2)': true, 'pasa al costado del ala (x 3,2)': false, 'de arriba hacia abajo por el centro': true, 'de arriba hacia abajo junto a la punta (x 1,8 z -2)': false, 'de costado por el medio': true};
   for (const k of Object.keys(want)) check('bala que ' + k + (want[k] ? ': pega' : ': no pega'), r[k] === want[k], String(r[k]));
   check('sin errores', L.errs.length === 0, L.errs.join(' | '));
   await browser.close();
