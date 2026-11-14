@@ -52,10 +52,21 @@ const view = page => page.evaluate(() => {
   check('sin enemigos cerca, no elige nada y avisa', !none.t && none.ultimos.some(x => /No hay enemigos/.test(x)), JSON.stringify(none));
 
   // El Blanco solo elige lo que tenés adelante: pone otro enemigo delante de la trompa
+  /* adelante() devuelve false si en ese momento no hay ningún enemigo vivo para poner delante. Varias
+     comprobaciones de abajo dependen de que sí lo haya, y como nadie miraba ese valor, cuando los enemigos
+     se habían terminado la prueba fallaba sin decir por qué. Esto espera a que haya uno. */
+  const adelanteSeguro = async (seg = 12) => {
+    for (let i = 0; i < seg * 4; i++) { if (await adelante()) return true; await simWait(L.page, .25); }
+    return false;
+  };
   const adelante = () => L.page.evaluate(() => {
     const D = window.DeltaUno, s = D.ship, V = s.pos.constructor, cur = D.tgt();
     const e = D.enemies.find(x => x.on && x !== cur && !x.def.ground) || D.enemies.find(x => x.on && x !== cur);
     clearInterval(window.__ade); if (!e) return false;
+    /* Para poder fijarlo tiene que cumplir la regla de sector de fijable(): su grupo atacando, o su zona la
+       actual, o estar a menos de FIJADO.cerca (250 m). Acá queda a 400 m, así que hay que ponerle el grupo en
+       ataque; si no, el toque no selecciona nada y la prueba fallaba sin decir por qué. */
+    if (e.group) { e.group.alert = true; e.group.state = 'attack'; e.group.lostT = 0; }
     window.__ade = setInterval(() => { if (!e.on) return; const fw = new V(0, 0, -1).applyQuaternion(s.q); e.pos.copy(s.pos).addScaledVector(fw, 400).addScaledVector(s.pos.clone().normalize(), 10); e.fwd.copy(fw); e.speed = s.speed; e.breakT = 9; }, 4);
     return true;
   });
@@ -153,11 +164,14 @@ const view = page => page.evaluate(() => {
 
   /* solo marcar */
   await L.page.evaluate(() => { window.DeltaUno.settings.tgtCam = 'marca'; });
-  await adelante(); await simWait(L.page, .05);
+  const hayEnemigo = await adelanteSeguro(); await simWait(L.page, .05);
   await tap();
   await simWait(L.page, 2);
   const vm = await view(L.page);
-  check('con "Solo lo marca", la cámara no se mueve pero el blanco queda marcado', !!(await L.page.evaluate(() => window.DeltaUno.tgt())) && vm.blend < .05 && vm.camFwd > base.camFwd - .06 && (await L.page.evaluate(() => document.querySelectorAll('.mk.sel').length)) === 1, f(vm));
+  const marca = await L.page.evaluate(() => ({ tgt: !!window.DeltaUno.tgt(), marcas: document.querySelectorAll('.mk.sel').length, enemigos: window.DeltaUno.enemies.filter(e => e.on).length }));
+  check('con "Solo lo marca", la cámara no se mueve pero el blanco queda marcado',
+    hayEnemigo && marca.tgt && vm.blend < .05 && vm.camFwd > base.camFwd - .06 && marca.marcas === 1,
+    f({ ...vm, ...marca, hayEnemigo }));
   await L.page.evaluate(() => { window.DeltaUno.settings.tgtCam = 'camara'; });
 
   /* teclado */
