@@ -184,7 +184,7 @@ function terrain(x,y,z,lod,full){
   const wet=baseW+(rWet-baseW)*rW*.85;
   const ice=1-sstep(.12,.28,temp);
   const mount=sstep(.62-rAlto*.34,.72-rAlto*.34,vn3(x*2.6+41.7,y*2.6+23.1,z*2.6+13.9))*land;
-  const volc=sstep(.75-rVolc*.14,.80-rVolc*.14,vn3(x*3.3+71.3,y*3.3+37.6,z*3.3+59.2))*land*(1-mount)*(1-ice)*(rVolc<-.5?0:1);
+  const volc=sstep(.75-rVolc*.14,.80-rVolc*.14,vn3(x*3.3+71.3,y*3.3+37.6,z*3.3+59.2))*land*(1-mount*(rVolc>0?.2:1))*(1-ice)*(rVolc<-.5?0:1);
   let wDe=sstep(.58,.74,temp)*(1-sstep(.40,.54,wet))*(1-ice);
   let wFo=sstep(.46,.60,wet)*sstep(.24,.40,temp)*(1-ice);
   let wPl=Math.max(0,1-ice-wDe-wFo),wIc=ice;
@@ -215,7 +215,7 @@ function terrain(x,y,z,lod,full){
       ridge=r1*r1*.62+r2*r2*r1*.28;
       if(lod<=64){const r3=1-Math.abs(2*vn3(x*33.1*KD+2.3,y*33.1*KD+19.1,z*33.1*KD+67.3)-1);ridge+=r3*r3*r1*r2*.10;}
       if(mount>0)h+=(150+ridge*640-h)*mount;
-      if(volc>0)h+=(90+ridge*240-h)*volc;
+      if(volc>0)h+=(90+rAlto*260+ridge*(240+rAlto*300)-h)*volc;  // en una región alta, volcanes altos
     }
     h*=land;
   }
@@ -230,7 +230,7 @@ function terrain(x,y,z,lod,full){
     if(mount>0){r+=(.40-r)*mount;g+=(.37-g)*mount;b+=(.38-b)*mount;}
     if(volc>0){r+=(.11-r)*volc;g+=(.10-g)*volc;b+=(.11-b)*volc;}
     // Nieve por altura, en cualquier zona lo bastante alta
-    const snow=sstep(240+temp*130,310+temp*130,h);
+    const snow=sstep(240+temp*130,310+temp*130,h)*(1-volc);  // sobre roca volcánica no cuaja: el suelo quema
     if(snow>0){r+=(.88-r)*snow;g+=(.90-g)*snow;b+=(.95-b)*snow;}
     // Costa: franja ancha para que no se vea dentada desde lejos
     const shore=sstep(0,1,land);
@@ -245,6 +245,7 @@ function terrain(x,y,z,lod,full){
     }
     S.r=r;S.g=g;S.b=b;S.water=water;
     S.lava=volc*(1-sstep(.10,.24,ridge));
+    S.volc=volc;   // toda la roca volcánica está caliente, no solo los charcos de lava: de acá sale la térmica
     S.strata=Math.max(wDe,mesa*rMesa)*(1-mount)*(1-volc);
     S.canopy=wFo*land*(1-mount)*(1-volc);
     S.biome=h<1.2?(ice>.5?6:0):land<.45?1:volc>.5?8:mount>.5?7:(mesa>.5&&(rMesa>.4||wDe>.5))?5:wDe>.5?4:wIc>.5?6:wFo>.5?3:2;
@@ -837,8 +838,14 @@ function stepFlight(dt){
   const thin=s.thin=sstep(CEIL_PUSH,CEIL_MAX,altSea);
   // Gravedad regulada: entre GRAVEDAD.baja y el techo se va sintiendo de a poco; además, muy lento las alas no sostienen
   const grav=s.grav=sstep(GRAVEDAD.baja,GRAVEDAD.alta,altSea),sust=sustentacion(s.speed,TUNE.vmax);
+  const term=s.termica=stepTermica(dt);   // térmica volcánica: ver TERMICA
 
   let wx=py*TUNE.pitch*k*factorCabeceo(s.speed,TUNE.vmax),wy=0,wz=0,headingInput=0;
+  if(term>.02){ // el aire caliente no sube parejo: sacude la trompa y el alabeo
+    s.termT=(s.termT||0)+dt;
+    wx+=Math.sin(s.termT*5.3)*Math.sin(s.termT*2.1+1.7)*term*TERMICA.sacudon;
+    wz+=Math.sin(s.termT*3.7+.9)*Math.sin(s.termT*1.6)*term*TERMICA.sacudon*1.4;
+  }
   if(thin>0&&fu>-.25)wx-=thin*1.7;
   if(fu>0)wx-=grav*.4*Math.min(1,fu*4); // subiendo con gravedad, la trompa se va hacia abajo (volando nivelado no molesta)
   if(fu>-.5)wx-=(1-sust)*.7*horiz;          // sin velocidad, las alas no sostienen y la trompa cae
@@ -887,7 +894,7 @@ function stepFlight(dt){
   // Avanza sobre la esfera: al moverse, la nave y su velocidad giran con el suelo. Por eso volar recto da la vuelta al planeta.
   const vr=s.vel.dot(U);
   s.pos.addScaledVector(s.vel,dt);
-  s.pos.setLength(r0+vr*dt-thin*175*dt-(s.fall||0)*dt);
+  s.pos.setLength(r0+vr*dt-thin*175*dt-(s.fall||0)*dt+term*TERMICA.subida*dt);
   if(dodging){ // desplazamiento lateral: rápido al medio, suave al principio y al final
     const u=1-dodge.t/DODGE_TIME;
     s.pos.addScaledVector(dodge.side,DODGE_DIST/DODGE_TIME*(Math.PI/2)*Math.sin(Math.PI*u)*dt);
@@ -1376,6 +1383,7 @@ function shipAt(u,f,extra){
 function groundCheck(dt){
   const p=ship.pos,rad=p.length(),g=terrain(U.x,U.y,U.z,0,true);
   ship.biome=S.biome;
+  ship.lava=S.lava;ship.volc=S.volc;   // roca volcánica caliente: de acá salen las térmicas (ver TERMICA)
   ship.alt=rad-PLANET_R-g;
   const overWater=S.water>.5;
   const pr=S.r,pg=S.g,pb=S.b;
@@ -2638,6 +2646,26 @@ function rockHit(r){
     damage(ROCK_DAMAGE,_n2.clone().negate());
   }
 }
+/* ---------- Térmicas volcánicas ----------
+   Sobre roca volcánica el suelo está caliente y el aire sube. Cuanto más bajo volás, más te levanta, y además
+   sacude: Corona Negra se vuela distinto del resto del planeta, que es de lo que se trata.
+   No cuesta nada medirlo: groundCheck ya saca la muestra completa del terreno debajo de la nave en cada cuadro,
+   así que la térmica sale de S.lava, que ya estaba calculado. */
+const TERMICA={
+  subida:19,     // m/s de empuje hacia arriba, pegado al suelo y sobre lava pura
+  techo:1100,    // a esta altura sobre el suelo ya no se siente
+  sacudon:.85,   // cuánto zarandea la trompa y el alabeo
+  calor:2.2      // el motor se calienta esto de veces más rápido volando sobre la lava
+};
+let termSuave=0;
+function stepTermica(dt){
+  const alto=Math.max(ship.alt||0,0);
+  const caida=1-sstep(0,TERMICA.techo,alto);
+  // la roca volcánica ya levanta aire; sobre los charcos de lava levanta bastante más
+  const obj=Math.min(1,(ship.volc||0)*.7+(ship.lava||0)*.6)*caida*caida;
+  termSuave+=(obj-termSuave)*(1-Math.exp(-2.4*dt));   // el aire no cambia de golpe: entra y sale suave
+  return termSuave;
+}
 function stepHeat(dt){
   if(overheat>0){
     overheat=Math.max(0,overheat-dt);
@@ -2645,7 +2673,9 @@ function stepHeat(dt){
     return;
   }
   const over=ship.throttle-TUNE.cruise;
-  heat=clamp(over>.001?heat+over/(1-TUNE.cruise)*dt/TUNE.heatTime:heat-dt/TUNE.coolTime,0,1);
+  // volando bajo sobre la lava el motor traga aire caliente y se recalienta antes: el turbo dura menos
+  const lava=1+(ship.termica||0)*(TERMICA.calor-1);
+  heat=clamp(over>.001?heat+over/(1-TUNE.cruise)*dt/TUNE.heatTime*lava:heat-dt/TUNE.coolTime,0,1);
   if(heat>=1){ // se pasó: el motor cae un rato y la barra vuelve a crucero
     overheat=TUNE.overheatLock;ship.throttle=TUNE.cruise;showThrust();
     blip(240,70,.5,.08,'sawtooth');
@@ -4527,7 +4557,7 @@ function boot(data){
   window.DeltaUno={renderer,ship,input,settings,TUNE,FIJADO,FICHAS,GRAVEDAD,vitrina:()=>vitrina,fijable:e=>fijable(e),tgtBestForTest:()=>tgtBest(),launchMissileForTest:t=>launchMissile(t),ENEMY_DEF,DIFF,rocks,activeRocks,rings,chart,chartDir,straighten,terrain,heightAt,S,BIOMES,PLANET_R,CEIL:{CEIL_WARN,CEIL_PUSH,CEIL_MAX},buildMs,flags:()=>({dead,inv,warning,thinWarn}),
     zones,groups,enemies,lost,drops,DROP_KIND,damage,spawnDrop,dodge,tryDodge,rockets,lockCancel,AIM,seenVel,ZONE_KIND,eBolts,boltHitsShip,
     tgt:()=>camTarget,camBlend:()=>camBlend,camera,
-    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,LUGARES,CONEXIONES,ITINERARIOS,hitos:()=>hitos,SUN,SUN_BASE,ponerHora,horaActual,horaParaLuz,DIA_S,horaCorre:()=>horaCorre,toasts:()=>toastLog.slice(),naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
+    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,LUGARES,CONEXIONES,ITINERARIOS,hitos:()=>hitos,SUN,SUN_BASE,ponerHora,horaActual,horaParaLuz,DIA_S,horaCorre:()=>horaCorre,toasts:()=>toastLog.slice(),TERMICA,termica:()=>termSuave,calor:()=>heat,naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
     vit:()=>({hull,shield,heat,overheat,score,record,combo,curZone:curZone&&zones.indexOf(curZone),target:!!target,fov:camera.fov,missiles,missileT,lockOn,lockP,hasLock:!!lockTarget,repairT,repairCool})};
   last=performance.now();
   requestAnimationFrame(frame);
