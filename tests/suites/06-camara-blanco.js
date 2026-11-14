@@ -46,8 +46,10 @@ const view = page => page.evaluate(() => {
   await simWait(L.page, 1.5);
   const base = await view(L.page);
   await tap();
-  const none = await L.page.evaluate(() => ({ t: !!window.DeltaUno.tgt(), toast: document.querySelector('#toast').textContent }));
-  check('sin enemigos cerca, no elige nada y avisa', !none.t && /No hay enemigos/.test(none.toast), JSON.stringify(none));
+  // el aviso se busca entre los últimos y no en el cartel: cualquier otro aviso (una nodriza derribada, por
+  // ejemplo) lo tapa en el mismo instante y la prueba salía cara o cruz
+  const none = await L.page.evaluate(() => ({ t: !!window.DeltaUno.tgt(), toast: document.querySelector('#toast').textContent, ultimos: window.DeltaUno.toasts().slice(-4) }));
+  check('sin enemigos cerca, no elige nada y avisa', !none.t && none.ultimos.some(x => /No hay enemigos/.test(x)), JSON.stringify(none));
 
   // El Blanco solo elige lo que tenés adelante: pone otro enemigo delante de la trompa
   const adelante = () => L.page.evaluate(() => {

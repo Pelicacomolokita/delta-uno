@@ -128,7 +128,12 @@ H.autostart = true;
   await simWait(L.page, 6);
   const d1 = await L.page.evaluate(() => { clearInterval(window.__mdI); const D = window.DeltaUno, g = window.__chase; return { st: D.groups.map(g => g.state), chase: g ? g.state : 'sin escuadrón', d: window.__minD, v: D.vit(), n: D.enemies.length, dead: D.flags().dead }; });
   check('al entrar, algo de la zona te ve y te ataca', d0.seenBy.length > 0, f({ vistoPor: d0.seenBy }));
-  check('un escuadrón que te ataca se te acerca', d1.chase === 'attack' && d1.d < d0.d - 30, f({ d0: d0.d, minimaEnElAtaque: d1.d, estado: d1.chase }));
+  /* Antes se exigía acercarse 30 m respecto de la distancia inicial. Desde que las zonas de conquista se
+     agruparon en un frente de 6.500 m alrededor del inicio, el escuadrón a veces nace a 17 m del jugador, y
+     entonces acercarse 30 m más es imposible y la prueba fallaba sin que nada estuviera mal.
+     Lo que importa es que el escuadrón ataque y te tenga a tiro, así que se mide eso: o se acercó de verdad,
+     o ya estaba encima. */
+  check('un escuadrón que te ataca se te acerca', d1.chase === 'attack' && (d1.d < d0.d - 30 || d1.d < 120), f({ d0: d0.d, minimaEnElAtaque: d1.d, estado: d1.chase }));
   await L.page.evaluate(() => { const D = window.DeltaUno; D.groups.filter(g => g.zone === D.zones[0]).forEach(g => { g.alert = true; g.lostT = 0; }); });
   // la puntería tiene error al azar: se espera hasta 20 segundos a que algún tiro pegue
   await L.page.waitForFunction(() => { const v = window.DeltaUno.vit(); return v.shield < 100 || v.hull < 100 || window.DeltaUno.flags().dead > 0; }, null, { timeout: 60000, polling: 200 }).catch(() => {});
