@@ -141,8 +141,10 @@ const view = page => page.evaluate(() => {
 
   /* mantener suelta */
   await holdBtn();
-  const off = await L.page.evaluate(() => ({ t: !!window.DeltaUno.tgt(), toast: document.querySelector('#toast').textContent, word: document.querySelector('#tgtWord').textContent }));
-  check('mantener Blanco lo suelta', !off.t && /suelto/.test(off.toast) && off.word === 'Blanco', JSON.stringify(off));
+  /* El aviso se busca entre los últimos y no en el cartel: el cartel muestra uno solo, y si justo salís de la
+     zona enemiga en el mismo instante ese aviso tapa al de "Blanco suelto" y la prueba salía cara o cruz. */
+  const off = await L.page.evaluate(() => ({ t: !!window.DeltaUno.tgt(), toast: document.querySelector('#toast').textContent, ultimos: window.DeltaUno.toasts().slice(-4), word: document.querySelector('#tgtWord').textContent }));
+  check('mantener Blanco lo suelta', !off.t && off.ultimos.some(x => /suelto/.test(x)) && off.word === 'Blanco', JSON.stringify(off));
   await simWait(L.page, 2);
   const v3 = await view(L.page);
   check('al soltar, la cámara vuelve a mirar adelante', v3.blend < .1 && v3.camFwd > base.camFwd - .06, f({ ...v3, base: base.camFwd }));

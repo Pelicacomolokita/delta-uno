@@ -27,7 +27,11 @@ H.transform = s => s.replace('b.life=1.7;b.dmg=e.def.dmg*(e.dmgK||1);b.on=true;'
     await waitGrace(L.page);
     await L.page.evaluate(() => window.DeltaUno.setInv(999)); // quieta y a tiro de las torretas: que no la derriben a mitad de la prueba
     await L.page.evaluate(zi => { const D = window.DeltaUno; D.groups.filter(g => g.zone === D.zones[zi]).forEach(g => { g.alert = false; }); }, zi);
-    await simWait(L.page, 9);
+    /* 20 s y no 9: los escuadrones de una zona salen de a uno, y el intervalo es de 7 s si la zona te vio
+       (2 s si no). Con tres escuadrones, el tercero puede tardar 14 s. En una zona densa hay 4 torretas y
+       2 lanzamisiles con radar de 900 a 1050 m, así que desde los 250 m de afuera donde se para esta prueba
+       la zona casi siempre te ve: con 9 s la prueba era cara o cruz. Ver src/main.js, z.spawnT=seen?7:2. */
+    await simWait(L.page, 20);
   };
   const zinfo = zi => L.page.evaluate(zi => { const D = window.DeltaUno, z = D.zones[zi], mine = D.groups.filter(g => g.zone === z && !g.ground); let minSep = 1e9; for (let i = 0; i < mine.length; i++) for (let j = i + 1; j < mine.length; j++) minSep = Math.min(minSep, mine[i].leader.pos.distanceTo(mine[j].leader.pos)); return { kind: z.kind.name, groups: mine.length, naves: mine.reduce((n, g) => n + g.members.length, 0), alert: mine.filter(g => g.alert).length, minSep: Math.round(minSep), form: Math.round(Math.max(...mine.map(g => Math.max(...g.members.map(m => m.pos.distanceTo(g.leader.pos)))))) }; }, zi);
 

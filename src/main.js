@@ -2588,7 +2588,13 @@ function stepEnemyBolts(dt){
 const elBarShield=$('#barShield'),elBarHull=$('#barHull'),elBarDodge=$('#barDodge'),elVitals=$('#vitals'),elHeat=$('#heatBar'),elFx=$('#speedFx'),elHurt=$('#hurt'),elDmg=$('#dmgDir'),elToast=$('#toast'),elLead=$('#lead'),elZoneMk=$('#zoneMk'),elZoneDist=$('#zoneDist');
 let hurtA=0,dmgA=0,toastT=0,hitFlash=0,smokeT=0,sparkT=0,alarmT=0,wasTurbo=false,vitT=0,zoneMkT=0;
 const shieldFx=createShield(T,shipGroup),_shD=new V3(); // se ilumina más donde pegó el tiro
-function toast(text,secs){elToast.textContent=text;elToast.hidden=false;toastT=secs||1.2;}
+/* Los últimos avisos, para las pruebas: el cartel muestra uno solo, así que si dos avisos caen juntos el
+   segundo tapa al primero y una prueba que lee el cartel sale cara o cruz. Con esto puede mirar los últimos. */
+const toastLog=[];
+function toast(text,secs){
+  elToast.textContent=text;elToast.hidden=false;toastT=secs||1.2;
+  toastLog.push(text);if(toastLog.length>12)toastLog.shift();
+}
 function damage(n,dir){
   if(dead>0||inv>0)return;
   shieldWait=SHIELD_DELAY;
@@ -4521,7 +4527,7 @@ function boot(data){
   window.DeltaUno={renderer,ship,input,settings,TUNE,FIJADO,FICHAS,GRAVEDAD,vitrina:()=>vitrina,fijable:e=>fijable(e),tgtBestForTest:()=>tgtBest(),launchMissileForTest:t=>launchMissile(t),ENEMY_DEF,DIFF,rocks,activeRocks,rings,chart,chartDir,straighten,terrain,heightAt,S,BIOMES,PLANET_R,CEIL:{CEIL_WARN,CEIL_PUSH,CEIL_MAX},buildMs,flags:()=>({dead,inv,warning,thinWarn}),
     zones,groups,enemies,lost,drops,DROP_KIND,damage,spawnDrop,dodge,tryDodge,rockets,lockCancel,AIM,seenVel,ZONE_KIND,eBolts,boltHitsShip,
     tgt:()=>camTarget,camBlend:()=>camBlend,camera,
-    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,LUGARES,CONEXIONES,ITINERARIOS,hitos:()=>hitos,SUN,SUN_BASE,ponerHora,horaActual,horaParaLuz,DIA_S,horaCorre:()=>horaCorre,naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
+    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,LUGARES,CONEXIONES,ITINERARIOS,hitos:()=>hitos,SUN,SUN_BASE,ponerHora,horaActual,horaParaLuz,DIA_S,horaCorre:()=>horaCorre,toasts:()=>toastLog.slice(),naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
     vit:()=>({hull,shield,heat,overheat,score,record,combo,curZone:curZone&&zones.indexOf(curZone),target:!!target,fov:camera.fov,missiles,missileT,lockOn,lockP,hasLock:!!lockTarget,repairT,repairCool})};
   last=performance.now();
   requestAnimationFrame(frame);
