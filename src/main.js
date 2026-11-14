@@ -14,6 +14,8 @@ import { cargarTexturas, afinar } from './texturas.js';
 import { TUNE, SENS, aplicarFicha, FICHAS, factorCabeceo, COMBATE, GRAVEDAD, sustentacion } from './vuelo/ficha.js';
 import { ENEMY_DEF, AIM, DIFF, NOTA_HISTORIA } from './vuelo/dificultad.js';
 import { FIJADO, pasoFijado, mejorBlanco, siguienteBlanco, blancoPerdido, candidatosBlanco } from './vuelo/fijado.js';
+import { REGIONES_PLANO, LUGARES, CONEXIONES, ITINERARIOS } from './mundo/lugares.js';
+import { crearHitos } from './mundo/hitos.js';
 import { CLASES, STAT_NOMBRE, ARMAS, RANURA_NOMBRE, PINTURAS, CARROCERIAS, EQUIPO_INICIAL } from './hangar/catalogo.js';
 import { Vitrina } from './naves/vitrina.js';
 window.THREE = THREE; // las pruebas lo usan para armar matrices
@@ -120,19 +122,27 @@ function vn3(x,y,z){
   const y0=x00+(x10-x00)*v,y1=x01+(x11-x01)*v;
   return y0+(y1-y0)*w;
 }
-/* Las 7 regiones de la historia. Cada una empuja el clima y el relieve a su alrededor;
-   el ruido sigue poniendo el detalle. Las direcciones salen de docs/historia/anclas-regiones.json.
-   mar: cuánto tira a océano (negativo) o a tierra firme (positivo).
-   temp y wet: clima. mesa: mesetas y paredes. alto: cuánto empuja la montaña. */
-const REGIONES=[
-  { id:'costa',    nom:'Costa Clara',         u:[-0.295,+0.534,-0.792], r:0.17, mar:-0.02, temp:+0.01, wet:+0.05, mesa:0,    alto:-0.25, volc:-1 },
-  { id:'cuenca',   nom:'Cuenca Verde',        u:[+0.112,-0.086,-0.990], r:0.17, mar:+0.12, temp:+0.08, wet:+0.34, mesa:0,    alto:-0.10, volc:-1 },
-  { id:'columnas', nom:'Mar de las Columnas', u:[+0.569,+0.486,-0.663], r:0.17, mar:-0.45, temp:+0.16, wet:+0.10, mesa:0,    alto:-0.60, volc:-1 },
-  { id:'agujas',   nom:'Las Agujas',          u:[-0.539,-0.533,-0.652], r:0.17, mar:+0.16, temp:-0.04, wet:-0.06, mesa:1.5,  alto:+0.18, volc:-1 },
-  { id:'salinas',  nom:'Salinas del Sur',     u:[+0.440,-0.634,-0.636], r:0.17, mar:+0.14, temp:+0.34, wet:-0.42, mesa:0.25, alto:-0.30, volc:-1 },
-  { id:'deshielo', nom:'Paso del Deshielo',   u:[-0.994,-0.105,-0.036], r:0.17, mar:+0.10, temp:-0.30, wet:+0.06, mesa:0.3,  alto:+0.10, volc:-1 },
-  { id:'corona',   nom:'Corona Negra',        u:[-0.389,-0.921,+0.019], r:0.17, mar:+0.14, temp:-0.16, wet:+0.08, mesa:0,    alto:+1.00, volc:+0.9 }
-];
+/* Las 7 regiones del plano maestro (docs/historia/plano-maestro.json, girado al marco del motor
+   por scripts/plano.mjs). Cada una fija el clima de su territorio; el ruido pone el detalle.
+   temp y wet son el clima que manda adentro de la región, no un empujón: el plano apila Salinas,
+   Deshielo y Corona cerca del mismo polo, así que la latitud sola las dejaría a las tres congeladas.
+   mar: negativo tira a océano. mesa: mesetas y paredes. alto: cuánta montaña. volc: volcanes. */
+// tierra: 0 océano, 1 tierra firme. fuerza: cuánto manda sobre el ruido (bajo = deja costa irregular).
+const CLIMA={
+  CO:{ temp:.52, wet:.50, tierra:.50, fuerza:.38, mesa:0,   alto:-.25, volc:-1 },
+  CU:{ temp:.46, wet:.74, tierra:.72, fuerza:.90, mesa:0,   alto:-.10, volc:-1 },
+  MA:{ temp:.55, wet:.52, tierra:.20, fuerza:.95, mesa:0,   alto:-.60, volc:-1 },
+  AG:{ temp:.50, wet:.34, tierra:.74, fuerza:.90, mesa:1.5, alto:+.18, volc:-1 },
+  SA:{ temp:.84, wet:.16, tierra:.74, fuerza:.90, mesa:.25, alto:-.30, volc:-1 },
+  DE:{ temp:.06, wet:.56, tierra:.70, fuerza:.85, mesa:.3,  alto:-.15, volc:-1 },
+  CN:{ temp:.42, wet:.40, tierra:.76, fuerza:.92, mesa:0,   alto:+1.0, volc:+.9 }
+};
+const REGIONES=REGIONES_PLANO.map(r=>{
+  const c=CLIMA[r.id]||CLIMA.CO;
+  // El radio sale del tamaño que el plano le dibuja a la región, más un borde para que se fundan
+  const km=Math.max(r.ext[0],r.ext[1])/2+1.6;
+  return { id:r.id, nom:r.nombre, u:r.u, r:1-Math.cos(km*1000/PLANET_R), ...c };
+});
 const REGW=new Float32Array(REGIONES.length);
 // Peso de cada región en un punto: 1 en el centro y 0 pasado su radio. Suave, para que no haya costuras.
 function regionWeights(x,y,z){
@@ -156,17 +166,22 @@ const S={r:0,g:0,b:0,water:0,lava:0,strata:0,canopy:0,biome:0}; // resultado de 
 // lod: tamaño de la malla que pregunta, para no calcular detalle que no puede mostrar. full: también calcula color y material.
 function terrain(x,y,z,lod,full){
   regionWeights(x,y,z);
-  let rMar=0,rTemp=0,rWet=0,rMesa=0,rAlto=0,rVolc=0;
+  let rMar=0,rFza=0,rTemp=0,rWet=0,rMesa=0,rAlto=0,rVolc=0,rW=0;
   for(let i=0;i<REGIONES.length;i++){
     const w=REGW[i];if(w<=0)continue;
-    const R=REGIONES[i];rMar+=w*R.mar;rTemp+=w*R.temp;rWet+=w*R.wet;rMesa+=w*R.mesa;rAlto+=w*R.alto;rVolc+=w*R.volc;
+    const R=REGIONES[i];rMar+=w*R.tierra*R.fuerza;rFza+=w*R.fuerza;rTemp+=w*R.temp;rWet+=w*R.wet;rMesa+=w*R.mesa;rAlto+=w*R.alto;rVolc+=w*R.volc;rW+=w;
   }
-  const cont=vn3(x*1.5+11.3,y*1.5+4.1,z*1.5+7.7)*.66+vn3(x*3.4+2.2,y*3.4+9.6,z*3.4+1.3)*.34+rMar;
+  if(rW>1){rTemp/=rW;rWet/=rW;rMar/=rW;rFza/=rW;rW=1;}
+  if(rFza>0)rMar/=rFza;
+  let cont=vn3(x*1.5+11.3,y*1.5+4.1,z*1.5+7.7)*.66+vn3(x*3.4+2.2,y*3.4+9.6,z*3.4+1.3)*.34;
+  if(rFza>0)cont+=(rMar-cont)*Math.min(1,rFza);   // adentro de una región manda el plano, no el ruido
   const land=sstep(.40,.50,cont);
   if(land<=0&&!full)return 0;
   // Clima: más frío hacia los polos, con manchas para que las zonas no sean franjas
-  const temp=1-Math.abs(x)*1.05+(vn3(x*2.3+5.1,y*2.3+.7,z*2.3+9.3)-.5)*.6+rTemp;
-  const wet=vn3(x*2.7+31.2,y*2.7+17.4,z*2.7+2.8)+rWet;
+  const latT=1-Math.abs(x)*1.05,ruidoT=(vn3(x*2.3+5.1,y*2.3+.7,z*2.3+9.3)-.5)*.6;
+  const temp=latT+(rTemp-latT)*rW+ruidoT;
+  const baseW=vn3(x*2.7+31.2,y*2.7+17.4,z*2.7+2.8);
+  const wet=baseW+(rWet-baseW)*rW*.85;
   const ice=1-sstep(.12,.28,temp);
   const mount=sstep(.62-rAlto*.34,.72-rAlto*.34,vn3(x*2.6+41.7,y*2.6+23.1,z*2.6+13.9))*land;
   const volc=sstep(.75-rVolc*.14,.80-rVolc*.14,vn3(x*3.3+71.3,y*3.3+37.6,z*3.3+59.2))*land*(1-mount)*(1-ice)*(rVolc<-.5?0:1);
@@ -728,7 +743,23 @@ const camFwd=new V3(0,0,-1),camUp=new V3(0,1,0),_upT=new V3(),_look=new V3();
   camFwd.copy(fwd);camUp.copy(U);
 })();
 
-const startU=U.clone(),startF=fwd.clone();
+const origenCasa=U.clone(),origenCasaF=fwd.clone();  // Costa Clara: de donde sale el juego normal
+/* El punto desde donde arranca la partida. Vuelo libre lo puede mover a cualquiera de los 37 hitos
+   (acceso de pruebas a regiones, entrega P1); los demás modos salen siempre de casa. */
+const origenU=origenCasa.clone(),origenF=origenCasaF.clone();
+let origenId=null;  // null = casa
+function ponerOrigen(id){
+  const c=id&&hitos&&hitos.centros.get(id);
+  origenId=c?id:null;
+  origenU.copy(c?c.u:origenCasa);
+  // adelante: una tangente al suelo en ese punto, mirando hacia el polo norte del mapa
+  if(c){
+    _v.set(0,1,0);_v.addScaledVector(origenU,-_v.dot(origenU));
+    if(_v.lengthSq()<1e-6)_v.set(1,0,0).addScaledVector(origenU,-origenU.x);
+    origenF.copy(_v).normalize();
+  }else origenF.copy(origenCasaF);
+  return origenId;
+}
 
 /* ---------- Física de vuelo ---------- */
 const POLE=new V3(-1,0,0),_e=new V3(),_n=new V3();
@@ -1094,6 +1125,17 @@ function stepRocks(dt){
     }
   }
 }
+
+/* ---------- Los 37 hitos del plano maestro ----------
+   Los lugares con nombre, en bloques, para que el mundo se lea como habitado y las misiones tengan a dónde ir.
+   Una sola malla instanciada: 37 lugares cuestan una llamada de dibujo. */
+let hitos=null;
+function hitosIniciar(){
+  if(hitos)return hitos;
+  hitos=crearHitos(T,scene,{PLANET_R,heightAt});
+  return hitos;
+}
+hitosIniciar();
 
 /* ---------- Disparos ---------- */
 const BOLT_MAX=48,BOLT_SPEED=COMBATE.balas,BOLT_LIFE=1.15,FIRE_EVERY=.115;
@@ -1968,19 +2010,19 @@ function makeZone(dir){
 function buildZones(){
   // La primera (dispersa, para empezar tranquilo) queda adelante del punto de partida; las demás, repartidas por el planeta
   const a=(ZONE_KIND[ZONE_ORDER[0]].r+1150)/PLANET_R;
-  makeZone(_v.copy(startU).multiplyScalar(Math.cos(a)).addScaledVector(startF,Math.sin(a)).normalize().clone());
+  makeZone(_v.copy(origenU).multiplyScalar(Math.cos(a)).addScaledVector(origenF,Math.sin(a)).normalize().clone());
   let s=2718;
   const rnd=()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};
   // Las zonas van en un frente de unos 6,5 km alrededor del punto de partida, no repartidas por todo
   // el planeta: con el planeta grande, al azar quedarían a cuatro minutos de vuelo una de otra.
   const FRENTE=6500/PLANET_R;
-  const b1=new V3(Math.abs(startU.y)<.9?0:1,Math.abs(startU.y)<.9?1:0,0);
-  b1.addScaledVector(startU,-b1.dot(startU)).normalize();
-  const b2=new V3().crossVectors(b1,startU).normalize();
+  const b1=new V3(Math.abs(origenU.y)<.9?0:1,Math.abs(origenU.y)<.9?1:0,0);
+  b1.addScaledVector(origenU,-b1.dot(origenU)).normalize();
+  const b2=new V3().crossVectors(b1,origenU).normalize();
   for(let tries=0;tries<900&&zones.length<6;tries++){
     const a=FRENTE*Math.sqrt(rnd()),t=rnd()*Math.PI*2,sa=Math.sin(a);
-    const d=new V3().copy(startU).multiplyScalar(Math.cos(a)).addScaledVector(b1,sa*Math.cos(t)).addScaledVector(b2,sa*Math.sin(t)).normalize();
-    if(arcTo(d,startU)<ZONE_KIND.dispersa.r+1100)continue;
+    const d=new V3().copy(origenU).multiplyScalar(Math.cos(a)).addScaledVector(b1,sa*Math.cos(t)).addScaledVector(b2,sa*Math.sin(t)).normalize();
+    if(arcTo(d,origenU)<ZONE_KIND.dispersa.r+1100)continue;
     if(zones.every(z=>arcTo(d,z.dir)>3400))makeZone(d);
   }
 }
@@ -3098,7 +3140,7 @@ function startRun(mode,diff,missionId){
   resetVitals();
   dead=0;inv=GRACE;crashMsg.hidden=true;shipGroup.visible=true;
   ship.speed=TUNE.cruise*TUNE.vmax;ship.fall=0;
-  shipAt(startU,startF,105);
+  shipAt(origenU,origenF,105);
   run.prev.copy(ship.pos);
   if(mode==='conquista')spawnCarrier();
   updateRings();
@@ -3146,8 +3188,8 @@ function cleanupPseudo(z){
 function spawnCarrier(u){
   if(freeSlots()<1)return;
   if(!u){ // lejos del punto de partida, entre las zonas
-    const far=zones.slice().sort((a,b)=>arcTo(b.dir,startU)-arcTo(a.dir,startU))[0];
-    u=new V3().copy(far?far.dir:startU).addScaledVector(far?far.e1:startF,.25).normalize();
+    const far=zones.slice().sort((a,b)=>arcTo(b.dir,origenU)-arcTo(a.dir,origenU))[0];
+    u=new V3().copy(far?far.dir:origenU).addScaledVector(far?far.e1:origenF,.25).normalize();
   }
   const home=groundPoint(u,450,new V3());
   carrierZone.dir.copy(u);
@@ -3245,7 +3287,7 @@ const course=[];
 function buildCourse(){
   if(course.length)return; // siempre el mismo recorrido, para que el récord valga
   let s=4242;const rnd=()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};
-  const u=startU.clone(),f=startF.clone().addScaledVector(startU,-startF.dot(startU)).normalize();
+  const u=origenU.clone(),f=origenF.clone().addScaledVector(origenU,-origenF.dot(origenU)).normalize();
   let dist=650;
   for(let i=0;i<RING_N;i++){
     const a=dist/PLANET_R,nu=u.clone().multiplyScalar(Math.cos(a)).addScaledVector(f,Math.sin(a)).normalize();
@@ -3256,7 +3298,7 @@ function buildCourse(){
     dist=430+rnd()*170;
   }
   course.forEach((c,i)=>{
-    const prev=i?course[i-1].pos:startU.clone().multiplyScalar(PLANET_R+heightAt(startU.x,startU.y,startU.z,0)+105);
+    const prev=i?course[i-1].pos:origenU.clone().multiplyScalar(PLANET_R+heightAt(origenU.x,origenU.y,origenU.z,0)+105);
     const next=course[i+1]?course[i+1].pos:c.pos.clone().multiplyScalar(2).sub(prev);
     c.n.copy(next).sub(prev).normalize();
     const m=new T.Mesh(ringGeo,ringMatRest);m.position.copy(c.pos);m.quaternion.setFromUnitVectors(Z_AXIS,c.n);
@@ -3288,10 +3330,10 @@ function stepRace(dt){
   run.prev.copy(ship.pos);
 }
 function raceRespawnSpot(u,f){
-  const from=run.ring?course[run.ring-1].u:startU,to=course[Math.min(run.ring,RING_N-1)].u;
+  const from=run.ring?course[run.ring-1].u:origenU,to=course[Math.min(run.ring,RING_N-1)].u;
   u.copy(from);
   f.copy(to).sub(from).addScaledVector(from,-to.clone().sub(from).dot(from));
-  if(f.lengthSq()<1e-8)f.copy(startF);
+  if(f.lengthSq()<1e-8)f.copy(origenF);
   f.normalize();
 }
 
@@ -3354,7 +3396,7 @@ function findSector(spec){
   if(sectorCache[key])return sectorCache[key];
   let s=9157;const rnd=()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};
   const c=new V3(),e1=new V3(),e2=new V3(),q=new V3();
-  let best=-1e9;const out=startU.clone();
+  let best=-1e9;const out=origenU.clone();
   for(let k=0;k<500;k++){
     const y=rnd()*1.6-.8,t=rnd()*Math.PI*2,r=Math.sqrt(1-y*y);
     c.set(Math.cos(t)*r,y,Math.sin(t)*r);
@@ -3588,7 +3630,7 @@ function histWhen(c){
   return false;
 }
 function histDo(a){
-  if(a[0]==='firma'){const al=allies.find(x=>x.id===a[1]);if(al)startFirma(al);}
+  if(a[0]==='firma'){const al=allies.find(x=>x.id===a[1]);if(al)origenFirma(al);}
 }
 function histComplete(){
   const def=mis.def,secs=mis.t,falls=mis.falls;
@@ -3913,7 +3955,7 @@ function stepAlly(a,dt){
 }
 /* La firma de Rastro (reporte 01): se pone adelante del jugador, amaga hacia la izquierda, esquiva hacia la
    derecha con un tonel y sale con un golpe de turbo. Espera a estar a la vista antes de amagar. */
-function startFirma(a){a.man={step:'ir',t:0};}
+function origenFirma(a){a.man={step:'ir',t:0};}
 function onScreen(p){
   _aA.copy(p).sub(camera.position);
   camera.getWorldDirection(_aV);
@@ -3995,8 +4037,34 @@ function syncMenu(){
   const rt=recText(sel);
   $('#modeRec').textContent=rt?rt+(M.diff?' en '+D.name.toLowerCase():''):sel==='historia'?'Todavía sin jugar':'Todavía sin récord';
   $('#goBtn').textContent=sel==='historia'?'Ver la misión':'Despegar';$('#loadoutBtn').hidden=sel==='historia';
+  syncSalida(sel);
   syncStatsNote();
   scrollHints();
+}
+/* Vuelo libre: elegir desde cuál de los 37 hitos se sale. Es el acceso de pruebas a regiones de la entrega P1:
+   sirve para ir a mirar una región sin tener que cruzar el planeta. Los demás modos salen siempre de casa. */
+let salidaArmada=false;
+function armarSalida(){
+  if(salidaArmada)return;salidaArmada=true;
+  const sel=$('#salidaSel');
+  const casa=document.createElement('option');casa.value='';casa.textContent='Casa — Costa Clara';sel.appendChild(casa);
+  for(const R of REGIONES_PLANO){
+    const g=document.createElement('optgroup');g.label=R.nombre;
+    for(const l of LUGARES)if(l.region===R.id){
+      const o=document.createElement('option');o.value=l.id;o.textContent=l.id+' · '+l.nombre;g.appendChild(o);
+    }
+    if(g.children.length)sel.appendChild(g);
+  }
+  sel.addEventListener('change',()=>{ponerOrigen(sel.value||null);syncSalida('libre');});
+}
+function syncSalida(modo){
+  const box=$('#salidaBox');
+  box.hidden=modo!=='libre';
+  if(box.hidden){if(origenId)ponerOrigen(null);return;}
+  armarSalida();
+  $('#salidaSel').value=origenId||'';
+  const l=origenId&&LUGARES.find(x=>x.id===origenId);
+  $('#salidaNote').textContent=l?l.que:'El punto de siempre, en la costa de la Guardia.';
 }
 function openMenu(){
   if(run.live)endRunStats('abandono');
@@ -4394,7 +4462,7 @@ function boot(data){
   window.DeltaUno={renderer,ship,input,settings,TUNE,FIJADO,FICHAS,GRAVEDAD,vitrina:()=>vitrina,fijable:e=>fijable(e),tgtBestForTest:()=>tgtBest(),launchMissileForTest:t=>launchMissile(t),ENEMY_DEF,DIFF,rocks,activeRocks,rings,chart,chartDir,straighten,terrain,heightAt,S,BIOMES,PLANET_R,CEIL:{CEIL_WARN,CEIL_PUSH,CEIL_MAX},buildMs,flags:()=>({dead,inv,warning,thinWarn}),
     zones,groups,enemies,lost,drops,DROP_KIND,damage,spawnDrop,dodge,tryDodge,rockets,lockCancel,AIM,seenVel,ZONE_KIND,eBolts,boltHitsShip,
     tgt:()=>camTarget,camBlend:()=>camBlend,camera,
-    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
+    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,LUGARES,CONEXIONES,ITINERARIOS,hitos:()=>hitos,naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
     vit:()=>({hull,shield,heat,overheat,score,record,combo,curZone:curZone&&zones.indexOf(curZone),target:!!target,fov:camera.fov,missiles,missileT,lockOn,lockP,hasLock:!!lockTarget,repairT,repairCool})};
   last=performance.now();
   requestAnimationFrame(frame);

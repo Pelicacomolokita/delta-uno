@@ -1,0 +1,1470 @@
+{
+  "version": "PM-0.1",
+  "estado": "propuesta_para_revision_no_datos_ejecutables",
+  "radio_planeta_m": 21900.0,
+  "coordenadas": "Carta solar: x=R*longitud, y=R*latitud, expresados en km; x=0 terminador; Sol=(-1,0,0). Debe rotarse de forma rigida al sistema del motor.",
+  "velocidades_referencia": {
+    "caza_crucero_ms": 65,
+    "caza_maximo_ms": 130,
+    "transporte_hipotesis_ms": 45
+  },
+  "regiones": [
+    {
+      "id": "CO",
+      "nombre": "Costa Clara",
+      "centro_km": [
+        -11,
+        0
+      ],
+      "extension_visual_km": [
+        7,
+        7
+      ]
+    },
+    {
+      "id": "CU",
+      "nombre": "Cuenca Verde",
+      "centro_km": [
+        -7,
+        3
+      ],
+      "extension_visual_km": [
+        6,
+        6
+      ]
+    },
+    {
+      "id": "AG",
+      "nombre": "Las Agujas",
+      "centro_km": [
+        -1,
+        3
+      ],
+      "extension_visual_km": [
+        7,
+        7
+      ]
+    },
+    {
+      "id": "MA",
+      "nombre": "Mar de las Columnas",
+      "centro_km": [
+        -4,
+        -6
+      ],
+      "extension_visual_km": [
+        9,
+        6
+      ]
+    },
+    {
+      "id": "SA",
+      "nombre": "Salinas del Sur",
+      "centro_km": [
+        5,
+        -4
+      ],
+      "extension_visual_km": [
+        8,
+        7
+      ]
+    },
+    {
+      "id": "DE",
+      "nombre": "Paso del Deshielo",
+      "centro_km": [
+        5,
+        7
+      ],
+      "extension_visual_km": [
+        9,
+        7
+      ]
+    },
+    {
+      "id": "CN",
+      "nombre": "Corona Negra",
+      "centro_km": [
+        13,
+        1
+      ],
+      "extension_visual_km": [
+        8,
+        9
+      ]
+    }
+  ],
+  "lugares": [
+    {
+      "id": "CO01",
+      "nombre": "Base Delta",
+      "region": "CO",
+      "x_km": -12,
+      "y_km": 1,
+      "tipo": "base",
+      "control_inicial": "Guardia",
+      "funcion": "Hangares, antenas y plataformas; salida y reunión.",
+      "direccion_solar": [
+        -0.5203914,
+        0.0456462,
+        0.852707
+      ]
+    },
+    {
+      "id": "CO02",
+      "nombre": "Campo de entrenamiento",
+      "region": "CO",
+      "x_km": -12,
+      "y_km": -1,
+      "tipo": "vuelo",
+      "control_inicial": "Guardia",
+      "funcion": "Anillos y blancos de práctica; M1 revisable.",
+      "direccion_solar": [
+        -0.5203914,
+        -0.0456462,
+        0.852707
+      ]
+    },
+    {
+      "id": "CO03",
+      "nombre": "Puerto Clara",
+      "region": "CO",
+      "x_km": -10,
+      "y_km": -0.5,
+      "tipo": "ciudad",
+      "control_inicial": "Guardia",
+      "funcion": "Puerto, viviendas y depósitos; motivo civil de operaciones.",
+      "direccion_solar": [
+        -0.4408029,
+        -0.0228291,
+        0.8973136
+      ]
+    },
+    {
+      "id": "CO04",
+      "nombre": "Puente y batería del Estuario",
+      "region": "CO",
+      "x_km": -9,
+      "y_km": 0.8,
+      "tipo": "puente",
+      "control_inicial": "Disputado",
+      "funcion": "Enlace puerto–interior; primera defensa de M7.",
+      "direccion_solar": [
+        -0.3992221,
+        0.0365216,
+        0.9161266
+      ]
+    },
+    {
+      "id": "CO05",
+      "nombre": "Nodo costero",
+      "region": "CO",
+      "x_km": -11,
+      "y_km": 2.3,
+      "tipo": "nodo",
+      "control_inicial": "Guardia",
+      "funcion": "Abastece base y puerto; no es blanco por defecto.",
+      "direccion_solar": [
+        -0.4787753,
+        0.1048299,
+        0.8716564
+      ]
+    },
+    {
+      "id": "CO06",
+      "nombre": "Pórticos portuarios",
+      "region": "CO",
+      "x_km": -10.2,
+      "y_km": -1.4,
+      "tipo": "vuelo",
+      "control_inicial": "Guardia",
+      "funcion": "Manejo opcional y ruta industrial; convoy por espacio abierto.",
+      "direccion_solar": [
+        -0.4481788,
+        -0.0638834,
+        0.8916584
+      ]
+    },
+    {
+      "id": "CU01",
+      "nombre": "Depósitos y plataforma de la Cuenca",
+      "region": "CU",
+      "x_km": -7,
+      "y_km": 2.4,
+      "tipo": "deposito",
+      "control_inicial": "Guardia",
+      "funcion": "Destino de primer convoy y evacuación posterior.",
+      "direccion_solar": [
+        -0.3123348,
+        0.1093698,
+        0.9436552
+      ]
+    },
+    {
+      "id": "CU02",
+      "nombre": "Nodo forestal",
+      "region": "CU",
+      "x_km": -7.2,
+      "y_km": 4,
+      "tipo": "nodo",
+      "control_inicial": "Guardia",
+      "funcion": "Suministro; defensa por oleadas.",
+      "direccion_solar": [
+        -0.3175057,
+        0.1816346,
+        0.9306981
+      ]
+    },
+    {
+      "id": "CU03",
+      "nombre": "Puesto de la Cuenca",
+      "region": "CU",
+      "x_km": -5.5,
+      "y_km": 2.7,
+      "tipo": "fortaleza",
+      "control_inicial": "Disputado",
+      "funcion": "Segunda defensa de M7 y acceso al frente.",
+      "direccion_solar": [
+        -0.2466236,
+        0.1229756,
+        0.9612772
+      ]
+    },
+    {
+      "id": "AG01",
+      "nombre": "Cauce del Velo",
+      "region": "AG",
+      "x_km": -3.6,
+      "y_km": 3.1,
+      "tipo": "vuelo",
+      "control_inicial": "Disputado",
+      "funcion": "Vuelo bajo; curvas y dos posiciones defensivas.",
+      "direccion_solar": [
+        -0.1620075,
+        0.1410803,
+        0.9766524
+      ]
+    },
+    {
+      "id": "AG02",
+      "nombre": "Viaducto y batería del Paso",
+      "region": "AG",
+      "x_km": -1.5,
+      "y_km": 3.2,
+      "tipo": "puente",
+      "control_inicial": "Disputado",
+      "funcion": "Tercera defensa M7; paso inferior opcional.",
+      "direccion_solar": [
+        -0.0677103,
+        0.1455993,
+        0.9870239
+      ]
+    },
+    {
+      "id": "AG03",
+      "nombre": "Alto del Paso",
+      "region": "AG",
+      "x_km": 0.2,
+      "y_km": 4.2,
+      "tipo": "ciudad",
+      "control_inicial": "Disputado",
+      "funcion": "Cruce industrial habitado; destino M7 y amenaza de bombarderos.",
+      "direccion_solar": [
+        0.0089649,
+        0.1906074,
+        0.9816254
+      ]
+    },
+    {
+      "id": "AG04",
+      "nombre": "Cuenca de la emboscada",
+      "region": "AG",
+      "x_km": -0.8,
+      "y_km": 0.8,
+      "tipo": "vuelo",
+      "control_inicial": "Directorio",
+      "funcion": "Bombarderos señuelo, ramales de ataque y salida oeste.",
+      "direccion_solar": [
+        -0.0364972,
+        0.0365216,
+        0.9986662
+      ]
+    },
+    {
+      "id": "AG05",
+      "nombre": "Reunión del repliegue",
+      "region": "AG",
+      "x_km": -3.4,
+      "y_km": 0.7,
+      "tipo": "reunion",
+      "control_inicial": "Guardia",
+      "funcion": "Anillo seguro bajo cobertura aliada de M6.",
+      "direccion_solar": [
+        -0.1545492,
+        0.031958,
+        0.9874681
+      ]
+    },
+    {
+      "id": "AG06",
+      "nombre": "Nodo de transferencia",
+      "region": "AG",
+      "x_km": 0.4,
+      "y_km": 5.5,
+      "tipo": "nodo",
+      "control_inicial": "Disputado",
+      "funcion": "Conecta industria con asentamiento; hito no destruible por defecto.",
+      "direccion_solar": [
+        0.0176909,
+        0.2485099,
+        0.9684678
+      ]
+    },
+    {
+      "id": "MA01",
+      "nombre": "Columnas exteriores",
+      "region": "MA",
+      "x_km": -6,
+      "y_km": -5,
+      "tipo": "vuelo",
+      "control_inicial": "Disputado",
+      "funcion": "Pasadas de interceptor y transporte.",
+      "direccion_solar": [
+        -0.2635371,
+        -0.2263322,
+        0.9377217
+      ]
+    },
+    {
+      "id": "MA02",
+      "nombre": "Plataforma de transferencia marítima",
+      "region": "MA",
+      "x_km": -2,
+      "y_km": -6,
+      "tipo": "plataforma",
+      "control_inicial": "Directorio",
+      "funcion": "Carga y batalla entre facciones; no puente sobre océano.",
+      "direccion_solar": [
+        -0.087796,
+        -0.270558,
+        0.9586919
+      ]
+    },
+    {
+      "id": "MA03",
+      "nombre": "Arena de la primera nodriza",
+      "region": "MA",
+      "x_km": -0.4,
+      "y_km": -4.6,
+      "tipo": "jefe",
+      "control_inicial": "Directorio",
+      "funcion": "Espacio abierto para jefe; columnas fuera de maniobras críticas.",
+      "direccion_solar": [
+        -0.0178624,
+        -0.2085046,
+        0.9778583
+      ]
+    },
+    {
+      "id": "SA01",
+      "nombre": "Salina y extracción",
+      "region": "SA",
+      "x_km": 3,
+      "y_km": -4,
+      "tipo": "industria",
+      "control_inicial": "Directorio",
+      "funcion": "Origen de carga y refugios de tormenta.",
+      "direccion_solar": [
+        0.1342868,
+        -0.1816346,
+        0.974154
+      ]
+    },
+    {
+      "id": "SA02",
+      "nombre": "Centro militar del Directorio",
+      "region": "SA",
+      "x_km": 6,
+      "y_km": -3.8,
+      "tipo": "fortaleza",
+      "control_inicial": "Directorio",
+      "funcion": "Coordinación militar; cae al terminar campaña 2.",
+      "direccion_solar": [
+        0.2664953,
+        -0.1726466,
+        0.9482476
+      ]
+    },
+    {
+      "id": "SA03",
+      "nombre": "Nodo extractivo",
+      "region": "SA",
+      "x_km": 4.4,
+      "y_km": -2,
+      "tipo": "nodo",
+      "control_inicial": "Directorio",
+      "funcion": "Servicio industrial; independiente del centro militar.",
+      "direccion_solar": [
+        0.1987327,
+        -0.0911973,
+        0.9758014
+      ]
+    },
+    {
+      "id": "SA04",
+      "nombre": "Complejo de acceso difícil",
+      "region": "SA",
+      "x_km": 6.4,
+      "y_km": -0.4,
+      "tipo": "fortaleza",
+      "control_inicial": "Directorio",
+      "funcion": "Se presenta antes; asalto con camuflaje propio en C3-05.",
+      "direccion_solar": [
+        0.2880475,
+        -0.0182638,
+        0.957442
+      ]
+    },
+    {
+      "id": "SA05",
+      "nombre": "Refugio de tormenta y reunión",
+      "region": "SA",
+      "x_km": 1,
+      "y_km": -3.2,
+      "tipo": "reunion",
+      "control_inicial": "Disputado",
+      "funcion": "Punto seguro para salida del convoy de Salinas.",
+      "direccion_solar": [
+        0.0451598,
+        -0.1455993,
+        0.9883124
+      ]
+    },
+    {
+      "id": "DE01",
+      "nombre": "Depósitos del Deshielo",
+      "region": "DE",
+      "x_km": 2.5,
+      "y_km": 7,
+      "tipo": "deposito",
+      "control_inicial": "Desligados",
+      "funcion": "Material capturado y rival de la firma.",
+      "direccion_solar": [
+        0.1081381,
+        0.3142198,
+        0.9431713
+      ]
+    },
+    {
+      "id": "DE02",
+      "nombre": "Corredor nocturno",
+      "region": "DE",
+      "x_km": 3,
+      "y_km": 4.9,
+      "tipo": "vuelo",
+      "control_inicial": "Directorio",
+      "funcion": "Primer combate contra infiltradores; salida iluminada.",
+      "direccion_solar": [
+        0.1331544,
+        0.2218821,
+        0.965939
+      ]
+    },
+    {
+      "id": "DE03",
+      "nombre": "Centro de archivos técnicos",
+      "region": "DE",
+      "x_km": 4.5,
+      "y_km": 6,
+      "tipo": "industria",
+      "control_inicial": "Directorio",
+      "funcion": "Planos de camuflaje; acceso de transporte defendible.",
+      "direccion_solar": [
+        0.1964267,
+        0.270558,
+        0.9424515
+      ]
+    },
+    {
+      "id": "DE04",
+      "nombre": "Estación de especialistas y nodo glacial",
+      "region": "DE",
+      "x_km": 6,
+      "y_km": 8,
+      "tipo": "nodo",
+      "control_inicial": "Comunidades",
+      "funcion": "Destino de especialistas PEM y red local.",
+      "direccion_solar": [
+        0.252706,
+        0.3572265,
+        0.8991823
+      ]
+    },
+    {
+      "id": "DE05",
+      "nombre": "Grietas de la voz conocida",
+      "region": "DE",
+      "x_km": 6,
+      "y_km": 4.5,
+      "tipo": "vuelo",
+      "control_inicial": "Desligados",
+      "funcion": "Revelación de Rastro; ruta de retirada a oeste.",
+      "direccion_solar": [
+        0.2648663,
+        0.2040365,
+        0.9424515
+      ]
+    },
+    {
+      "id": "DE06",
+      "nombre": "Refugio de Rivas",
+      "region": "DE",
+      "x_km": 7,
+      "y_km": 6.3,
+      "tipo": "asentamiento",
+      "control_inicial": "Disidentes",
+      "funcion": "Clínica, talleres y plataforma; rescate de referentes.",
+      "direccion_solar": [
+        0.3013076,
+        0.2837199,
+        0.9103388
+      ]
+    },
+    {
+      "id": "DE07",
+      "nombre": "Cauce del reencuentro",
+      "region": "DE",
+      "x_km": 7.5,
+      "y_km": 4.2,
+      "tipo": "vuelo",
+      "control_inicial": "Desligados",
+      "funcion": "Separar apoyos de Rastro y proteger salida.",
+      "direccion_solar": [
+        0.329654,
+        0.1906074,
+        0.9246605
+      ]
+    },
+    {
+      "id": "DE08",
+      "nombre": "Reunión del Deshielo",
+      "region": "DE",
+      "x_km": 3.5,
+      "y_km": 4,
+      "tipo": "reunion",
+      "control_inicial": "Disidentes",
+      "funcion": "Salida C3-03; no presume alianza pública desde el inicio.",
+      "direccion_solar": [
+        0.1564908,
+        0.1816346,
+        0.9708344
+      ]
+    },
+    {
+      "id": "CN01",
+      "nombre": "Batería de acceso industrial",
+      "region": "CN",
+      "x_km": 10,
+      "y_km": 1.5,
+      "tipo": "fortaleza",
+      "control_inicial": "Directorio",
+      "funcion": "Acceso terrestre desde Salinas y defensa de Varela después.",
+      "direccion_solar": [
+        0.439884,
+        0.0684396,
+        0.895443
+      ]
+    },
+    {
+      "id": "CN02",
+      "nombre": "Puesto exterior y evacuación",
+      "region": "CN",
+      "x_km": 11.5,
+      "y_km": 3,
+      "tipo": "plataforma",
+      "control_inicial": "Directorio",
+      "funcion": "Personal aislado; rescate y muerte propuesta de Rastro.",
+      "direccion_solar": [
+        0.4966155,
+        0.1365583,
+        0.8571609
+      ]
+    },
+    {
+      "id": "CN03",
+      "nombre": "Central de Corona Negra",
+      "region": "CN",
+      "x_km": 14,
+      "y_km": 1,
+      "tipo": "central",
+      "control_inicial": "Directorio",
+      "funcion": "Montaña, anillo y conductos; pasa a Varela.",
+      "direccion_solar": [
+        0.5959874,
+        0.0456462,
+        0.8016953
+      ]
+    },
+    {
+      "id": "CN04",
+      "nombre": "Instalación del misil",
+      "region": "CN",
+      "x_km": 14.6,
+      "y_km": 0.4,
+      "tipo": "misil",
+      "control_inicial": "Directorio",
+      "funcion": "Infraestructura industrial adaptada al arma en campaña 3.",
+      "direccion_solar": [
+        0.6182667,
+        0.0182638,
+        0.7857562
+      ]
+    },
+    {
+      "id": "CN05",
+      "nombre": "Arena de las tres nodrizas",
+      "region": "CN",
+      "x_km": 12,
+      "y_km": -0.5,
+      "tipo": "jefe",
+      "control_inicial": "Directorio",
+      "funcion": "Perímetro aéreo del lanzamiento; escala a validar.",
+      "direccion_solar": [
+        0.5207986,
+        -0.0228291,
+        0.8533743
+      ]
+    },
+    {
+      "id": "CN06",
+      "nombre": "Reunión de la coalición",
+      "region": "CN",
+      "x_km": 9.2,
+      "y_km": 3.8,
+      "tipo": "reunion",
+      "control_inicial": "Sin control estable",
+      "funcion": "Punto seguro C3-12 y salida de Aguja; habilitación narrativa.",
+      "direccion_solar": [
+        0.4017196,
+        0.1726466,
+        0.8993412
+      ]
+    }
+  ],
+  "conexiones": [
+    {
+      "desde": "CO01",
+      "hasta": "CO05",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 1638,
+      "tiempo_caza_crucero_s": 25,
+      "tiempo_caza_maximo_s": 13,
+      "tiempo_transporte_45ms_s": 36
+    },
+    {
+      "desde": "CO03",
+      "hasta": "CO06",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 922,
+      "tiempo_caza_crucero_s": 14,
+      "tiempo_caza_maximo_s": 7,
+      "tiempo_transporte_45ms_s": 20
+    },
+    {
+      "desde": "CU01",
+      "hasta": "CU02",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 1612,
+      "tiempo_caza_crucero_s": 25,
+      "tiempo_caza_maximo_s": 12,
+      "tiempo_transporte_45ms_s": 36
+    },
+    {
+      "desde": "AG03",
+      "hasta": "AG06",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 1315,
+      "tiempo_caza_crucero_s": 20,
+      "tiempo_caza_maximo_s": 10,
+      "tiempo_transporte_45ms_s": 29
+    },
+    {
+      "desde": "DE01",
+      "hasta": "DE02",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 2154,
+      "tiempo_caza_crucero_s": 33,
+      "tiempo_caza_maximo_s": 17,
+      "tiempo_transporte_45ms_s": 48
+    },
+    {
+      "desde": "DE02",
+      "hasta": "DE03",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 1823,
+      "tiempo_caza_crucero_s": 28,
+      "tiempo_caza_maximo_s": 14,
+      "tiempo_transporte_45ms_s": 41
+    },
+    {
+      "desde": "CO01",
+      "hasta": "CO03",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 2500,
+      "tiempo_caza_crucero_s": 38,
+      "tiempo_caza_maximo_s": 19,
+      "tiempo_transporte_45ms_s": 56
+    },
+    {
+      "desde": "CO03",
+      "hasta": "CO04",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 1640,
+      "tiempo_caza_crucero_s": 25,
+      "tiempo_caza_maximo_s": 13,
+      "tiempo_transporte_45ms_s": 36
+    },
+    {
+      "desde": "CO04",
+      "hasta": "CU01",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 2557,
+      "tiempo_caza_crucero_s": 39,
+      "tiempo_caza_maximo_s": 20,
+      "tiempo_transporte_45ms_s": 57
+    },
+    {
+      "desde": "CU01",
+      "hasta": "CU03",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 1520,
+      "tiempo_caza_crucero_s": 23,
+      "tiempo_caza_maximo_s": 12,
+      "tiempo_transporte_45ms_s": 34
+    },
+    {
+      "desde": "CU03",
+      "hasta": "AG01",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 1925,
+      "tiempo_caza_crucero_s": 30,
+      "tiempo_caza_maximo_s": 15,
+      "tiempo_transporte_45ms_s": 43
+    },
+    {
+      "desde": "AG01",
+      "hasta": "AG02",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 2081,
+      "tiempo_caza_crucero_s": 32,
+      "tiempo_caza_maximo_s": 16,
+      "tiempo_transporte_45ms_s": 46
+    },
+    {
+      "desde": "AG02",
+      "hasta": "AG03",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 1951,
+      "tiempo_caza_crucero_s": 30,
+      "tiempo_caza_maximo_s": 15,
+      "tiempo_transporte_45ms_s": 43
+    },
+    {
+      "desde": "AG03",
+      "hasta": "SA03",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 7478,
+      "tiempo_caza_crucero_s": 115,
+      "tiempo_caza_maximo_s": 58,
+      "tiempo_transporte_45ms_s": 166
+    },
+    {
+      "desde": "SA03",
+      "hasta": "SA01",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 2434,
+      "tiempo_caza_crucero_s": 37,
+      "tiempo_caza_maximo_s": 19,
+      "tiempo_transporte_45ms_s": 54
+    },
+    {
+      "desde": "SA01",
+      "hasta": "SA02",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 2959,
+      "tiempo_caza_crucero_s": 46,
+      "tiempo_caza_maximo_s": 23,
+      "tiempo_transporte_45ms_s": 66
+    },
+    {
+      "desde": "SA02",
+      "hasta": "SA04",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 3423,
+      "tiempo_caza_crucero_s": 53,
+      "tiempo_caza_maximo_s": 26,
+      "tiempo_transporte_45ms_s": 76
+    },
+    {
+      "desde": "SA04",
+      "hasta": "CN01",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 4069,
+      "tiempo_caza_crucero_s": 63,
+      "tiempo_caza_maximo_s": 31,
+      "tiempo_transporte_45ms_s": 90
+    },
+    {
+      "desde": "CN01",
+      "hasta": "CN03",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 4025,
+      "tiempo_caza_crucero_s": 62,
+      "tiempo_caza_maximo_s": 31,
+      "tiempo_transporte_45ms_s": 89
+    },
+    {
+      "desde": "CN03",
+      "hasta": "CN04",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 848,
+      "tiempo_caza_crucero_s": 13,
+      "tiempo_caza_maximo_s": 7,
+      "tiempo_transporte_45ms_s": 19
+    },
+    {
+      "desde": "AG03",
+      "hasta": "DE01",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 3575,
+      "tiempo_caza_crucero_s": 55,
+      "tiempo_caza_maximo_s": 28,
+      "tiempo_transporte_45ms_s": 79
+    },
+    {
+      "desde": "DE01",
+      "hasta": "DE03",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 2158,
+      "tiempo_caza_crucero_s": 33,
+      "tiempo_caza_maximo_s": 17,
+      "tiempo_transporte_45ms_s": 48
+    },
+    {
+      "desde": "DE03",
+      "hasta": "DE04",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 2455,
+      "tiempo_caza_crucero_s": 38,
+      "tiempo_caza_maximo_s": 19,
+      "tiempo_transporte_45ms_s": 55
+    },
+    {
+      "desde": "DE04",
+      "hasta": "DE06",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 1946,
+      "tiempo_caza_crucero_s": 30,
+      "tiempo_caza_maximo_s": 15,
+      "tiempo_transporte_45ms_s": 43
+    },
+    {
+      "desde": "DE06",
+      "hasta": "CN02",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 5495,
+      "tiempo_caza_crucero_s": 85,
+      "tiempo_caza_maximo_s": 42,
+      "tiempo_transporte_45ms_s": 122
+    },
+    {
+      "desde": "CN02",
+      "hasta": "CN03",
+      "tipo": "terrestre",
+      "distancia_geodesica_m": 3193,
+      "tiempo_caza_crucero_s": 49,
+      "tiempo_caza_maximo_s": 25,
+      "tiempo_transporte_45ms_s": 71
+    },
+    {
+      "desde": "CO01",
+      "hasta": "CO02",
+      "tipo": "aereo",
+      "distancia_geodesica_m": 2000,
+      "tiempo_caza_crucero_s": 31,
+      "tiempo_caza_maximo_s": 15,
+      "tiempo_transporte_45ms_s": 44
+    },
+    {
+      "desde": "DE02",
+      "hasta": "DE08",
+      "tipo": "aereo",
+      "distancia_geodesica_m": 1025,
+      "tiempo_caza_crucero_s": 16,
+      "tiempo_caza_maximo_s": 8,
+      "tiempo_transporte_45ms_s": 23
+    },
+    {
+      "desde": "CO03",
+      "hasta": "MA01",
+      "tipo": "aereo",
+      "distancia_geodesica_m": 5995,
+      "tiempo_caza_crucero_s": 92,
+      "tiempo_caza_maximo_s": 46,
+      "tiempo_transporte_45ms_s": 133
+    },
+    {
+      "desde": "MA01",
+      "hasta": "MA02",
+      "tipo": "aereo",
+      "distancia_geodesica_m": 4001,
+      "tiempo_caza_crucero_s": 62,
+      "tiempo_caza_maximo_s": 31,
+      "tiempo_transporte_45ms_s": 89
+    },
+    {
+      "desde": "MA02",
+      "hasta": "SA01",
+      "tipo": "aereo",
+      "distancia_geodesica_m": 5263,
+      "tiempo_caza_crucero_s": 81,
+      "tiempo_caza_maximo_s": 40,
+      "tiempo_transporte_45ms_s": 117
+    },
+    {
+      "desde": "MA02",
+      "hasta": "MA03",
+      "tipo": "aereo",
+      "distancia_geodesica_m": 2091,
+      "tiempo_caza_crucero_s": 32,
+      "tiempo_caza_maximo_s": 16,
+      "tiempo_transporte_45ms_s": 46
+    },
+    {
+      "desde": "CU03",
+      "hasta": "AG04",
+      "tipo": "aereo",
+      "distancia_geodesica_m": 5054,
+      "tiempo_caza_crucero_s": 78,
+      "tiempo_caza_maximo_s": 39,
+      "tiempo_transporte_45ms_s": 112
+    },
+    {
+      "desde": "AG04",
+      "hasta": "AG05",
+      "tipo": "aereo",
+      "distancia_geodesica_m": 2600,
+      "tiempo_caza_crucero_s": 40,
+      "tiempo_caza_maximo_s": 20,
+      "tiempo_transporte_45ms_s": 58
+    },
+    {
+      "desde": "DE05",
+      "hasta": "DE08",
+      "tipo": "aereo",
+      "distancia_geodesica_m": 2503,
+      "tiempo_caza_crucero_s": 39,
+      "tiempo_caza_maximo_s": 19,
+      "tiempo_transporte_45ms_s": 56
+    },
+    {
+      "desde": "DE06",
+      "hasta": "DE07",
+      "tipo": "aereo",
+      "distancia_geodesica_m": 2155,
+      "tiempo_caza_crucero_s": 33,
+      "tiempo_caza_maximo_s": 17,
+      "tiempo_transporte_45ms_s": 48
+    },
+    {
+      "desde": "CN06",
+      "hasta": "CN05",
+      "tipo": "aereo",
+      "distancia_geodesica_m": 5124,
+      "tiempo_caza_crucero_s": 79,
+      "tiempo_caza_maximo_s": 39,
+      "tiempo_transporte_45ms_s": 114
+    },
+    {
+      "desde": "CN05",
+      "hasta": "CN03",
+      "tipo": "aereo",
+      "distancia_geodesica_m": 2500,
+      "tiempo_caza_crucero_s": 38,
+      "tiempo_caza_maximo_s": 19,
+      "tiempo_transporte_45ms_s": 56
+    },
+    {
+      "desde": "CN02",
+      "hasta": "CN06",
+      "tipo": "aereo",
+      "distancia_geodesica_m": 2409,
+      "tiempo_caza_crucero_s": 37,
+      "tiempo_caza_maximo_s": 19,
+      "tiempo_transporte_45ms_s": 54
+    }
+  ],
+  "misiones": [
+    {
+      "id": "C1-01",
+      "titulo": "Entrenamiento",
+      "itinerario": [
+        "CO02"
+      ],
+      "duracion_min": [
+        null,
+        null
+      ],
+      "distancia_minima_itinerario_m": 0,
+      "vuelo_minimo_crucero_s": 0,
+      "nota": "Conocer nave y grupo; revisar M1 por decisión nueva, conservar intención y firma."
+    },
+    {
+      "id": "C1-02",
+      "titulo": "Primera salida",
+      "itinerario": [
+        "CO03",
+        "CO04"
+      ],
+      "duracion_min": [
+        5,
+        7
+      ],
+      "distancia_minima_itinerario_m": 1640,
+      "vuelo_minimo_crucero_s": 25,
+      "nota": "Abrir acceso al puerto; Rastro repite firma en batalla."
+    },
+    {
+      "id": "C1-03",
+      "titulo": "Carga importante",
+      "itinerario": [
+        "CO03",
+        "CO06",
+        "CO04",
+        "CU01"
+      ],
+      "duracion_min": [
+        7,
+        9
+      ],
+      "distancia_minima_itinerario_m": 5984,
+      "vuelo_minimo_crucero_s": 92,
+      "nota": "Convoy abastece Cuenca; primer vínculo con sus defensores."
+    },
+    {
+      "id": "C1-04",
+      "titulo": "Mantener la posición",
+      "itinerario": [
+        "CU01",
+        "CU02",
+        "CU03"
+      ],
+      "duracion_min": [
+        8,
+        10
+      ],
+      "distancia_minima_itinerario_m": 3736,
+      "vuelo_minimo_crucero_s": 57,
+      "nota": "Oleadas y salida de transporte; presentar interceptores."
+    },
+    {
+      "id": "C1-05",
+      "titulo": "Por debajo",
+      "itinerario": [
+        "CU03",
+        "AG01",
+        "AG02"
+      ],
+      "duracion_min": [
+        8,
+        10
+      ],
+      "distancia_minima_itinerario_m": 4006,
+      "vuelo_minimo_crucero_s": 62,
+      "nota": "[SIGILO] y dos defensas; abrir acceso a Alto del Paso."
+    },
+    {
+      "id": "C1-06",
+      "titulo": "Emboscada",
+      "itinerario": [
+        "CU03",
+        "AG04",
+        "AG05"
+      ],
+      "duracion_min": [
+        6,
+        8
+      ],
+      "distancia_minima_itinerario_m": 7655,
+      "vuelo_minimo_crucero_s": 118,
+      "nota": "Señuelo bombarderos, seis caídas, resistir dos minutos y escapar; ataque dirigido a AG03."
+    },
+    {
+      "id": "C1-07",
+      "titulo": "Los que quedan",
+      "itinerario": [
+        "CO04",
+        "CU03",
+        "AG02",
+        "AG03"
+      ],
+      "duracion_min": [
+        10,
+        12
+      ],
+      "distancia_minima_itinerario_m": 9918,
+      "vuelo_minimo_crucero_s": 153,
+      "nota": "Convoy recupera tres posiciones y abastece Alto del Paso; empieza en estuario."
+    },
+    {
+      "id": "C2-01",
+      "titulo": "Recuperar el aire",
+      "itinerario": [
+        "AG02",
+        "AG03",
+        "AG06"
+      ],
+      "duracion_min": [
+        8,
+        10
+      ],
+      "distancia_minima_itinerario_m": 3266,
+      "vuelo_minimo_crucero_s": 50,
+      "nota": "Recuperar puesto y sostenerlo; consolidar región."
+    },
+    {
+      "id": "C2-02",
+      "titulo": "Entre columnas",
+      "itinerario": [
+        "MA01",
+        "MA02"
+      ],
+      "duracion_min": [
+        8,
+        10
+      ],
+      "distancia_minima_itinerario_m": 4001,
+      "vuelo_minimo_crucero_s": 62,
+      "nota": "Interceptor propio, escolta e intercepción."
+    },
+    {
+      "id": "C2-03",
+      "titulo": "Sin horizonte",
+      "itinerario": [
+        "SA01",
+        "SA05"
+      ],
+      "duracion_min": [
+        9,
+        11
+      ],
+      "distancia_minima_itinerario_m": 2129,
+      "vuelo_minimo_crucero_s": 33,
+      "nota": "Buscar convoy en tormenta y extraerlo; detectar saqueo."
+    },
+    {
+      "id": "C2-04",
+      "titulo": "Golpe pesado",
+      "itinerario": [
+        "SA01",
+        "SA03"
+      ],
+      "duracion_min": [
+        9,
+        11
+      ],
+      "distancia_minima_itinerario_m": 2434,
+      "vuelo_minimo_crucero_s": 37,
+      "nota": "Nave de ataque contra defensas; llegada de técnicos."
+    },
+    {
+      "id": "C2-05",
+      "titulo": "El otro saqueador",
+      "itinerario": [
+        "DE01"
+      ],
+      "duracion_min": [
+        8,
+        10
+      ],
+      "distancia_minima_itinerario_m": 0,
+      "vuelo_minimo_crucero_s": 0,
+      "nota": "Impedir extracción; rival de la firma escapa."
+    },
+    {
+      "id": "C2-06",
+      "titulo": "Lo que no vemos",
+      "itinerario": [
+        "DE02",
+        "DE08"
+      ],
+      "duracion_min": [
+        9,
+        11
+      ],
+      "distancia_minima_itinerario_m": 1025,
+      "vuelo_minimo_crucero_s": 16,
+      "nota": "Primer camuflaje enemigo nocturno; salida iluminada bajo apoyo temporal local."
+    },
+    {
+      "id": "C2-07",
+      "titulo": "Los planos",
+      "itinerario": [
+        "DE02",
+        "DE03"
+      ],
+      "duracion_min": [
+        10,
+        12
+      ],
+      "distancia_minima_itinerario_m": 1823,
+      "vuelo_minimo_crucero_s": 28,
+      "nota": "[SIGILO], acceso técnico, archivos y retirada por mismo corredor."
+    },
+    {
+      "id": "C2-08",
+      "titulo": "Romper el velo",
+      "itinerario": [
+        "DE03",
+        "DE04"
+      ],
+      "duracion_min": [
+        9,
+        11
+      ],
+      "distancia_minima_itinerario_m": 2455,
+      "vuelo_minimo_crucero_s": 38,
+      "nota": "Especialistas PEM a salvo; inicia desarrollo propio."
+    },
+    {
+      "id": "C2-09",
+      "titulo": "La fortaleza vuela",
+      "itinerario": [
+        "MA02",
+        "MA03"
+      ],
+      "duracion_min": [
+        11,
+        13
+      ],
+      "distancia_minima_itinerario_m": 2091,
+      "vuelo_minimo_crucero_s": 32,
+      "nota": "Nodriza jefe; abrir corredor marítimo para carga hacia Salinas."
+    },
+    {
+      "id": "C2-10",
+      "titulo": "Silencio de mando",
+      "itinerario": [
+        "SA01",
+        "SA02"
+      ],
+      "duracion_min": [
+        11,
+        13
+      ],
+      "distancia_minima_itinerario_m": 2959,
+      "vuelo_minimo_crucero_s": 46,
+      "nota": "Técnicos desactivan centro militar; derrota del Directorio."
+    },
+    {
+      "id": "C3-01",
+      "titulo": "Últimas órdenes",
+      "itinerario": [
+        "SA02",
+        "SA04"
+      ],
+      "duracion_min": [
+        8,
+        10
+      ],
+      "distancia_minima_itinerario_m": 3423,
+      "vuelo_minimo_crucero_s": 53,
+      "nota": "Célula residual y material desaparecido; perímetro de SA04 se muestra sin conquistar."
+    },
+    {
+      "id": "C3-02",
+      "titulo": "Huellas en el hielo",
+      "itinerario": [
+        "DE01",
+        "DE04"
+      ],
+      "duracion_min": [
+        9,
+        11
+      ],
+      "distancia_minima_itinerario_m": 3444,
+      "vuelo_minimo_crucero_s": 53,
+      "nota": "Traslados, camuflaje y primer PEM propio."
+    },
+    {
+      "id": "C3-03",
+      "titulo": "La voz conocida",
+      "itinerario": [
+        "DE05",
+        "DE08"
+      ],
+      "duracion_min": [
+        9,
+        11
+      ],
+      "distancia_minima_itinerario_m": 2503,
+      "vuelo_minimo_crucero_s": 39,
+      "nota": "Faro cae al comienzo; Rastro se identifica; escape."
+    },
+    {
+      "id": "C3-04",
+      "titulo": "Aprender a faltar",
+      "itinerario": [
+        "CU02",
+        "CU01",
+        "CU03"
+      ],
+      "duracion_min": [
+        9,
+        11
+      ],
+      "distancia_minima_itinerario_m": 3132,
+      "vuelo_minimo_crucero_s": 48,
+      "nota": "Regreso a lugar conocido y evacuación sin Faro."
+    },
+    {
+      "id": "C3-05",
+      "titulo": "Su propia sombra",
+      "itinerario": [
+        "SA03",
+        "SA04"
+      ],
+      "duracion_min": [
+        10,
+        12
+      ],
+      "distancia_minima_itinerario_m": 2559,
+      "vuelo_minimo_crucero_s": 39,
+      "nota": "Prototipo propio desde planos; [SIGILO] para romper defensa."
+    },
+    {
+      "id": "C3-06",
+      "titulo": "Tres fuegos",
+      "itinerario": [
+        "MA01",
+        "MA02"
+      ],
+      "duracion_min": [
+        10,
+        12
+      ],
+      "distancia_minima_itinerario_m": 4001,
+      "vuelo_minimo_crucero_s": 62,
+      "nota": "Tres facciones, transporte y datos de disidentes."
+    },
+    {
+      "id": "C3-07",
+      "titulo": "La médica",
+      "itinerario": [
+        "DE04",
+        "DE06"
+      ],
+      "duracion_min": [
+        9,
+        11
+      ],
+      "distancia_minima_itinerario_m": 1946,
+      "vuelo_minimo_crucero_s": 30,
+      "nota": "Rescatar médica y referentes; verdad de Rastro."
+    },
+    {
+      "id": "C3-08",
+      "titulo": "Lo que recordás",
+      "itinerario": [
+        "DE06",
+        "DE07"
+      ],
+      "duracion_min": [
+        10,
+        12
+      ],
+      "distancia_minima_itinerario_m": 2155,
+      "vuelo_minimo_crucero_s": 33,
+      "nota": "Separar apoyos, pruebas y ruptura de Rastro con Varela."
+    },
+    {
+      "id": "C3-09",
+      "titulo": "La montaña encendida",
+      "itinerario": [
+        "CN01",
+        "CN03",
+        "CN06"
+      ],
+      "duracion_min": [
+        10,
+        12
+      ],
+      "distancia_minima_itinerario_m": 9554,
+      "vuelo_minimo_crucero_s": 147,
+      "nota": "[SIGILO] nocturno, reconocer misil CN04 y extraer datos; repliegue por norte."
+    },
+    {
+      "id": "C3-10",
+      "titulo": "El precio del paso",
+      "itinerario": [
+        "SA04",
+        "CN01"
+      ],
+      "duracion_min": [
+        11,
+        13
+      ],
+      "distancia_minima_itinerario_m": 4069,
+      "vuelo_minimo_crucero_s": 63,
+      "nota": "Abrir ruta industrial para coalición; muere Chispa."
+    },
+    {
+      "id": "C3-11",
+      "titulo": "Volver por alguien",
+      "itinerario": [
+        "CN06",
+        "CN02",
+        "CN06"
+      ],
+      "duracion_min": [
+        10,
+        12
+      ],
+      "distancia_minima_itinerario_m": 4818,
+      "vuelo_minimo_crucero_s": 74,
+      "nota": "Rescate y regreso; muere Rastro tras cooperar."
+    },
+    {
+      "id": "C3-12",
+      "titulo": "Antes del amanecer",
+      "itinerario": [
+        "CN06",
+        "CN01",
+        "CN05"
+      ],
+      "duracion_min": [
+        10,
+        12
+      ],
+      "distancia_minima_itinerario_m": 5261,
+      "vuelo_minimo_crucero_s": 81,
+      "nota": "Defensas exteriores, coalición y tres nodrizas visibles."
+    },
+    {
+      "id": "C3-13",
+      "titulo": "Delta Uno",
+      "itinerario": [
+        "CN05",
+        "CN03",
+        "CN04"
+      ],
+      "duracion_min": [
+        14,
+        16
+      ],
+      "distancia_minima_itinerario_m": 3348,
+      "vuelo_minimo_crucero_s": 52,
+      "nota": "Frenar nodrizas y detener misil; Delta se sacrifica, Aguja sale hacia CN06."
+    }
+  ]
+}
