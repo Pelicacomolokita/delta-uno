@@ -16,6 +16,7 @@ import { ENEMY_DEF, AIM, DIFF, NOTA_HISTORIA } from './vuelo/dificultad.js';
 import { FIJADO, pasoFijado, mejorBlanco, siguienteBlanco, blancoPerdido, candidatosBlanco } from './vuelo/fijado.js';
 import { REGIONES_PLANO, LUGARES, CONEXIONES, ITINERARIOS, SOL_HORA0 } from './mundo/lugares.js';
 import { crearHitos } from './mundo/hitos.js';
+import { crearBatalla, BANDOS_BATALLA } from './modos/batalla.js';
 import { CLASES, STAT_NOMBRE, ARMAS, RANURA_NOMBRE, PINTURAS, CARROCERIAS, EQUIPO_INICIAL } from './hangar/catalogo.js';
 import { Vitrina } from './naves/vitrina.js';
 window.THREE = THREE; // las pruebas lo usan para armar matrices
@@ -1270,6 +1271,48 @@ function romperCaja(caja,punto,mio,dano){
   if(mio)addScore(Math.round(10+tam*1.6),false);
   return true;
 }
+/* ---------- Batalla campal ----------
+   Tres bandos peleando entre sí, para ver cómo se ve y cuánto cuesta. La lógica vive en src/modos/batalla.js,
+   aparte de la IA de enemigos del juego; acá solo se la arma, se la dibuja y se la conecta con el jugador. */
+let batalla=null,batallaBalas=null;
+const BATALLA_N={guardia:19,directorio:20,desligados:20};
+const BAT_BALA_MAX=320;
+function batallaIniciar(){
+  if(!batalla)batalla=crearBatalla(T,{naves,PLANET_R,heightAt});
+  if(!batallaBalas){
+    batallaBalas=new T.InstancedMesh(new T.BoxGeometry(.34,.34,9),
+      new T.MeshBasicMaterial({vertexColors:true,blending:T.AdditiveBlending,transparent:true,depthWrite:false,fog:false}),BAT_BALA_MAX);
+    batallaBalas.instanceMatrix.setUsage(T.DynamicDrawUsage);batallaBalas.frustumCulled=false;batallaBalas.count=0;
+    scene.add(batallaBalas);
+  }
+  batallaBalas.visible=true;
+  return batalla;
+}
+function batallaParar(){
+  if(batalla)batalla.limpiar();
+  if(batallaBalas){batallaBalas.count=0;batallaBalas.visible=false;}
+}
+const _bq=new Q(),_bf=new V3(),_bc=new T.Color(),_UZ=new V3(0,0,1);
+function stepBatalla(dt){
+  if(!batalla||run.mode!=='batalla')return;
+  const r=batalla.paso(dt,{pos:ship.pos,quat:ship.q,bando:'guardia',vivo:dead<=0&&inv<=0});
+  for(const m of r.muertes)explode(m.pos,9);
+  if(r.impactosJugador>0)damage(r.impactosJugador*4,null);
+  // dibujar las balas: una sola llamada para todas
+  let n=0;
+  for(const z of batalla.balas){
+    if(n>=BAT_BALA_MAX)break;
+    _bf.copy(z.v).normalize();
+    _bq.setFromUnitVectors(_UZ,_bf);
+    _m.compose(z.p,_bq,_one);
+    batallaBalas.setMatrixAt(n,_m);
+    batallaBalas.setColorAt(n,_bc.setHex(z.color));
+    n++;
+  }
+  batallaBalas.count=n;
+  batallaBalas.instanceMatrix.needsUpdate=true;
+  if(batallaBalas.instanceColor)batallaBalas.instanceColor.needsUpdate=true;
+}
 /* ---------- Los 37 hitos del plano maestro ----------
    Los lugares con nombre, en bloques, para que el mundo se lea como habitado y las misiones tengan a dónde ir.
    Una sola malla instanciada: 37 lugares cuestan una llamada de dibujo. */
@@ -1339,6 +1382,15 @@ function stepBolts(dt){
       break;
     }
     if(!b.on)continue;
+    if(batalla&&run.mode==='batalla'){ // los combatientes de la batalla también se comen los tiros
+      const caido=batalla.golpeDelJugador(b.p,'guardia');
+      if(caido!==undefined){
+        b.on=false;
+        if(caido){explode(caido.pos,9);ship.kills++;addScore(60,true);}
+        else{burst(b.p,14,46,.45,.75,1,.95);sfxTick();}
+        continue;
+      }
+    }
     if(hitos){ // las construcciones de los 37 hitos también paran y se comen los tiros
       const caja=hitos.golpea(b.p,.45);
       if(caja){b.on=false;romperCaja(caja,b.p,true);continue;}
@@ -2475,7 +2527,7 @@ function stepEnemy(e,dt){
   _eP.copy(ship.pos).sub(p);
   const dP=_eP.length();
   let wantSpeed=def.patrol;
-  if(attacking&&def.ram){ // dron: se tira derecho adonde vas a estar
+  if(attacking&&def.ram){ // los que todavía embisten van derecho adonde vas a estar
     _eT.copy(ship.pos).addScaledVector(seenVel,clamp(dP/(e.speed+30),0,2.5));
     wantSpeed=def.attack;
   }else if(attacking){
@@ -2571,7 +2623,7 @@ function stepEnemy(e,dt){
   if(dead<=0&&inv<=0&&dodge.t<=0&&dP<def.hit+2.4){
     _eA.copy(_eP).negate();
     if(def.carrier){damage(ROCK_DAMAGE,_eA);inv=Math.max(inv,.8);} // chocar la nodriza duele, pero ella sigue
-    else if(def.ram){damage(def.ram*run.ventaja,_eA);killEnemy(e,false);} // los drones se tiran encima a propósito
+    else if(def.ram){damage(def.ram*run.ventaja,_eA);killEnemy(e,false);} // los que embisten a propósito mueren en el intento
     else{
       /* Un caza que te roza ya no se mata solo. Antes se moría él y vos no, que es un intercambio que no
          tiene sentido: te sacabas enemigos de encima dejándote chocar. Ahora se separan los dos, los dos se
@@ -2590,7 +2642,12 @@ function enemyGuns(e,dP,dt){
     e.cool-=dt;
     _eA.copy(ship.pos).addScaledVector(seenVel,dP/(EB_SPEED+e.speed)).sub(p).normalize();
     const facing=e.fwd.dot(_eA);
-    if(e.cool<=0&&e.burst===0&&dP<def.range&&facing>def.cone)e.burst=def.burstN;
+    if(e.cool<=0&&e.burst===0&&dP<def.range&&facing>def.cone){
+      e.burst=def.burstN;
+      /* Enjambre: el primer dron que tiene el tiro arrastra a los demás del grupo. Los que todavía no están
+         apuntando no disparan al aire; se les acorta el enfriamiento para que entren en la misma andanada. */
+      if(def.enjambre)for(const o of e.group.members)if(o!==e&&o.on&&o.def.enjambre&&o.burst===0&&o.cool>.35)o.cool=.12+Math.random()*.18;
+    }
     if(e.burst>0){
       e.gap-=dt;
       if(e.gap<=0){
@@ -3302,6 +3359,7 @@ const MODES={
   supervivencia:{name:'Supervivencia',diff:true,desc:'Oleadas cada vez más grandes vienen a buscarte. Cada cinco oleadas llega una nodriza. Tenés una sola vida.'},
   libre:{name:'Vuelo libre',diff:false,desc:'Recorré el planeta sin objetivo. De vez en cuando aparecen escuadrones al azar. Vidas infinitas.'},
   carrera:{name:'Carrera',diff:false,desc:'Doce anillos contra reloj, siempre el mismo recorrido. Si te estrellás, volvés al último anillo con 5 segundos de castigo.'},
+  batalla:{name:'Batalla campal',diff:false,desc:'Tres bandos peleando entre sí en un sector de 3,2 km: la Guardia de Nácar (los tuyos), el Directorio y los Desligados. Sesenta naves con inteligencia propia, que vuelven a entrar al rato de caer. Está para ver cómo se ve una batalla grande y cuánto cuesta; vidas infinitas.'},
   historia:{name:'Historia',diff:true,desc:''} // la descripción sale de la misión (ver Historia)
 };
 const run={mode:null,diff:'medio',ventaja:1,reparaciones:Infinity,lives:Infinity,assist:true,t:0,wave:0,waveT:0,queue:[],randT:0,ring:0,raceT:0,over:null,endT:0,stepT:0,prev:new V3(),live:false,crashes:0,count:0};
@@ -3353,6 +3411,7 @@ function startRun(mode,diff,missionId){
   navesIniciar();
   histStop();
   aplicarFicha(FICHAS[equipo().clase]||FICHAS.caza);
+  batallaParar();                 // si venías de una batalla, se desarma
   if(hitos)hitos.reconstruir();   // lo que se rompió en la partida anterior vuelve a estar en pie
   run.mode=mode;run.diff=MODES[mode].diff?(diff||'medio'):'medio';
   /* La hora del planeta. En la Historia la decide la misión y queda quieta: la luz es parte de cómo se cuenta
@@ -3371,6 +3430,7 @@ function startRun(mode,diff,missionId){
   setupZones(mode==='conquista');
   ringsGroup.visible=mode==='carrera';
   if(mode==='carrera')buildCourse();
+  if(mode==='batalla'){batallaIniciar().armar(BATALLA_N,origenU);}
   score=0;combo=0;ship.kills=0;
   record=mode==='carrera'?0:(records[recKey()]||0);run.best0=record;
   resetVitals();
@@ -4633,6 +4693,7 @@ function frame(now){
     FX.step(dt,canvas.height*.9);
     stepTrails(dt);
     stepTerrain(false);
+    stepBatalla(dt);        // tres bandos peleando entre sí (modo Batalla campal)
     stepChoqueHitos();      // las construcciones de los hitos paran la nave
     pasarHora(dt);          // el Sol se corre: en 40 minutos el planeta da una vuelta entera
     ajustarCamara();        // el plano lejano sigue al horizonte, que crece con la altura
@@ -4711,7 +4772,7 @@ function boot(data){
   window.DeltaUno={renderer,ship,input,settings,TUNE,FIJADO,FICHAS,GRAVEDAD,vitrina:()=>vitrina,fijable:e=>fijable(e),tgtBestForTest:()=>tgtBest(),launchMissileForTest:t=>launchMissile(t),ENEMY_DEF,DIFF,rocks,activeRocks,rings,chart,chartDir,straighten,terrain,heightAt,S,BIOMES,PLANET_R,CEIL:{CEIL_WARN,CEIL_PUSH,CEIL_MAX},buildMs,flags:()=>({dead,inv,warning,thinWarn}),
     zones,groups,enemies,lost,drops,DROP_KIND,damage,spawnDrop,dodge,tryDodge,rockets,lockCancel,AIM,seenVel,ZONE_KIND,eBolts,boltHitsShip,
     tgt:()=>camTarget,camBlend:()=>camBlend,camera,
-    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,LUGARES,CONEXIONES,ITINERARIOS,hitos:()=>hitos,SUN,SUN_BASE,ponerHora,horaActual,horaParaLuz,DIA_S,horaCorre:()=>horaCorre,toasts:()=>toastLog.slice(),TERMICA,termica:()=>termSuave,calor:()=>heat,lod:()=>lodK,margenImpacto,camaraFar:()=>camera.far,camaraNear:()=>camera.near,ola:()=>GU.uOla.value,naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
+    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,LUGARES,CONEXIONES,ITINERARIOS,hitos:()=>hitos,SUN,SUN_BASE,ponerHora,horaActual,horaParaLuz,DIA_S,horaCorre:()=>horaCorre,toasts:()=>toastLog.slice(),TERMICA,termica:()=>termSuave,calor:()=>heat,lod:()=>lodK,margenImpacto,batalla:()=>batalla,BANDOS_BATALLA,camaraFar:()=>camera.far,camaraNear:()=>camera.near,ola:()=>GU.uOla.value,naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
     vit:()=>({hull,shield,heat,overheat,score,record,combo,curZone:curZone&&zones.indexOf(curZone),target:!!target,fov:camera.fov,missiles,missileT,lockOn,lockP,hasLock:!!lockTarget,repairT,repairCool})};
   last=performance.now();
   requestAnimationFrame(frame);

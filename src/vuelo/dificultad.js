@@ -10,7 +10,11 @@ export const ENEMY_DEF = {
   caza: { name: 'Caza', hp: 3, patrol: 96, attack: 132, turn: 1.05, hit: 3.6, range: 480, cone: Math.cos(7 * DEG), burstN: 3, coolA: 1.7, coolB: 1.2, dmg: 9, punteria: 1, breakDist: 90, score: 100, drop: .35, boom: 9, scale: 1 },
   pesada: { name: 'Pesada', hp: 12, patrol: 72, attack: 92, turn: .55, hit: 7.4, range: 550, cone: Math.cos(8.5 * DEG), burstN: 4, coolA: 2.4, coolB: 1.2, dmg: 16, punteria: .7, breakDist: 150, score: 400, drop: 1, boom: 20, scale: 2.1 },
   interceptor: { name: 'Interceptor', hp: 2, patrol: 124, attack: 196, turn: 1.35, hit: 3.2, range: 440, cone: Math.cos(6 * DEG), burstN: 2, coolA: 1.3, coolB: .8, dmg: 7, punteria: 1.3, breakDist: 175, breakTime: 2.6, score: 150, drop: .3, boom: 8, scale: .9 },
-  dron: { name: 'Dron', hp: 1, patrol: 116, attack: 172, turn: 1.9, hit: 2.6, range: 0, cone: 2, burstN: 0, coolA: 99, coolB: 0, dmg: 0, breakDist: 0, ram: 12, score: 40, drop: .06, boom: 6, scale: .6 },
+  /* Dron: dejó de ser kamikaze. Ahora vuela en enjambre y dispara, y el enjambre tira junto (enjambre: true
+     sincroniza la ráfaga de todos los drones del grupo). Pegan poco de a uno —3 contra los 12 del choque de
+     antes— pero son cuatro y tiran a la vez, así que una andanada completa duele parecido y se puede esquivar,
+     que es lo que no pasaba cuando se te tiraban encima. */
+  dron: { name: 'Dron', hp: 1, patrol: 116, attack: 172, turn: 1.9, hit: 2.6, range: 300, cone: Math.cos(10 * DEG), burstN: 2, coolA: 2.2, coolB: .55, dmg: 3, punteria: .8, breakDist: 70, enjambre: true, score: 40, drop: .06, boom: 6, scale: .6 },
   torreta: { name: 'Torreta', hp: 7, patrol: 0, attack: 0, turn: 1.1, hit: 7.5, range: 780, radar: 900, cone: Math.cos(5 * DEG), burstN: 3, coolA: 2.2, coolB: 1.4, dmg: 10, punteria: 1.2, breakDist: 0, ground: true, score: 250, drop: .5, boom: 16, scale: 2.2 },
   // Lanzamisiles: te fija con línea de vista y tira un misil que te persigue (ver Misiles enemigos)
   lanzamisiles: { name: 'Lanzamisiles', hp: 6, patrol: 0, attack: 0, turn: .9, hit: 7, range: 1250, radar: 1050, cone: -1, burstN: 0, coolA: 99, coolB: 0, dmg: 0, breakDist: 0, ground: true, launcher: true, lockTime: 2.5, reload: 9, score: 300, drop: .6, boom: 18, scale: 2 },
