@@ -2571,7 +2571,17 @@ function stepEnemy(e,dt){
   if(dead<=0&&inv<=0&&dodge.t<=0&&dP<def.hit+2.4){
     _eA.copy(_eP).negate();
     if(def.carrier){damage(ROCK_DAMAGE,_eA);inv=Math.max(inv,.8);} // chocar la nodriza duele, pero ella sigue
-    else{damage(def.ram?def.ram*run.ventaja:ROCK_DAMAGE,_eA);killEnemy(e,!def.ram);}
+    else if(def.ram){damage(def.ram*run.ventaja,_eA);killEnemy(e,false);} // los drones se tiran encima a propósito
+    else{
+      /* Un caza que te roza ya no se mata solo. Antes se moría él y vos no, que es un intercambio que no
+         tiene sentido: te sacabas enemigos de encima dejándote chocar. Ahora se separan los dos, los dos se
+         llevan daño, y el enemigo sigue volando. */
+      damage(Math.round(ROCK_DAMAGE*.55),_eA);
+      hitEnemy(e,_eP,Math.max(1,Math.round(e.hpMax*.25)));
+      e.pos.addScaledVector(_eP,def.hit+6-dP);
+      e.breakT=Math.max(e.breakT,1.1);   // y se abre: deja de venirte encima por un rato
+      inv=Math.max(inv,.5);
+    }
   }
 }
 function enemyGuns(e,dP,dt){
@@ -2761,14 +2771,11 @@ function stepChoqueHitos(){
   }
   ship.vel.copy(_cn).multiplyScalar(Math.max(ship.speed*.75,40));
   bounceT=.6;
-  if(hitInv<=0){
-    hitInv=.9;
-    // cuanto más rápido ibas, más caro sale: de 14 a 34 de daño
-    damage(Math.round(14+Math.min(1,ship.speed/TUNE.vmax)*20),_cn.clone().negate());
-    toast('Chocaste '+caja.lugar.nombre,1.3);
-  }
-  // una nave entera a 200 m/s se lleva puesta una manzana; despacio solo la abolla
-  romperCaja(caja,ship.pos,false,Math.round(2+Math.min(1,ship.speed/TUNE.vmax)*6));
+  // la pieza que te llevaste puesta se cae igual, aunque te mates
+  romperCaja(caja,ship.pos,false,Math.round(4+Math.min(1,ship.speed/TUNE.vmax)*8));
+  /* Chocar una construcción te destruye, igual que el suelo. Decisión de Santiago: una nave a 150 m/s
+     contra un edificio no se rasguña. Si sos invulnerable, el edificio te para pero no te mata. */
+  if(inv<=0){toast('Chocaste '+caja.lugar.nombre,1.3);crash('choque');}
 }
 const _n2=new V3();
 function rockHit(r){
@@ -2783,11 +2790,11 @@ function rockHit(r){
   }
   ship.vel.copy(_n2).multiplyScalar(Math.max(ship.speed*.8,40));
   bounceT=.55;
-  if(inv<=0&&hitInv<=0){
-    hitInv=.9;
+  // Chocar un asteroide también te destruye, igual que una construcción y que el suelo
+  if(inv<=0){
     burst(ship.pos,24,40,.5,1,.7,.4);
-    if(!reduceMotion)shake=Math.max(shake,2.4);
-    damage(ROCK_DAMAGE,_n2.clone().negate());
+    toast('Chocaste un asteroide',1.3);
+    crash('choque');
   }
 }
 /* ---------- Térmicas volcánicas ----------

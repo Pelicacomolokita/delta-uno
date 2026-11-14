@@ -3,7 +3,8 @@
 // y devuelven el elegido. El juego decide qué hacer con él.
 
 export const FIJADO = {
-  lockTime: 1,     // s para fijar el misil
+  lockTime: .55,   // s para fijar el misil. Bajado de 1 a 0,55: con el ritmo del juego, un segundo entero fijando
+                   // llega tarde a casi todo pase. Se vuelve a mirar cuando se trabajen las armas.
   lockRange: 1300, // m (antes 900)
   lockCone: .92,   // coseno: qué tan centrado tiene que estar para el misil
   tgtRange: 1800,  // m: hasta dónde llega el botón Blanco
