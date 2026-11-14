@@ -1292,10 +1292,29 @@ function batallaParar(){
   if(batalla)batalla.limpiar();
   if(batallaBalas){batallaBalas.count=0;batallaBalas.visible=false;}
 }
-const _bq=new Q(),_bf=new V3(),_bc=new T.Color(),_UZ=new V3(0,0,1);
+const _bq=new Q(),_bf=new V3(),_bc=new T.Color(),_UZ=new V3(0,0,1),_bcen=new V3();
+let batAviso=0;
+/* Dónde está el revoleo, para que el jugador sepa volver. Medido: la batalla no se dispersa —cada nave tiene
+   un rival a unos 80 m— pero el jugador que vuela derecho se va a 4 km en medio minuto y no tiene cómo saberlo. */
+function batallaObjetivo(){
+  if(!batalla)return null;
+  const vivos=batalla.combatientes.filter(c=>!c.esJugador&&c.muerto<=0);
+  if(!vivos.length)return null;
+  _bcen.set(0,0,0);
+  for(const c of vivos)_bcen.add(c.pos);
+  _bcen.divideScalar(vivos.length);
+  const d=ship.pos.distanceTo(_bcen);
+  if(d<700)return null;                       // estás adentro: sin marca, que no moleste
+  return {pos:_bcen.clone(),label:'Combate '+Math.round(d)};
+}
 function stepBatalla(dt){
   if(!batalla||run.mode!=='batalla')return;
   const r=batalla.paso(dt,{pos:ship.pos,quat:ship.q,bando:'guardia',vivo:dead<=0&&inv<=0});
+  batAviso-=dt;
+  if(batAviso<=0&&dead<=0){
+    const o=batallaObjetivo();
+    if(o&&ship.pos.distanceTo(o.pos)>1800){toast('Te alejás del combate',1.6);batAviso=8;}
+  }
   for(const m of r.muertes)explode(m.pos,9);
   if(r.impactosJugador>0)damage(r.impactosJugador*4,null);
   // dibujar las balas: una sola llamada para todas
@@ -2437,6 +2456,13 @@ function killEnemy(e,scored){
 }
 function alertGroup(g){g.alert=true;g.lostT=0;}
 function hitEnemy(e,at,n){
+  if(e.bat&&batalla){ // combatiente de la Batalla campal: no tiene slot ni grupo, se resuelve en su módulo
+    hitFlash=.14;
+    const caido=batalla.pegarEnt(e,n||1);
+    if(caido){explode(caido.pos,9);ship.kills++;addScore(60,true);}
+    else{burst(at,10,40,.4,1,.72,.35);FX.sparks(at,5,26);sfxTick();}
+    return;
+  }
   e.hp-=n||1;hitFlash=.14;
   alertGroup(e.group); // el que recibe un tiro te descubre, y avisa a los grupos cercanos
   burst(at,10,40,.4,1,.72,.35);FX.sparks(at,5,26);sfxTick();
@@ -2926,7 +2952,11 @@ function fijable(e){
   if(e.visT===undefined||now-e.visT>.25||now<e.visT){e.visT=now;e.vis=lineOfSight(ship.pos,e.pos);}
   return e.vis;
 }
-function tgtBest(){return mejorBlanco(enemies,ship.pos,fwd,fijable);}
+/* En la Batalla campal los blancos no son los enemigos del juego sino los combatientes de los otros bandos.
+   Sin esto no tienen marca, no se los puede elegir y el misil no los fija: fue lo que pasó en la primera
+   prueba, con 59 naves disparándole al jugador y cero presencia en el HUD. */
+function blancosActivos(){return run.mode==='batalla'&&batalla?batalla.blancos('guardia'):enemies;}
+function tgtBest(){return mejorBlanco(blancosActivos(),ship.pos,fwd,fijable);}
 function tgtNext(){return siguienteBlanco(enemies,ship.pos,fwd,camTarget,fijable);}
 function tgtTap(){
   if(dead>0)return;
@@ -3008,7 +3038,7 @@ function lockRelease(){
 }
 function stepLock(dt){
   if(!lockOn)return;
-  const r=pasoFijado(enemies,ship.pos,fwd,lockTarget,camTarget,fijable);
+  const r=pasoFijado(blancosActivos(),ship.pos,fwd,lockTarget,camTarget,fijable);
   if(r.reinicia){lockTarget=r.blanco;lockP=0;}
   if(!lockTarget)return;
   lockP=Math.min(1,lockP+dt/FIJADO.lockTime);
@@ -3430,13 +3460,20 @@ function startRun(mode,diff,missionId){
   setupZones(mode==='conquista');
   ringsGroup.visible=mode==='carrera';
   if(mode==='carrera')buildCourse();
-  if(mode==='batalla'){batallaIniciar().armar(BATALLA_N,origenU);}
+  if(mode==='batalla')batallaIniciar().armar(BATALLA_N,origenU);
   score=0;combo=0;ship.kills=0;
   record=mode==='carrera'?0:(records[recKey()]||0);run.best0=record;
   resetVitals();
   dead=0;inv=GRACE;crashMsg.hidden=true;shipGroup.visible=true;
   ship.speed=TUNE.cruise*TUNE.vmax;ship.fall=0;
-  shipAt(origenU,origenF,105);
+  if(mode==='batalla'&&batalla){
+    /* El jugador sale con los suyos y mirando al centro, que es donde se van a cruzar los tres frentes.
+       Antes salía en el punto de siempre y los rivales le quedaban a un kilómetro: no había combate. */
+    const _bs=batalla.salidaDe('guardia'),_bu=_bs.clone().normalize();
+    _v.copy(origenU).multiplyScalar(PLANET_R).sub(_bs);
+    _v.addScaledVector(_bu,-_v.dot(_bu)).normalize();
+    shipAt(_bu,_v,Math.max(140,_bs.length()-PLANET_R-heightAt(_bu.x,_bu.y,_bu.z,0)));
+  }else shipAt(origenU,origenF,105);
   run.prev.copy(ship.pos);
   if(mode==='conquista')spawnCarrier();
   updateRings();
@@ -4509,13 +4546,14 @@ function screenSpot(world,out){
 }
 const _spot={x:0,y:0,off:false,a:0};
 function updateCombatHud(dt){
+  const lista=blancosActivos();
   marks.forEach((m,i)=>{
-    const e=enemies[i];
+    const e=lista[i];
     if(!e||dead>0){if(!m.el.hidden){m.el.hidden=true;m.el.classList.remove('sel');}return;}
     screenSpot(e.pos,_spot);
     // Las flechas de borde son solo para quien te está atacando; los que patrullan lejos no molestan
     const sel=e===camTarget;
-    const show=sel||e.group.state==='attack'||e.def.carrier||(!_spot.off&&e.pos.distanceTo(ship.pos)<1500);
+    const show=sel||e.group.state==='attack'||(e.def&&e.def.carrier)||(!_spot.off&&e.pos.distanceTo(ship.pos)<1500);
     m.el.classList.toggle('sel',sel);
     if(sel){
       m.dT-=dt;
@@ -4561,7 +4599,7 @@ function updateCombatHud(dt){
   let near=null;
   for(const z of zones)if(z.state==='hostil'&&(!near||z.arc<near.arc))near=z;
   const ringNext=run.mode==='carrera'&&!run.over?course[run.ring]:null;
-  const objective=run.mode==='historia'&&dead<=0?histObjective():null;
+  const objective=dead>0?null:run.mode==='historia'?histObjective():run.mode==='batalla'?batallaObjetivo():null;
   if(objective){
     elZoneMk.hidden=false;
     screenSpot(objective.pos,_spot);

@@ -27,7 +27,10 @@ export const BANDOS_BATALLA = [
   { id: 'desligados', nombre: 'Desligados', diseno: 'I4', pintura: null, color: 0xc9a6ff }
 ];
 
-export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 460, radio = 3200 }) {
+/* radio 2.200 y no 3.200: con los frentes a 120° y el sector grande, el rival más cercano quedaba a 1,8 km,
+   fuera del alcance de fijado (1.300 m), y no había combate. Con este radio los tres frentes arrancan a unos
+   1,6 km entre sí y se cruzan en los primeros segundos. */
+export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, radio = 2200 }) {
   const combatientes = [];
   const balas = [];
   let centro = new T.Vector3(0, PLANET_R, 0), t = 0;
@@ -48,8 +51,25 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 460, 
     return out;
   }
 
+  /* Dónde nace cada bando. No repartidos por todo el sector —así el rival más cercano quedaba a 894 m y la
+     mediana a 2,3 km, y no había combate— sino en tres frentes separados 120° que entran hacia el centro y se
+     cruzan de frente. El jugador sale con los suyos. */
+  function puntoDeFrente(out, bando, apretado) {
+    const B = BANDOS_BATALLA.findIndex(x => x.id === bando);
+    const base = B * Math.PI * 2 / 3;
+    const a = base + (Math.random() - .5) * .55;           // el frente abre unos 30°
+    const d = radio * (apretado ? .34 : .42) * (.82 + Math.random() * .3);
+    _up.copy(centro).normalize();
+    _r.set(0, 1, 0).cross(_up); if (_r.lengthSq() < 1e-6) _r.set(1, 0, 0);
+    _r.normalize(); _u2.crossVectors(_up, _r).normalize();
+    const ang = d / PLANET_R;
+    out.copy(_up).multiplyScalar(Math.cos(ang)).addScaledVector(_r, Math.sin(ang) * Math.cos(a)).addScaledVector(_u2, Math.sin(ang) * Math.sin(a)).normalize();
+    const h = Math.max(heightAt(out.x, out.y, out.z, 0), 0);
+    out.multiplyScalar(PLANET_R + h + alturaVuelo * (.75 + Math.random() * .5));
+    return out;
+  }
   function nacer(c, borde) {
-    punto(c.pos, borde ? radio : radio * .8);
+    if (c.bando) puntoDeFrente(c.pos, c.bando, !borde); else punto(c.pos, borde ? radio : radio * .8);
     c.vida = c.vidaMax; c.muerto = 0; c.blanco = null; c.buscaT = Math.random() * T_BUSCA;
     c.vel = c.velBase;
     // mirando al centro, que es donde está la pelea
@@ -74,6 +94,11 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 460, 
           frio: Math.random() * 2, rafaga: 0, hueco: 0, nave: null
         };
         if (naves) c.nave = naves.agregar({ id: B.diseno, bando: B.id, pintura: B.pintura || undefined });
+        /* Adaptador con forma de enemigo del juego. Sin esto los combatientes no existen para el HUD: no
+           tienen marca, no se los puede elegir como blanco y el misil no los fija. Es lo que pasó en la
+           primera prueba de Santiago: le disparaban desde lejos cosas que el marcador no veía. */
+        c.ent = { pos: c.pos, on: true, bat: c, kind: 'caza', bando: B.id,
+                  group: { state: 'attack', zone: null, alert: true, members: [] } };
         nacer(c, true);
         combatientes.push(c);
       }
@@ -121,7 +146,8 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 460, 
 
     for (const c of combatientes) {
       if (c.esJugador) continue;
-      if (c.muerto > 0) { c.muerto -= dt; if (c.muerto <= 0) nacer(c, true); else continue; }
+      if (c.muerto > 0) { c.muerto -= dt; if (c.muerto <= 0) nacer(c, true); else { if (c.ent) c.ent.on = false; continue; } }
+      if (c.ent) c.ent.on = true;
 
       c.buscaT -= dt;
       if (c.buscaT <= 0 || !c.blanco || c.blanco.muerto > 0) { c.buscaT = T_BUSCA; c.blanco = buscarBlanco(c); }
@@ -198,6 +224,26 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 460, 
     return salida;
   }
 
+  /* Los que el jugador puede marcar y fijar: los de otros bandos, vivos. Se arma una sola vez por cuadro
+     y se reutiliza el arreglo, porque el HUD lo recorre seguido. */
+  const _blancos = [];
+  function blancos(bandoJugador) {
+    _blancos.length = 0;
+    for (const c of combatientes) if (!c.esJugador && c.ent && c.ent.on && c.bando !== bandoJugador) _blancos.push(c.ent);
+    return _blancos;
+  }
+  /* Le pega a un combatiente a través de su adaptador (desde el misil o los tiros del jugador).
+     Devuelve el combatiente si cayó, null si solo se dañó. */
+  function pegarEnt(ent, dano = 1) {
+    const c = ent.bat;
+    if (!c || c.muerto > 0) return null;
+    c.vida -= dano;
+    if (c.vida > 0) return null;
+    c.muerto = T_REENTRA; ent.on = false;
+    if (c.nave) c.nave.visible = false;
+    return c;
+  }
+
   function vivos() {
     const r = {};
     for (const B of BANDOS_BATALLA) r[B.id] = 0;
@@ -217,6 +263,8 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 460, 
     return undefined;   // no le pegó a nadie
   }
 
-  return { armar, limpiar, paso, vivos, golpeDelJugador, combatientes, balas, BANDOS: BANDOS_BATALLA,
+  // dónde tiene que salir el jugador para estar con los suyos
+  function salidaDe(bando) { return puntoDeFrente(new T.Vector3(), bando, false).clone(); }
+  return { armar, limpiar, paso, vivos, golpeDelJugador, blancos, pegarEnt, salidaDe, combatientes, balas, BANDOS: BANDOS_BATALLA,
            info: () => ({ naves: combatientes.filter(c => !c.esJugador).length, balas: balas.length, vivos: vivos() }) };
 }

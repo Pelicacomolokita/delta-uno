@@ -8,8 +8,11 @@ export const FIJADO = {
   lockRange: 1300, // m (antes 900)
   lockCone: .92,   // coseno: qué tan centrado tiene que estar para el misil
   tgtRange: 1800,  // m: hasta dónde llega el botón Blanco
-  tgtCone: .94,    // coseno (unos 20°): el botón Blanco solo marca lo que tenés adelante
-  cerca: 250,      // m: tan cerca se puede fijar también a los costados, nunca atrás
+  tgtCone: .80,    // coseno (unos 37°): el botón Blanco marca lo que tenés adelante
+                   // Era .94 (20°). Medido en la Batalla campal: de 39 rivales con línea de vista a 300-900 m,
+                   // CERO entraban en 20°; los más cercanos estaban a 60-66° del morro. En un revoleo nadie
+                   // queda derecho adelante, así que el botón no servía justo cuando más hace falta.
+  cerca: 650,      // m: tan cerca se puede fijar también a los costados, nunca atrás (antes 250)
   tgtLose: 1.25,   // el blanco se suelta pasado tgtRange por esto
   tgtHold: 450     // ms manteniendo el botón para soltar el blanco
 };
