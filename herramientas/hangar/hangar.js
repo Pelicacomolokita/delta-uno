@@ -1,14 +1,17 @@
-// Hangar: para mirar y aprobar las naves antes de meterlas al juego.
-// "Nuevas": naves por piezas (src/naves/), con el mismo material, las mismas piezas móviles y los mismos mandos
-// (src/naves/mandos.js) que van a usar en el juego. "Actuales": las de src/nave.js, como estaban.
+// Hangar: para mirar, probar y ajustar las naves antes de meterlas al juego.
+// Las naves por piezas (src/naves/) con el mismo material, las mismas piezas móviles, los mismos mandos y los mismos
+// efectos que usa el juego. Las naves viejas (src/nave.js) ya no se muestran: las nuevas las reemplazaron.
+// Pestañas: Nave (diseño), Vuelo (mandos y maniobras), Piezas (turbo, freno, daño, explosión y misiles, con sus ajustes),
+// Vista (cámaras y skins) y Gráficos (detalle y efectos).
 import * as T from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { NAVES, PALETAS, naveGeometria, naveMaterial, naveTextura } from '../../src/nave.js';
+import { naveTextura } from '../../src/nave.js';
 import { Flota } from '../../src/naves/flota.js';
 import { DISENOS, PINTURAS, BANDOS } from '../../src/naves/disenos.js';
 import { CANAL } from '../../src/naves/generador.js';
 import { crearMandos, actualizarMandos, MANIOBRAS } from '../../src/naves/mandos.js';
 import { Danos, flamear } from '../../src/naves/danos.js';
+import { EFECTOS, EFECTOS_BASE, COLORES_TURBO, ajustarEfectos, restablecerEfectos, colorTurbo } from '../../src/naves/efectos.js';
 
 const $ = id => document.getElementById(id);
 const canvas = $('view');
@@ -44,9 +47,12 @@ const sprite = color => new T.Sprite(new T.SpriteMaterial({ map: glowTex, color,
 const IDS = Object.keys(DISENOS);
 const LECTURAS = [['aleron', 'Alerón', 0.42], ['elevador', 'Elevador', 0.4], ['timon', 'Timón', 0.45], ['tobera', 'Tobera', 0], ['freno', 'Freno', 0.95]];
 const state = {
-  sistema: 'nuevas', diseno: 'A', pintura: 'guardia', modelo: 'guardia', paleta: 'guardia',
-  vista: 'tres', lod: 0, auto: !quieto, maniobra: null
+  diseno: 'A', pintura: 'guardia',
+  vista: 'tres', lod: 0, fx: 'completos', auto: !quieto, maniobra: null
 };
+// los ajustes de efectos que se tocaron en este teléfono quedan guardados (si el navegador deja)
+try { const g = JSON.parse(localStorage.getItem('deltaUno.efectos') || 'null'); if (g) ajustarEfectos(g); } catch (e) { /* sin guardado */ }
+const guardarEfectos = () => { try { localStorage.setItem('deltaUno.efectos', JSON.stringify(EFECTOS)); } catch (e) { /* sin guardado */ } };
 const mandos = crearMandos();
 let maniobraT = 0, autoI = 0;
 const actitud = new T.Vector3(); // alabeo, cabeceo, guiñada que muestra la nave en el hangar
@@ -102,22 +108,9 @@ function armarNaves() {
   scene.background.copy(lejos ? CIELO : FONDO);
 }
 
-/* ---------- Naves actuales (src/nave.js) ---------- */
-const vieja = new T.Group(); scene.add(vieja);
-let viejaMesh = null;
-function armarVieja() {
-  if (viejaMesh) { vieja.remove(viejaMesh); viejaMesh.geometry.dispose(); }
-  vieja.clear();
-  viejaMesh = new T.Mesh(naveGeometria(T, state.modelo, state.paleta), naveMaterial(T)); vieja.add(viejaMesh);
-  for (const e of NAVES[state.modelo].engines) { const s = sprite(0x7ff0e1); s.position.set(e[0], e[1], e[2] + 0.12); s.scale.setScalar(0.9); vieja.add(s); }
-  grid.position.y = -0.9; shadow.position.y = -0.89; shadow.scale.setScalar(2.6); grid.visible = shadow.visible = true;
-  scene.background.copy(FONDO);
-}
-
 /* ---------- Pantalla ---------- */
 const fmt = v => v.toFixed(1).replace('.', ',');
 function info() {
-  if (state.sistema === 'actuales') { $('info').innerHTML = `<b>${NAVES[state.modelo].nombre}</b><span class="k">Nave actual del juego</span>`; $('desc').textContent = NAVES[state.modelo].nombre + ': ' + NAVES[state.modelo].desc; return; }
   const D = DISENOS[state.diseno], M = medidas[state.diseno], tri = flota.resumen()[state.diseno];
   $('info').innerHTML = `<b>${state.diseno} · ${D.nombre}</b>` +
     `<div><span class="k">Clase</span> ${{ caza: 'Caza', interceptor: 'Interceptor', ataque: 'Ataque pesado', infiltracion: 'Infiltración' }[D.clase]} · ${{ guardia: 'Guardia', directorio: 'Directorio', desligados: 'Desligados' }[D.bando]}</div>` +
@@ -132,11 +125,6 @@ function marcar() {
   document.querySelectorAll('[data-k]').forEach(b => b.setAttribute('aria-pressed', String(String(state[b.dataset.k]) === b.dataset.v)));
   document.querySelectorAll('[data-man]').forEach(b => b.setAttribute('aria-pressed', String(state.maniobra === b.dataset.man)));
   document.querySelectorAll('[data-t]').forEach(b => b.setAttribute('aria-pressed', String(!!mandos[b.dataset.t])));
-  const nuevas = state.sistema === 'nuevas';
-  $('lods').hidden = !nuevas;
-  $('tab-piezas').hidden = !nuevas;
-  if (!nuevas && $('tab-piezas').getAttribute('aria-selected') === 'true') tab('nave');
-  document.querySelectorAll('#views [data-v="fila"], #views [data-v="planta"], #views [data-v="perfil"], #views [data-v="trasera"], #views [data-v="lejos"]').forEach(b => { b.hidden = !nuevas; });
 }
 function fila(id, k, items, alCambiar, extra = {}) {
   const row = $(id); row.querySelectorAll('button').forEach(b => b.remove());
@@ -149,14 +137,11 @@ function fila(id, k, items, alCambiar, extra = {}) {
   }
 }
 function filasNave() {
-  if (state.sistema === 'nuevas') {
-    fila('models', 'diseno', IDS.map(id => [id, `${id} · ${DISENOS[id].nombre}`]), id => { state.pintura = DISENOS[id].pintura; if (state.vista === 'fila') state.vista = 'tres'; filasNave(); rehacer(); });
-    const D = DISENOS[state.diseno], ps = [...new Set([...(D.pinturas || [D.pintura]), 'clasica'])];
-    fila('palettes', 'pintura', ps.map(p => [p, PINTURAS[p].nombre]), rehacer);
-  } else {
-    fila('models', 'modelo', Object.entries(NAVES).map(([k, n]) => [k, n.nombre]), rehacer);
-    fila('palettes', 'paleta', Object.entries(PALETAS).map(([k, p]) => [k, p.nombre]), rehacer);
-  }
+  fila('models', 'diseno', IDS.map(id => [id, `${id} · ${DISENOS[id].nombre}`]), id => { state.pintura = DISENOS[id].pintura; if (state.vista === 'fila') state.vista = 'tres'; filasNave(); rehacer(); });
+  // skins: primero las de la nave (las de su escuadrón), después todas las demás
+  const D = DISENOS[state.diseno], propias = D.pinturas || [D.pintura];
+  const ps = [...new Set([...propias, ...Object.keys(PINTURAS)])];
+  fila('palettes', 'pintura', ps.map(p => [p, PINTURAS[p].nombre + (propias.includes(p) ? '' : ' ·')]), () => { for (const n of naves) if (state.vista !== 'fila' && state.vista !== 'lejos') n.pintura = state.pintura; });
   marcar();
 }
 
@@ -171,21 +156,6 @@ function simulador() {
     b.addEventListener('click', () => { pararAuto(); mandos[k] = !mandos[k]; marcar(); });
     tg.appendChild(b);
   }
-  // armas y daño: para ver los misiles colgados, el humo, el fuego y cómo se parte
-  const lug = flota.dis[id] && flota.dis[id].puntos.misiles.length;
-  if (lug) {
-    const b = document.createElement('button'); b.type = 'button'; b.textContent = 'Disparar misil'; b.dataset.extra = 'misil';
-    b.addEventListener('click', () => { estado.disparados = estado.disparados >= lug ? 0 : estado.disparados + 1; b.textContent = estado.disparados >= lug ? 'Recargar misiles' : 'Disparar misil'; });
-    tg.appendChild(b);
-  }
-  const bd = document.createElement('button'); bd.type = 'button'; bd.dataset.extra = 'dano';
-  const nivel = ['Sin daño', 'Dañada', 'Muy dañada'], val = [0, 0.55, 0.9];
-  bd.textContent = nivel[val.indexOf(estado.dano)] || nivel[0];
-  bd.addEventListener('click', () => { const k = (val.indexOf(estado.dano) + 1) % 3; estado.dano = val[k]; bd.textContent = nivel[k]; });
-  tg.appendChild(bd);
-  const br = document.createElement('button'); br.type = 'button'; br.textContent = 'Derribar'; br.dataset.extra = 'romper';
-  br.addEventListener('click', () => { if (estado.rota > 0) return; const n = naves[0]; if (n) { danos.romper(n, new T.Vector3(0, 0, -6)); estado.rota = 4; } });
-  tg.appendChild(br);
   const mr = $('maniobras'); mr.querySelectorAll('button').forEach(b => b.remove());
   const auto = document.createElement('button'); auto.type = 'button'; auto.textContent = 'Piloto automático'; auto.dataset.k = 'auto'; auto.dataset.v = 'true';
   auto.addEventListener('click', () => { state.auto = !state.auto; if (state.auto) { autoI = 0; empezar(listaManiobras()[0]); } else terminar(); marcar(); });
@@ -236,16 +206,93 @@ function lecturas() {
 }
 
 function rehacer() {
-  const nuevas = state.sistema === 'nuevas';
-  flota.setVisible(nuevas); efectos.visible = nuevas; vieja.visible = !nuevas;
-  if (nuevas) { armarNaves(); simulador(); } else { armarVieja(); $('etiquetas').replaceChildren(); }
+  armarNaves(); simulador(); editor();
   info(); ponerVista(state.vista);
 }
+
+/* ---------- Editor de piezas y efectos (pestaña Piezas) ----------
+   Cada bloque tiene un botón para probarlo en la nave y sus ajustes. Los ajustes son los mismos que usa el juego
+   (src/naves/efectos.js): "Copiar ajustes" los deja listos para pegar y fijarlos como nuevos valores de base. */
+function deslizador(cont, nombre, grupo, clave, min, max, paso, fmtv = v => v.toFixed(paso < 1 ? (paso < 0.1 ? 2 : 1) : 0).replace('.', ',')) {
+  const l = document.createElement('label'), sp = document.createElement('span'), r = document.createElement('input'), o = document.createElement('output');
+  sp.textContent = nombre; r.type = 'range'; r.min = min; r.max = max; r.step = paso; r.value = EFECTOS[grupo][clave];
+  r.dataset.ef = grupo + '.' + clave; o.textContent = fmtv(+r.value);
+  r.addEventListener('input', () => { ajustarEfectos({ [grupo]: { [clave]: +r.value } }); o.textContent = fmtv(+r.value); guardarEfectos(); });
+  l.append(sp, r, o); cont.appendChild(l);
+}
+function bloque(titulo, boton, accion) {
+  const b = document.createElement('section'); b.className = 'bloque';
+  const h = document.createElement('h3'); h.append(document.createTextNode(titulo));
+  if (boton) { const bt = document.createElement('button'); bt.type = 'button'; bt.textContent = boton; bt.addEventListener('click', () => accion(bt)); h.appendChild(bt); b.boton = bt; }
+  b.appendChild(h); $('editor').appendChild(b); return b;
+}
+function editor() {
+  const id = state.diseno, ed = $('editor'); ed.replaceChildren();
+  const pct = v => Math.round(v * 100) + ' %', seg = v => v.toFixed(1).replace('.', ',') + ' s', x = v => '×' + v.toFixed(1).replace('.', ',');
+  // Turbo
+  if (tiene(id, 'tobera') || flota.dis[id].puntos.motores.length) {
+    const b = bloque('Turbo', mandos.turbo ? 'Apagar' : 'Encender', bt => { pararAuto(); mandos.turbo = !mandos.turbo; bt.textContent = mandos.turbo ? 'Apagar' : 'Encender'; marcar(); });
+    deslizador(b, 'Largo llama', 'turbo', 'largo', 0.4, 2.2, 0.1, x);
+    deslizador(b, 'Brillo', 'turbo', 'brillo', 0.4, 1.6, 0.1, x);
+    const row = document.createElement('div'); row.className = 'row';
+    for (const [k, c] of Object.entries(COLORES_TURBO)) {
+      const bt = document.createElement('button'); bt.type = 'button'; bt.className = 'swatch'; bt.title = k; bt.setAttribute('aria-label', 'Color ' + k);
+      bt.setAttribute('aria-pressed', String(EFECTOS.turbo.color === k));
+      const sp = document.createElement('span'); sp.style.background = `rgb(${c.map(v => Math.round(v * 255)).join(',')})`; bt.appendChild(sp);
+      bt.addEventListener('click', () => { ajustarEfectos({ turbo: { color: k } }); guardarEfectos(); row.querySelectorAll('button').forEach(o => o.setAttribute('aria-pressed', String(o === bt))); });
+      row.appendChild(bt);
+    }
+    b.appendChild(row);
+  }
+  // Freno de aire
+  if (tiene(id, 'freno')) {
+    const b = bloque('Freno de aire', mandos.freno ? 'Cerrar' : 'Abrir', bt => { pararAuto(); mandos.freno = !mandos.freno; bt.textContent = mandos.freno ? 'Cerrar' : 'Abrir'; marcar(); });
+    deslizador(b, 'Apertura', 'freno', 'apertura', 0.2, 2.5, 0.1, seg);
+  }
+  // Misiles colgados
+  const lug = flota.dis[id].puntos.misiles.length;
+  if (lug) {
+    const b = bloque('Misiles', 'Disparar', bt => { estado.disparados = estado.disparados >= lug ? 0 : estado.disparados + 1; bt.textContent = estado.disparados >= lug ? 'Recargar' : 'Disparar'; });
+    b.boton.dataset.extra = 'misil';
+    const p = document.createElement('p'); p.className = 'nota'; p.textContent = `${lug} colgados. Salen de afuera hacia adentro, alternando lados.`; b.appendChild(p);
+  }
+  // Daño
+  {
+    const b = bloque('Daño', null);
+    const row = document.createElement('div'); row.className = 'row';
+    for (const [v, n] of [[0, 'Sin daño'], [0.55, 'Dañada'], [0.9, 'Muy dañada']]) {
+      const bt = document.createElement('button'); bt.type = 'button'; bt.textContent = n; bt.dataset.extra = 'dano'; bt.dataset.v = v;
+      bt.setAttribute('aria-pressed', String(estado.dano === v));
+      bt.addEventListener('click', () => { estado.dano = v; row.querySelectorAll('button').forEach(o => o.setAttribute('aria-pressed', String(o === bt))); });
+      row.appendChild(bt);
+    }
+    b.appendChild(row);
+    deslizador(b, 'Humo desde', 'dano', 'humoDesde', 0.1, 0.7, 0.05, v => pct(1 - v) + ' vida');
+    deslizador(b, 'Fuego desde', 'dano', 'fuegoDesde', 0.5, 0.95, 0.05, v => pct(1 - v) + ' vida');
+    deslizador(b, 'Cantidad humo', 'dano', 'humo', 0.2, 2.5, 0.1, x);
+    deslizador(b, 'Tamaño humo', 'dano', 'tamano', 0.4, 2.2, 0.1, x);
+  }
+  // Explosión
+  {
+    const b = bloque('Explosión', 'Derribar', () => { if (estado.rota > 0) return; const n = naves[0]; if (n) { danos.romper(n, new T.Vector3(0, 0, -6)); estado.rota = Math.max(2.5, EFECTOS.explosion.duracion * 0.8); } });
+    b.boton.dataset.extra = 'romper';
+    deslizador(b, 'Fogonazo', 'explosion', 'fogonazo', 0.4, 2.5, 0.1, x);
+    deslizador(b, 'Velocidad', 'explosion', 'velocidad', 0.3, 2.5, 0.1, x);
+    deslizador(b, 'Duración', 'explosion', 'duracion', 2, 10, 0.5, seg);
+    deslizador(b, 'Giro', 'explosion', 'giro', 0.2, 2.5, 0.1, x);
+  }
+}
+$('copiarAjustes').addEventListener('click', async () => {
+  const txt = 'Ajustes de efectos del Hangar: ' + JSON.stringify(EFECTOS);
+  let ok = false; try { await navigator.clipboard.writeText(txt); ok = true; } catch (e) { /* sin portapapeles */ }
+  $('copiado').textContent = ok ? 'Copiado: pegáselo al chat de naves para dejarlo fijo.' : txt;
+});
+$('restablecer').addEventListener('click', () => { restablecerEfectos(); guardarEfectos(); editor(); $('copiado').textContent = 'Volvieron los valores de base.'; });
 
 /* ---------- Vistas ---------- */
 function ponerVista(v) {
   const antes = state.vista; state.vista = v;
-  const nuevas = state.sistema === 'nuevas';
+  const nuevas = true;
   if (nuevas && ((v === 'fila') !== (antes === 'fila') || (v === 'lejos') !== (antes === 'lejos') || !naves.length)) armarNaves();
   const ids = v === 'fila' ? IDS : [state.diseno];
   const R = nuevas ? Math.max(...ids.map(id => Math.hypot(medidas[id].largo, medidas[id].ancho))) / 2 : 3.3;
@@ -273,17 +320,22 @@ function ponerVista(v) {
 }
 
 /* ---------- Controles ---------- */
+const TABS = ['nave', 'vuelo', 'piezas', 'vista', 'graficos'];
 function tab(nombre) {
-  for (const t of ['nave', 'piezas', 'vista']) { $('tab-' + t).setAttribute('aria-selected', String(t === nombre)); $('p-' + t).hidden = t !== nombre; }
+  for (const t of TABS) { $('tab-' + t).setAttribute('aria-selected', String(t === nombre)); $('p-' + t).hidden = t !== nombre; }
+  // en Piezas se prueba de a una nave, de tres cuartos
+  if (nombre === 'piezas' && (state.vista === 'fila' || state.vista === 'lejos')) ponerVista('tres');
+  document.body.classList.toggle('columna', nombre === 'piezas');
+  encuadre();
 }
-for (const t of ['nave', 'piezas', 'vista']) $('tab-' + t).addEventListener('click', () => tab(t));
-fila('sistema', 'sistema', [['nuevas', 'Nuevas (por piezas)'], ['actuales', 'Actuales']], () => { if (state.sistema === 'actuales' && (state.vista === 'fila' || state.vista === 'lejos')) state.vista = 'tres'; filasNave(); rehacer(); });
+for (const t of TABS) $('tab-' + t).addEventListener('click', () => tab(t));
 fila('views', 'vista', [['tres', 'Tres cuartos'], ['planta', 'Planta'], ['perfil', 'Perfil'], ['trasera', 'De atrás'], ['juego', 'Como en el juego'], ['lejos', 'De lejos'], ['fila', 'Todas a escala']], ponerVista);
-fila('lods', 'lod', [[0, 'Completa'], [1, 'Media'], [2, 'Silueta']], () => { for (const n of naves) if (state.vista !== 'lejos') n.lodFijo = state.lod; });
+fila('lods', 'lod', [['auto', 'Automático'], [0, 'Completa'], [1, 'Media'], [2, 'Silueta']], () => { for (const n of naves) if (state.vista !== 'lejos') n.lodFijo = state.lod === 'auto' ? undefined : state.lod; });
+fila('calidadFx', 'fx', [['completos', 'Completos'], ['livianos', 'Livianos']], () => {});
 filasNave();
 rehacer();
 if (state.auto) empezar(listaManiobras()[0]);
-window.__hangar = { state, rehacer, ponerVista, camera, controls, flota, naves, medidas, mandos, empezar, terminar };
+window.__hangar = { state, rehacer, ponerVista, tab, camera, controls, flota, naves, medidas, mandos, empezar, terminar, danos, estado, EFECTOS };
 
 function encuadre() {
   const w = innerWidth, h = innerHeight, r = $('ui').getBoundingClientRect();
@@ -304,7 +356,7 @@ let t = 0, last = performance.now(), lectT = 0;
 const _v = new T.Vector3(), _q = new T.Quaternion(), _e = new T.Euler(0, 0, 0, 'YXZ');
 renderer.setAnimationLoop(now => {
   const dt = Math.min(0.05, (now - last) / 1000 || 0.016); last = now; t += dt;
-  if (state.sistema === 'nuevas') {
+  {
     // maniobra en curso: el guion da los mandos y la actitud de la nave
     let objetivo = [mandos.roll * 0.5, -mandos.pitch * 0.22, -mandos.yaw * 0.15];
     if (state.maniobra) {
@@ -332,8 +384,12 @@ renderer.setAnimationLoop(now => {
       else if (state.vista === 'fila') n.quat.identity();
       else n.quat.copy(_q);
       n.grupo.position.copy(n.pos); n.grupo.quaternion.copy(n.quat);
-      const turbo = mandos.anim[4];
-      n.llamas.forEach((s, i) => { s.scale.setScalar((0.5 + turbo * 1.1) * (1 + Math.sin(t * 30 + i) * 0.06)); s.material.opacity = 0.45 + turbo * 0.55; });
+      const turbo = mandos.anim[4], TB = EFECTOS.turbo, ct = colorTurbo();
+      n.llamas.forEach((s, i) => {
+        s.scale.setScalar((0.5 + turbo * 1.1 * TB.largo) * (1 + Math.sin(t * 30 + i) * 0.06));
+        s.material.opacity = Math.min(1, (0.45 + turbo * 0.55) * (1 + (TB.brillo - 1) * turbo));
+        s.material.color.setRGB(0.5 + (ct[0] - 0.5) * turbo, 0.95 + (ct[1] - 0.95) * turbo, 0.9 + (ct[2] - 0.9) * turbo);
+      });
       // luces de navegación: fijas en las alas, la de la cola titila
       n.luces.forEach(s => { s.material.opacity = s.userData.cola ? (Math.sin(t * 6) > 0.6 ? 1 : 0.15) : 0.9; });
       if (n.etq) {
@@ -342,6 +398,7 @@ renderer.setAnimationLoop(now => {
       }
     }
     const enPiezas = $('tab-piezas').getAttribute('aria-selected') === 'true';
+    danos.liviano = state.fx === 'livianos';
     if (estado.rota > 0) estado.rota = Math.max(0, estado.rota - dt);
     for (const n of naves) {
       n.dano = enPiezas ? estado.dano : 0; n.disparados = enPiezas ? estado.disparados : 0;
@@ -351,8 +408,6 @@ renderer.setAnimationLoop(now => {
     flota.actualizar(naves.filter(n => n.visible !== false), camera);
     danos.actualizar(dt, naves, camera, renderer);
     lectT += dt; if (lectT > 0.1) { lectT = 0; lecturas(); }
-  } else {
-    vieja.position.y = Math.sin(t * 1.3) * 0.06;
   }
   controls.update();
   renderer.render(scene, camera);

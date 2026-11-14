@@ -127,9 +127,9 @@ function desplaz(d, canal, anim) {
   await page.waitForFunction(() => window.__hangar, null, { timeout: 15000 });
   let r = await page.evaluate(() => ({ disenos: document.querySelectorAll('#models button').length, pinturas: [...document.querySelectorAll('#palettes button')].map(b => b.textContent), info: document.getElementById('info').textContent }));
   check('el Hangar muestra las naves nuevas, con sus diseños y pinturas', r.disenos >= 6 && r.pinturas.includes('Guardia nocturna') && /Delta compacto/.test(r.info), f({ disenos: r.disenos, pinturas: r.pinturas.join('|') }));
-  await page.evaluate(() => document.getElementById('tab-piezas').click());
+  await page.evaluate(() => document.getElementById('tab-vuelo').click());
   r = await page.evaluate(() => ({ palanca: !!document.getElementById('palanca'), botones: [...document.querySelectorAll('#toggles button')].map(b => b.textContent), maniobras: [...document.querySelectorAll('#maniobras [data-man]')].map(b => b.textContent) }));
-  check('la pestaña Piezas es un simulador: palanca, botones de la nave y maniobras', r.palanca && r.botones.includes('Turbo') && r.botones.includes('Freno de aire') && r.maniobras.includes('Tonel') && r.maniobras.includes('Looping'), f({ botones: r.botones.join('|'), maniobras: r.maniobras.join('|') }));
+  check('la pestaña Vuelo es un simulador: palanca, botones de la nave y maniobras', r.palanca && r.botones.includes('Turbo') && r.botones.includes('Freno de aire') && r.maniobras.includes('Tonel') && r.maniobras.includes('Looping'), f({ botones: r.botones.join('|'), maniobras: r.maniobras.join('|') }));
   // la palanca mueve la nave: lo que llega a la placa de video sigue al mando, de a poco
   r = await page.evaluate(async () => {
     const H = window.__hangar, pad = document.getElementById('palanca'), q = pad.getBoundingClientRect();
@@ -153,9 +153,27 @@ function desplaz(d, canal, anim) {
   const total = Object.keys(DISENOS).length;
   check(`"Todas a escala" pone los ${total} diseños uno al lado del otro`, r.naves === total && r.etiquetas === total, f(r));
   await page.screenshot({ path: path.join(dir, 'hangar-fila.png') });
-  await page.evaluate(() => { document.querySelector('#sistema [data-v="actuales"]').click(); });
-  r = await page.evaluate(() => document.querySelectorAll('#models button').length);
-  check('las naves actuales siguen disponibles en el Hangar', r >= 4, r);
+  // las naves viejas ya no están: las nuevas las reemplazaron
+  r = await page.evaluate(() => ({ sistema: !!document.getElementById('sistema'), disenos: document.querySelectorAll('#models button').length }));
+  check('el Hangar muestra solo las naves nuevas', !r.sistema && r.disenos === total, f(r));
+  // Piezas: editor de efectos que el juego también usa
+  await page.evaluate(() => { window.__hangar.ponerVista('tres'); document.getElementById('tab-piezas').click(); });
+  r = await page.evaluate(() => ({ bloques: [...document.querySelectorAll('#editor .bloque h3')].map(h => h.firstChild.textContent), ajustes: document.querySelectorAll('#editor input[data-ef]').length }));
+  check('Piezas: turbo, freno, misiles, daño y explosión, con sus ajustes', ['Turbo', 'Freno de aire', 'Misiles', 'Daño', 'Explosión'].every(b => r.bloques.includes(b)) && r.ajustes >= 10, f(r));
+  r = await page.evaluate(async () => {
+    const H = window.__hangar, w = ms => new Promise(res => setTimeout(res, ms));
+    const ef = document.querySelector('input[data-ef="explosion.duracion"]'); ef.value = 3; ef.dispatchEvent(new Event('input'));
+    document.querySelector('[data-extra="dano"][data-v="0.9"]').click(); await w(800);
+    const humo = H.danos.resumen().humo;
+    document.querySelector('[data-extra="romper"]').click(); await w(200);
+    return { humo, pedazos: H.danos.resumen().pedazos, duracion: H.EFECTOS.explosion.duracion };
+  });
+  check('Piezas: el daño humea, Derribar parte la nave y los ajustes llegan a los efectos', r.humo > 0 && r.pedazos >= 3 && r.duracion === 3, f(r));
+  await page.evaluate(() => document.querySelector('#restablecer').click());
+  // Vista: skins; Gráficos: detalle
+  await page.evaluate(() => document.getElementById('tab-vista').click());
+  r = await page.evaluate(() => ({ skins: document.querySelectorAll('#palettes button').length, lodsEnVista: !!document.querySelector('#p-vista #lods') }));
+  check('Vista tiene las skins y el detalle pasó a Gráficos', r.skins >= 3 && !r.lodsEnVista, f(r));
   check('sin errores en la página', errs.length === 0, errs.join(' | '));
   await browser.close();
 })().catch(e => { console.log('FAIL la prueba se cortó: ' + e.message); process.exit(1); });

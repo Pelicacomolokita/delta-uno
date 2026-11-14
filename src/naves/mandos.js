@@ -10,7 +10,7 @@
    Usado por el Hangar (simulador) y, cuando se integre, por el juego: una sola función para los dos. */
 
 // tiempo para recorrer todo el recorrido, en segundos
-const RECORRIDO = { aleron: 0.32, timon: 0.4, elevador: 0.35, freno: 0.9, tobera: 0.6, compuertas: 1.6, camuflaje: 1.1 };
+export const RECORRIDO = { aleron: 0.32, timon: 0.4, elevador: 0.35, freno: 0.9, tobera: 0.6, compuertas: 1.6, camuflaje: 1.1 };
 
 export function crearMandos() {
   return {

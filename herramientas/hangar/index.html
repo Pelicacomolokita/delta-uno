@@ -58,6 +58,21 @@ input[type=range]{width:100%;accent-color:var(--ember);min-height:32px}
   #palanca{width:104px;height:104px}
 }
 .swatch[data-v="ninguna"] span{border-style:dashed}
+/* editor de efectos (pestaña Piezas): un bloque por pieza, con su botón para probarla y sus ajustes */
+.editor{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px}
+.bloque{border:1px solid var(--line);border-radius:6px;padding:8px;display:grid;gap:6px;align-content:start}
+.bloque h3{margin:0;font:700 12px/1.2 var(--data);letter-spacing:.1em;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.bloque h3 button{min-height:32px;padding:4px 9px;font:13px/1.2 var(--label);letter-spacing:0;text-transform:none}
+.bloque label{display:grid;grid-template-columns:96px 1fr 58px;align-items:center;gap:6px;font:12px/1.2 var(--data);color:var(--dim)}
+.bloque label output{color:var(--paper);text-align:right}
+.bloque .row button{min-height:32px;padding:4px 9px;font-size:13px}
+.nota{margin:0;color:var(--dim);font:12px/1.4 var(--data)}
+@media (max-height:520px) and (orientation:landscape){.editor{grid-template-columns:1fr}.tabs button{padding:5px 7px}}
+/* en Piezas los ajustes son largos: van en una columna al costado, así la nave queda a la vista */
+body.columna #ui{top:0;right:auto;width:min(400px,42vw);align-content:start;overflow-y:auto;padding-top:calc(46px + env(safe-area-inset-top,0px));padding-right:12px;background:var(--panel);border-right:1px solid var(--line)}
+body.columna .editor{grid-template-columns:1fr}
+body.columna #hint,body.columna header{display:none}
+@media (max-width:640px) and (orientation:portrait){body.columna #ui{top:auto;width:auto;right:0;max-height:55vh;border-right:0}}
 </style>
 </head>
 <body>
@@ -69,16 +84,16 @@ input[type=range]{width:100%;accent-color:var(--ember);min-height:32px}
 <div id="ui">
   <div class="tabs" role="tablist" aria-label="Controles">
     <button type="button" role="tab" id="tab-nave" aria-controls="p-nave" aria-selected="true">Nave</button>
+    <button type="button" role="tab" id="tab-vuelo" aria-controls="p-vuelo" aria-selected="false">Vuelo</button>
     <button type="button" role="tab" id="tab-piezas" aria-controls="p-piezas" aria-selected="false">Piezas</button>
     <button type="button" role="tab" id="tab-vista" aria-controls="p-vista" aria-selected="false">Vista</button>
+    <button type="button" role="tab" id="tab-graficos" aria-controls="p-graficos" aria-selected="false">Gráficos</button>
   </div>
   <div class="panel" id="p-nave" role="tabpanel" aria-labelledby="tab-nave">
     <p id="desc"></p>
-    <div class="row" id="sistema"><small>Naves</small></div>
     <div class="row" id="models"><small>Diseño</small></div>
-    <div class="row" id="palettes"><small>Pintura</small></div>
   </div>
-  <div class="panel" id="p-piezas" role="tabpanel" aria-labelledby="tab-piezas" hidden>
+  <div class="panel" id="p-vuelo" role="tabpanel" aria-labelledby="tab-vuelo" hidden>
     <div class="sim">
       <div class="palanca-box">
         <div id="palanca" role="slider" tabindex="0" aria-label="Palanca: a los costados rota, adelante y atrás sube o baja la trompa. Flechas del teclado." aria-valuetext="centro"><span id="palanca-b"></span></div>
@@ -93,9 +108,18 @@ input[type=range]{width:100%;accent-color:var(--ember);min-height:32px}
     </div>
     <div class="row" id="maniobras"><small>Maniobra</small></div>
   </div>
+  <div class="panel" id="p-piezas" role="tabpanel" aria-labelledby="tab-piezas" hidden>
+    <div class="editor" id="editor"></div>
+    <div class="row"><button type="button" id="copiarAjustes">Copiar ajustes</button><button type="button" id="restablecer">Restablecer</button><span id="copiado" class="nota" aria-live="polite"></span></div>
+  </div>
   <div class="panel" id="p-vista" role="tabpanel" aria-labelledby="tab-vista" hidden>
     <div class="row" id="views"><small>Vista</small></div>
+    <div class="row" id="palettes"><small>Skin</small></div>
+  </div>
+  <div class="panel" id="p-graficos" role="tabpanel" aria-labelledby="tab-graficos" hidden>
     <div class="row" id="lods"><small>Detalle</small></div>
+    <div class="row" id="calidadFx"><small>Efectos</small></div>
+    <p class="nota">Automático cambia el detalle según la distancia, como en el juego. Los efectos livianos usan la mitad del humo y el fuego.</p>
   </div>
 </div>
 <script type="module" src="./hangar.js"></script>

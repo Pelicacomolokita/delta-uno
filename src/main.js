@@ -4373,6 +4373,7 @@ function frame(now){
     navePropia.dano=dead>0?0:1-hull/TUNE.hull;
     navePropia.disparados=Math.max(0,misilesColgados()-missiles); // los misiles colgados se van gastando
     navesMandosJugador();
+    naves.danos.liviano=GQ.name==='baja'; // gráficos bajos: la mitad de humo y fuego
     naves.actualizar(dt,camera);
   }
     updateShadow();

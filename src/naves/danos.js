@@ -8,10 +8,11 @@
 import * as T from 'three';
 import { armarDiseno, espejar, ESPEJO } from './generador.js';
 import { BANDOS } from './disenos.js';
+import { EFECTOS, colorTurbo } from './efectos.js';
 
-export const UMBRAL = { humo: 0.4, fuego: 0.75 };
+// los umbrales viven en efectos.js (se ajustan en el Hangar)
+export const UMBRAL = { get humo() { return EFECTOS.dano.humoDesde; }, get fuego() { return EFECTOS.dano.fuegoDesde; } };
 const MAX_PEDAZOS = 8;   // del mismo diseño y pedazo a la vez
-const VIDA_PEDAZO = 5;   // s
 
 /* ---------- Partículas: humo (normal) y fuego (que suma luz) ---------- */
 function nube(n, aditiva) {
@@ -115,6 +116,7 @@ export class Danos {
     this.pedazos = [];     // { malla, i, pos, quat, vel, giro, vida, humo }
     this.mallas = {};      // id → [{ mesh, centro }]
     this.t = 0;
+    this.liviano = false; // efectos livianos (gráficos bajos): la mitad de humo y fuego
     this.centro = new T.Vector3(); // centro del planeta: hacia ahí caen los pedazos
     this.plano = false;            // sin planeta (Hangar): "abajo" es -Y
     this._q = new T.Quaternion(); this._v = new T.Vector3(); this._u = new T.Vector3(); this._m = new T.Matrix4(); this._s = new T.Vector3(1, 1, 1);
@@ -165,18 +167,20 @@ export class Danos {
       // sale hacia afuera desde el centro de la nave, más lo que traía
       const afuera = P.centro.clone().applyQuaternion(n.quat);
       const l = afuera.length() || 1;
-      const v = (vel ? vel.clone() : new T.Vector3()).multiplyScalar(0.9).addScaledVector(afuera, (6 + Math.random() * 8) / l);
-      v.x += (Math.random() - 0.5) * 6; v.y += (Math.random() - 0.5) * 6; v.z += (Math.random() - 0.5) * 6;
-      const giro = new T.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar(1.5 + Math.random() * 3.5);
-      this.pedazos.push({ P, i, pos, quat: n.quat.clone(), vel: v, giro, vida: VIDA_PEDAZO * (0.7 + Math.random() * 0.6), pint, marca: (BANDOS[n.bando] || BANDOS[this.flota.dis[n.id].dis.bando] || {}).color || null, humoT: 0, fuego: Math.random() < 0.6 });
+      const X = EFECTOS.explosion, sv = X.velocidad;
+      const v = (vel ? vel.clone() : new T.Vector3()).multiplyScalar(0.9).addScaledVector(afuera, (6 + Math.random() * 8) * sv / l);
+      v.x += (Math.random() - 0.5) * 6 * sv; v.y += (Math.random() - 0.5) * 6 * sv; v.z += (Math.random() - 0.5) * 6 * sv;
+      const giro = new T.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize().multiplyScalar((1.5 + Math.random() * 3.5) * X.giro);
+      this.pedazos.push({ P, i, pos, quat: n.quat.clone(), vel: v, giro, vida: EFECTOS.explosion.duracion * (0.7 + Math.random() * 0.6), pint, marca: (BANDOS[n.bando] || BANDOS[this.flota.dis[n.id].dis.bando] || {}).color || null, humoT: 0, fuego: Math.random() < 0.6 });
       hechos++;
     }
     // fogonazo en el centro
-    for (let k = 0; k < 14; k++) {
-      const a = Math.random() * 6.283, b = Math.random() * 2 - 1, s = Math.sqrt(1 - b * b), r = 8 + Math.random() * 14;
-      emitir(this.fuego, 2, n.pos.x, n.pos.y, n.pos.z, Math.cos(a) * s * r, b * r, Math.sin(a) * s * r, 2.4 + Math.random() * 1.5, 0.5 + Math.random() * 0.4);
+    const F = EFECTOS.explosion.fogonazo;
+    for (let k = 0; k < Math.round(14 * Math.max(0.5, F)); k++) {
+      const a = Math.random() * 6.283, b = Math.random() * 2 - 1, s = Math.sqrt(1 - b * b), r = (8 + Math.random() * 14) * F;
+      emitir(this.fuego, 2, n.pos.x, n.pos.y, n.pos.z, Math.cos(a) * s * r, b * r, Math.sin(a) * s * r, (2.4 + Math.random() * 1.5) * F, 0.5 + Math.random() * 0.4);
     }
-    for (let k = 0; k < 10; k++) emitir(this.humo, 1, n.pos.x + (Math.random() - .5) * 3, n.pos.y + (Math.random() - .5) * 3, n.pos.z + (Math.random() - .5) * 3, (Math.random() - .5) * 6, (Math.random() - .5) * 6, (Math.random() - .5) * 6, 3, 2 + Math.random());
+    for (let k = 0; k < 10; k++) emitir(this.humo, 1, n.pos.x + (Math.random() - .5) * 3, n.pos.y + (Math.random() - .5) * 3, n.pos.z + (Math.random() - .5) * 3, (Math.random() - .5) * 6, (Math.random() - .5) * 6, (Math.random() - .5) * 6, 3 * F, 2 + Math.random());
     return hechos;
   }
   fogonazo(p, tam) {
@@ -199,14 +203,14 @@ export class Danos {
       const D = this.flota.dis[n.id]; if (!D) continue;
       this.abajo(n.pos, this._u); arr[0] = -this._u.x; arr[1] = -this._u.y; arr[2] = -this._u.z;
       const mot = D.puntos.motores.length ? D.puntos.motores : [[0, 0, 1]];
-      const tasa = (d - UMBRAL.humo) / (1 - UMBRAL.humo) * 28 + 6; // partículas por segundo
+      const tasa = ((d - UMBRAL.humo) / Math.max(0.05, 1 - UMBRAL.humo) * 28 + 6) * EFECTOS.dano.humo * (this.liviano ? 0.5 : 1); // partículas por segundo (la mitad con efectos livianos)
       n._humoAcum = (n._humoAcum || 0) + tasa * dt;
       while (n._humoAcum >= 1) {
         n._humoAcum -= 1;
         const e = mot[(Math.random() * mot.length) | 0];
         this._v.set(e[0], e[1], e[2]).applyQuaternion(n.quat).add(n.pos);
         const fuerte = d >= UMBRAL.fuego;
-        emitir(this.humo, fuerte ? 1 : 0, this._v.x, this._v.y, this._v.z, (Math.random() - .5) * 2, (Math.random() - .5) * 2, (Math.random() - .5) * 2, fuerte ? 1.6 : 1.1, fuerte ? 2.2 : 1.6);
+        emitir(this.humo, fuerte ? 1 : 0, this._v.x, this._v.y, this._v.z, (Math.random() - .5) * 2, (Math.random() - .5) * 2, (Math.random() - .5) * 2, (fuerte ? 1.6 : 1.1) * EFECTOS.dano.tamano, fuerte ? 2.2 : 1.6);
         if (fuerte && Math.random() < 0.7) emitir(this.fuego, 2, this._v.x, this._v.y, this._v.z, (Math.random() - .5) * 3, (Math.random() - .5) * 3, (Math.random() - .5) * 3, 1.1, 0.35);
         if (Math.random() < 0.12 * d) emitir(this.fuego, 3, this._v.x, this._v.y, this._v.z, (Math.random() - .5) * 18, (Math.random() - .5) * 18, (Math.random() - .5) * 18, 0.35, 0.6);
       }
@@ -261,13 +265,14 @@ export class Danos {
       if (n.propia || !n.visible || (n.lod !== undefined && n.lod >= 3)) continue;
       const D = this.flota.dis[n.id]; if (!D) continue;
       const m = n.mandos || {}, emp = Math.max(0, Math.min(1, m.empuje ?? 0.6)), tb = m.turbo ? 1 : 0;
-      const col = COLOR_MOTOR[n.bando || D.dis.bando] || COLOR_MOTOR.guardia, tam = (0.9 + emp * 1.1 + tb * 0.9) * (D.dis.escala || 1);
+      const TB = EFECTOS.turbo, ct = colorTurbo();
+      const base = COLOR_MOTOR[n.bando || D.dis.bando] || COLOR_MOTOR.guardia, tam = (0.9 + emp * 1.1 + tb * 0.9 * TB.largo) * (D.dis.escala || 1);
+      const col = tb ? ct : base;
       for (const e of D.puntos.motores) {
         if (k >= N.n) break;
         this._v.set(e[0], e[1], e[2] + 0.15).applyQuaternion(n.quat).add(n.pos);
         P[k * 3] = this._v.x; P[k * 3 + 1] = this._v.y; P[k * 3 + 2] = this._v.z;
-        const w = 0.35 * tb;
-        C[k * 4] = col[0] + (1 - col[0]) * w; C[k * 4 + 1] = col[1] + (1 - col[1]) * w; C[k * 4 + 2] = col[2] + (1 - col[2]) * w; C[k * 4 + 3] = 0.55 + 0.35 * emp;
+        C[k * 4] = col[0]; C[k * 4 + 1] = col[1]; C[k * 4 + 2] = col[2]; C[k * 4 + 3] = Math.min(1, (0.55 + 0.35 * emp) * (tb ? TB.brillo : 1));
         S[k] = tam; k++;
       }
     }
@@ -285,7 +290,7 @@ export function flamear(n, t) {
   if (prev) { a[0] -= prev[0]; a[1] -= prev[1]; a[2] -= prev[2]; }
   const d = n.dano || 0;
   if (d < UMBRAL.fuego) { n._flam = null; return; }
-  const k = (d - UMBRAL.fuego) / (1 - UMBRAL.fuego), s = n._semilla ?? (n._semilla = Math.random() * 100);
+  const k = (d - UMBRAL.fuego) / Math.max(0.05, 1 - UMBRAL.fuego), s = n._semilla ?? (n._semilla = Math.random() * 100);
   const o = n._flam || (n._flam = [0, 0, 0]);
   o[0] = Math.sin(t * 23 + s) * 0.45 * k;
   o[1] = Math.sin(t * 17 + s * 1.7) * 0.35 * k;
