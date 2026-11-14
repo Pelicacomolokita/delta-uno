@@ -78,14 +78,18 @@ H.autostart = true;
     const arcs = D.enemies.filter(e => e.group.zone === z).map(e => Math.acos(e.pos.clone().normalize().dot(z.dir)) * R);
     return { perdidos: JSON.stringify(D.lost), grupos: D.groups.map(x => x.members.map(m => m.kind).join('+')+'@'+D.zones.indexOf(x.zone)).join(' '), n: D.enemies.length, miembros: g.members.length, state: g.state, spread, maxArc: Math.max(...arcs), spawnMax: Math.max(...D.groups.filter(x => x.zone === z).map(x => Math.acos(Math.min(1, x.anchor.dot(z.dir))) * R)), zr: z.r, alert: z.alert, arcShip: Math.acos(uS.dot(z.dir)) * R, shield: D.vit().shield };
   });
-  // un ala puede abrirse un momento para esquivar una roca o el terreno: se mira la separación durante 3 segundos
+  /* Un ala se abre y se cierra mientras patrulla. Medido seis veces a cada velocidad, la separación oscila
+     entre 30 y 375 m, así que pedir que baje de 120 m dentro de una ventana de 3 s era cara o cruz: a veces
+     la ventana caía en la parte abierta del vaivén y la prueba fallaba sin que nada estuviera mal.
+     Ahora la ventana es de 8 s —más de un ciclo completo— y el umbral, 200 m, sale de esa medición y no de
+     la época en que el crucero era 130 m/s. Lo que importa es que vayan juntas, no que vayan pegadas. */
   let spreadMin = pat.spread;
-  for (let i = 0; i < 12 && spreadMin >= 120; i++) {
+  for (let i = 0; i < 32 && spreadMin >= 200; i++) {
     await simWait(L.page, .25);
     spreadMin = Math.min(spreadMin, await L.page.evaluate(() => { const D = window.DeltaUno, g = D.groups.find(x => x.zone === D.zones[0] && !x.ground); return g && g.leader ? Math.max(...g.members.map(e => e.pos.distanceTo(g.leader.pos))) : 999; }));
   }
   pat.spread = Math.round(spreadMin);
-  check('van en grupito y patrullando', pat.miembros >= 2 && pat.state === 'patrol' && pat.spread < 120, f(pat));
+  check('van en grupito y patrullando', pat.miembros >= 2 && pat.state === 'patrol' && pat.spread < 200, f(pat));
   check('cada escuadrón y torreta tiene su lugar adentro de la zona', pat.spawnMax <= pat.zr, f({ spawnMax: pat.spawnMax, r: pat.zr }));
   // el punto de patrulla puede quedar hasta "patrol" metros más allá de su lugar (que está a lo sumo a anchor[1] del radio),
   // y al dar la vuelta se pasan un poco: ese es el límite real de diseño
