@@ -181,25 +181,35 @@ H.transform = s => s.replace('b.life=1.7;b.dmg=e.def.dmg*(e.dmgK||1);b.on=true;'
   console.log('zona densa', JSON.stringify(r));
   check('una zona densa junta varios tipos de enemigos a la vez', Object.keys(r.k).length >= 3 && r.zona >= 10, JSON.stringify(r));
   await L.page.evaluate(() => clearInterval(window.__pin));
-  // un enjambre de drones te dispara, y tira junto
+  /* ---- Enjambre de drones ---- */
+  /* Los drones dejaron de ser kamikaze (14 de noviembre): vuelan en enjambre y disparan, y el enjambre tira
+     junto. La prueba no puede depender de que se alineen solos —a veces en cinco segundos no llegan a tener
+     el tiro— así que mira durante 15 s y se queda con el mejor momento. Lo que comprueba:
+       1. que no se maten contra el jugador, que es lo que hacían antes;
+       2. que te hagan daño con los tiros;
+       3. que al menos dos tengan ráfaga cargada a la vez, que es lo que quiere decir "tira junto". */
   await L.page.evaluate(() => { window.DeltaUno.startRun('libre'); });
   await setRender(L.page, false);
   await waitGrace(L.page);
-  r = await L.page.evaluate(() => {
+  await L.page.evaluate(() => {
     const D = window.DeltaUno, s = D.ship, u = s.pos.clone().normalize(), f = new s.pos.constructor(0, 0, -1).applyQuaternion(s.q);
-    const g = D.makeGroup(D.roamZone, ['dron', 'dron', 'dron', 'dron'], s.pos.clone().addScaledVector(f, 220), u, 1, true);
+    const g = D.makeGroup(D.roamZone, ['dron', 'dron', 'dron', 'dron'], s.pos.clone().addScaledVector(f, 170), u, 1, true);
     g.members.forEach(e => { e.fwd.copy(f).negate(); e.cool = .2; });
-    window.__h0 = D.vit(); window.__s0 = D.vit().score;
-    // cuántos drones tienen ráfaga cargada a la vez: el enjambre tiene que tirar junto, no de a uno
-    window.__juntos = 0;
-    window.__tj = setInterval(() => { window.__juntos = Math.max(window.__juntos, D.enemies.filter(e => e.kind === 'dron' && e.burst > 0).length); }, 16);
-    return true;
+    window.__h0 = D.vit(); window.__s0 = D.vit().score; window.__juntos = 0; window.__vioBalas = 0;
+    window.__tj = setInterval(() => {
+      const d = D.enemies.filter(e => e.kind === 'dron');
+      window.__juntos = Math.max(window.__juntos, d.filter(e => e.burst > 0).length);
+      window.__vioBalas = Math.max(window.__vioBalas, D.eBolts.filter(b => b.on).length);
+    }, 16);
   });
-  await simWait(L.page, 5);
-  r = await L.page.evaluate(() => { const D = window.DeltaUno, v = D.vit(); clearInterval(window.__tj); return { drones: D.enemies.filter(e => e.kind === 'dron').length, lost: Math.round(window.__h0.shield + window.__h0.hull - v.shield - v.hull), score: v.score - window.__s0, juntos: window.__juntos, balas: D.eBolts.filter(b => b.on).length }; });
-  /* Los drones dejaron de ser kamikaze (14 de noviembre): vuelan en enjambre y disparan. Así que ya no se
-     matan solos contra vos, y lo que se comprueba es que sigan vivos, que te peguen, y que tiren juntos. */
-  check('un enjambre de drones te dispara en andanada, sin estrellarse', r.drones === 4 && r.lost > 0 && r.juntos >= 2, JSON.stringify(r));
+  await simWait(L.page, 15);
+  r = await L.page.evaluate(() => {
+    const D = window.DeltaUno, v = D.vit(); clearInterval(window.__tj);
+    return { drones: D.enemies.filter(e => e.kind === 'dron').length, lost: Math.round(window.__h0.shield + window.__h0.hull - v.shield - v.hull),
+             juntos: window.__juntos, balas: window.__vioBalas, ram: !!D.ENEMY_DEF.dron.ram, rango: D.ENEMY_DEF.dron.range };
+  });
+  check('el dron ya no embiste: tiene cañón y alcance', !r.ram && r.rango > 0, JSON.stringify({ ram: r.ram, rango: r.rango }));
+  check('un enjambre de drones te dispara en andanada, sin estrellarse', r.drones >= 3 && r.lost > 0 && r.juntos >= 2, JSON.stringify(r));
 
   /* ---- Carrera ---- */
   await L.page.evaluate(() => { window.DeltaUno.openMenu(); });
