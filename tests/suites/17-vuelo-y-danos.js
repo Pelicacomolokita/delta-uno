@@ -150,7 +150,9 @@ H.autostart = false;
   await page.evaluate(() => document.querySelector('.mode[data-mode="libre"]').click()); await sleep(100);
   await page.evaluate(() => document.querySelector('#loadoutBtn').click()); await sleep(300);
   await page.evaluate(() => document.querySelector('#prepTabs [data-step="nave"]').click());
-  await setRender(page, true); await sleep(900);
+  await setRender(page, true);
+  // con la máquina cargada el primer cuadro de la vitrina puede tardar: se espera hasta 4 s a que aparezca la nave
+  await page.waitForFunction(() => { const c = document.querySelector('#classShip'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; for (let i = 3; i < d.length; i += 16) if (d[i] > 0) return true; return false; }, null, { timeout: 4000 }).catch(() => {});
   r = await page.evaluate(() => {
     const c = document.querySelector('#classShip'), ctx = c.getContext('2d'), d = ctx.getImageData(0, 0, c.width, c.height).data;
     let n = 0; for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++;

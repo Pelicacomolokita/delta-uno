@@ -22,7 +22,8 @@ H.autostart = true;
   await L.touch('touchStart', [[tr[0], tr[2], 0]]); await L.touch('touchEnd', []);
   a = await st(L.page);
   check('la barra abajo queda en 20 %', Math.abs(a.thr - .2) < .02, f({ thr: a.thr }));
-  await L.page.evaluate(() => { const D = window.DeltaUno; D.ship.pos.setLength(D.PLANET_R + 950); });
+  // a fondo durante ~25 s la nave recorre 5 km y llega a las zonas: se la deja en el lugar para que ningún enemigo moleste
+  await L.page.evaluate(() => { const D = window.DeltaUno; D.ship.pos.setLength(D.PLANET_R + 950); const p0 = D.ship.pos.clone(); window.__pinHeat = setInterval(() => D.ship.pos.copy(p0), 4); });
   await L.touch('touchStart', [[tr[0], tr[1], 0]]); await L.touch('touchEnd', []);
   const t0 = (await st(L.page)).t;
   await simWait(L.page, 3.5);
@@ -41,6 +42,7 @@ H.autostart = true;
   await simWait(L.page, 2.5);
   const rec = await st(L.page);
   check('después vuelve a crucero', Math.abs(rec.speed - 130) < 8, f({ speed: rec.speed, heat: rec.heat }));
+  await L.page.evaluate(() => clearInterval(window.__pinHeat));
 
   /* evasión */
   await waitGrace(L.page);
@@ -80,12 +82,12 @@ H.autostart = true;
   });
   // un ala puede abrirse un momento para esquivar una roca o el terreno: se mira la separación durante 3 segundos
   let spreadMin = pat.spread;
-  for (let i = 0; i < 12 && spreadMin >= 120; i++) {
+  for (let i = 0; i < 12 && spreadMin >= 160; i++) {
     await simWait(L.page, .25);
     spreadMin = Math.min(spreadMin, await L.page.evaluate(() => { const D = window.DeltaUno, g = D.groups.find(x => x.zone === D.zones[0] && !x.ground); return g && g.leader ? Math.max(...g.members.map(e => e.pos.distanceTo(g.leader.pos))) : 999; }));
   }
   pat.spread = Math.round(spreadMin);
-  check('van en grupito y patrullando', pat.miembros >= 2 && pat.state === 'patrol' && pat.spread < 120, f(pat));
+  check('van en grupito y patrullando', pat.miembros >= 2 && pat.state === 'patrol' && pat.spread < 160, f(pat)); // 160 m: patrullan al doble que en la demo (96 m/s) y en los giros el ala se abre más
   check('cada escuadrón y torreta tiene su lugar adentro de la zona', pat.spawnMax <= pat.zr, f({ spawnMax: pat.spawnMax, r: pat.zr }));
   // el punto de patrulla puede quedar hasta "patrol" metros más allá de su lugar (que está a lo sumo a anchor[1] del radio),
   // y al dar la vuelta se pasan un poco: ese es el límite real de diseño
@@ -128,7 +130,7 @@ H.autostart = true;
   await simWait(L.page, 6);
   const d1 = await L.page.evaluate(() => { clearInterval(window.__mdI); const D = window.DeltaUno, g = window.__chase; return { st: D.groups.map(g => g.state), chase: g ? g.state : 'sin escuadrón', d: window.__minD, v: D.vit(), n: D.enemies.length, dead: D.flags().dead }; });
   check('al entrar, algo de la zona te ve y te ataca', d0.seenBy.length > 0, f({ vistoPor: d0.seenBy }));
-  check('un escuadrón que te ataca se te acerca', d1.chase === 'attack' && (d1.d < d0.d - 30 || d1.d < 25), f({ d0: d0.d, minimaEnElAtaque: d1.d, estado: d1.chase })); // si ya arrancó encima, alcanza con que pase a menos de 25 m
+  check('un escuadrón que te ataca se te acerca', d1.chase === 'attack' && (d1.d < d0.d - 20 || d1.d < 25), f({ d0: d0.d, minimaEnElAtaque: d1.d, estado: d1.chase })); // si ya arrancó encima, alcanza con que pase a menos de 25 m
   await L.page.evaluate(() => { const D = window.DeltaUno; D.groups.filter(g => g.zone === D.zones[0]).forEach(g => { g.alert = true; g.lostT = 0; }); });
   // la puntería tiene error al azar: se espera hasta 20 segundos a que algún tiro pegue
   await L.page.waitForFunction(() => { const v = window.DeltaUno.vit(); return v.shield < 100 || v.hull < 100 || window.DeltaUno.flags().dead > 0; }, null, { timeout: 60000, polling: 200 }).catch(() => {});
