@@ -1273,6 +1273,24 @@ function stepRocks(dt){
   }
 }
 
+/* ---------- Explosión según la distancia ----------
+   Medido en la Batalla campal: una y media explosión por segundo, con una distancia mediana de 1.822 m y 39
+   de cada 61 a más de 1.200 m. Cada una gastaba 15 partículas de fuego, 9 de humo, 8 restos y una onda
+   expansiva a tamaño completo, para algo que a esa distancia es un punto. Las ondas son transparencias
+   aditivas grandes, que es lo que ahoga a un GPU de teléfono.
+   De cerca no cambia nada; de lejos se achica, pierde la onda, y más allá de 3,5 km no se dibuja. */
+function nivelExplosion(pos){
+  const d=ship.pos.distanceTo(pos);
+  return d>3500?'nada':d<350?'entera':d<1200?'chica':'destello';
+}
+function explosionA(pos,radio){
+  switch(nivelExplosion(pos)){
+    case 'nada':return;                                  // ni se ve: no vale un solo píxel
+    case 'entera':explode(pos,radio);return;             // cerca, entera, con onda expansiva
+    case 'chica':explode(pos,Math.min(radio,3.6));return;// bajo 4 no hay onda expansiva
+    default:burst(pos,8,34,1,.72,.38,.55);               // lejos: un destello y nada más
+  }
+}
 /* Le pega a una pieza de un hito. Si la tira abajo, la revienta con fuego y restos, como cae una nave.
    mio: el tiro salió del jugador, así que suma puntos. Si no, es un choque o un tiro enemigo. */
 function romperCaja(caja,punto,mio,dano){
@@ -1336,7 +1354,7 @@ function stepBatalla(dt){
     const o=batallaObjetivo();
     if(o&&ship.pos.distanceTo(o.pos)>1800){toast('Te alejás del combate',1.6);batAviso=8;}
   }
-  for(const m of r.muertes)explode(m.pos,9);
+  for(const m of r.muertes)explosionA(m.pos,9);
   if(r.impactosJugador>0)damage(r.impactosJugador*4,null);
   // dibujar las balas: una sola llamada para todas
   let n=0;
@@ -1426,7 +1444,7 @@ function stepBolts(dt){
       const caido=batalla.golpeDelJugador(b.p,'guardia');
       if(caido!==undefined){
         b.on=false;
-        if(caido){explode(caido.pos,9);ship.kills++;addScore(60,true);}
+        if(caido){explosionA(caido.pos,9);ship.kills++;addScore(60,true);}
         else{burst(b.p,14,46,.45,.75,1,.95);sfxTick();}
         continue;
       }
@@ -2480,7 +2498,7 @@ function hitEnemy(e,at,n){
   if(e.bat&&batalla){ // combatiente de la Batalla campal: no tiene slot ni grupo, se resuelve en su módulo
     hitFlash=.14;
     const caido=batalla.pegarEnt(e,n||1);
-    if(caido){explode(caido.pos,9);ship.kills++;addScore(60,true);}
+    if(caido){explosionA(caido.pos,9);ship.kills++;addScore(60,true);}
     else{burst(at,10,40,.4,1,.72,.35);FX.sparks(at,5,26);sfxTick();}
     return;
   }
@@ -4881,7 +4899,7 @@ function boot(data){
   window.DeltaUno={renderer,ship,input,settings,TUNE,FIJADO,FICHAS,GRAVEDAD,vitrina:()=>vitrina,fijable:e=>fijable(e),tgtBestForTest:()=>tgtBest(),launchMissileForTest:t=>launchMissile(t),ENEMY_DEF,DIFF,rocks,activeRocks,rings,chart,chartDir,straighten,terrain,heightAt,S,BIOMES,PLANET_R,CEIL:{CEIL_WARN,CEIL_PUSH,CEIL_MAX},buildMs,flags:()=>({dead,inv,warning,thinWarn}),
     zones,groups,enemies,lost,drops,DROP_KIND,damage,spawnDrop,dodge,tryDodge,rockets,lockCancel,AIM,seenVel,ZONE_KIND,eBolts,boltHitsShip,
     tgt:()=>camTarget,camBlend:()=>camBlend,camera,
-    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,LUGARES,CONEXIONES,ITINERARIOS,hitos:()=>hitos,SUN,SUN_BASE,ponerHora,horaActual,horaParaLuz,DIA_S,horaCorre:()=>horaCorre,toasts:()=>toastLog.slice(),TERMICA,termica:()=>termSuave,calor:()=>heat,lod:()=>lodK,margenImpacto,batalla:()=>batalla,BANDOS_BATALLA,camaraFar:()=>camera.far,camaraNear:()=>camera.near,camaraObj:()=>camera,setCalidad:v=>{settings.quality=v;applyQuality();},ola:()=>GU.uOla.value,naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
+    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,LUGARES,CONEXIONES,ITINERARIOS,hitos:()=>hitos,SUN,SUN_BASE,ponerHora,horaActual,horaParaLuz,DIA_S,horaCorre:()=>horaCorre,toasts:()=>toastLog.slice(),TERMICA,termica:()=>termSuave,calor:()=>heat,lod:()=>lodK,margenImpacto,batalla:()=>batalla,BANDOS_BATALLA,explosionAForTest:(p)=>nivelExplosion(p),camaraFar:()=>camera.far,camaraNear:()=>camera.near,camaraObj:()=>camera,setCalidad:v=>{settings.quality=v;applyQuality();},ola:()=>GU.uOla.value,naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
     vit:()=>({hull,shield,heat,overheat,score,record,combo,curZone:curZone&&zones.indexOf(curZone),target:!!target,fov:camera.fov,missiles,missileT,lockOn,lockP,hasLock:!!lockTarget,repairT,repairCool})};
   last=performance.now();
   requestAnimationFrame(frame);
