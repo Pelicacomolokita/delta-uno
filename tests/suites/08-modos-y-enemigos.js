@@ -19,7 +19,8 @@ H.transform = s => s.replace('b.life=1.7;b.dmg=e.def.dmg*(e.dmgK||1);b.on=true;'
   const t1 = await L.page.evaluate(() => window.DeltaUno.ship.t);
   console.log('menú', JSON.stringify(m0.modes));
   check('al abrir aparece el menú de inicio, con el juego en pausa', m0.open && Math.abs(t1 - m0.t) < .01, '');
-  check('cinco modos, con Historia habilitada', m0.modes.length === 5 && /^Historia/.test(m0.modes[4]) && !/\(off\)/.test(m0.modes[4]), m0.modes.join(' | '));
+  // seis desde que existe Batalla campal (14 de noviembre). Historia es el último y tiene que estar habilitado.
+  check('seis modos, con Historia habilitada', m0.modes.length === 6 && /^Historia/.test(m0.modes[5]) && !/\(off\)/.test(m0.modes[5]), m0.modes.join(' | '));
   await setRender(L.page, true); await sleep(300);
   await L.page.screenshot({ path: path.join(dir, 'j-menu.png') });
   await tapEl('.mode[data-mode="conquista"]');

@@ -205,6 +205,9 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--bolt);outl
 #goBtn,.endGo{min-height:44px;padding:0 18px;background:var(--paper);color:var(--void);font-weight:700;font-size:14px;border-radius:3px}
 #game.compact #menuBody{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr)}
 #game.compact .mode{min-height:38px}
+/* Pantallas bajas: con seis modos, el último (Historia) se caía abajo del borde y no se podía tocar.
+   Medido a 568x320: quedaba en 291 con la pantalla terminando en 320. */
+@media (max-height:380px){#game .mode,#game.compact .mode{min-height:32px;font-size:13px}#game .mode small{font-size:10px}}
 /* Fin de partida */
 #endBody{max-width:440px;text-align:center;justify-items:center}
 #endBody h2{margin:0;font:700 19px/1.2 var(--font-label)}
