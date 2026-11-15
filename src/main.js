@@ -4606,7 +4606,9 @@ function updateCombatHud(dt){
     }else{
       m.el.classList.remove('off');
       m.el.style.transform='translate('+_spot.x.toFixed(1)+'px,'+_spot.y.toFixed(1)+'px)';
-      m.bar.style.transform='scaleX('+(e.hp/(e.hpMax||e.def.hp)).toFixed(2)+')';
+      // el tope sale de lo que haya: un error acá corta el cuadro antes de dibujar y la pantalla se congela
+      const tope=e.hpMax||(e.def&&e.def.hp)||1;
+      m.bar.style.transform='scaleX('+Math.max(0,Math.min(1,(e.hp||0)/tope)).toFixed(2)+')';
     }
     m.el.classList.toggle('tgt',e===target);
     m.el.classList.toggle('pr',!!e.practice);

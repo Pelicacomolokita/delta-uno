@@ -100,7 +100,12 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
         /* Adaptador con forma de enemigo del juego. Sin esto los combatientes no existen para el HUD: no
            tienen marca, no se los puede elegir como blanco y el misil no los fija. Es lo que pasó en la
            primera prueba de Santiago: le disparaban desde lejos cosas que el marcador no veía. */
+        /* hp, hpMax y def no son adorno: el HUD dibuja la barra de vida con e.hp/(e.hpMax||e.def.hp), y sin
+           ellos tiraba "Cannot read properties of undefined" en CADA CUADRO. Ese error cortaba el cuadro
+           antes de renderer.render(), así que la nave seguía volando y la pantalla quedaba congelada: es lo
+           que Santiago reportó. La barra ahora además muestra el daño de verdad. */
         c.ent = { pos: c.pos, on: true, bat: c, kind: 'caza', bando: B.id,
+                  hp: c.vidaMax, hpMax: c.vidaMax, def: { hp: c.vidaMax, name: B.nombre },
                   group: { state: 'attack', zone: null, alert: true, members: [] } };
         nacer(c, true);
         combatientes.push(c);
@@ -151,7 +156,7 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
     for (const c of combatientes) {
       if (c.esJugador) continue;
       if (c.muerto > 0) { c.muerto -= dt; if (c.muerto <= 0) nacer(c, true); else { if (c.ent) c.ent.on = false; continue; } }
-      if (c.ent) c.ent.on = true;
+      if (c.ent) { c.ent.on = true; c.ent.hp = c.vida; }
 
       c.buscaT -= dt;
       if (c.buscaT <= 0 || !c.blanco || c.blanco.muerto > 0) { c.buscaT = T_BUSCA; c.blanco = buscarBlanco(c); }
@@ -243,8 +248,9 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
     const c = ent.bat;
     if (!c || c.muerto > 0) return null;
     c.vida -= dano;
+    ent.hp = c.vida;
     if (c.vida > 0) return null;
-    c.muerto = T_REENTRA; ent.on = false;
+    c.muerto = T_REENTRA; ent.on = false; ent.hp = 0;
     if (c.nave) c.nave.visible = false;
     return c;
   }
