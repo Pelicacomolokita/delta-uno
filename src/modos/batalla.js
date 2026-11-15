@@ -37,6 +37,9 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
 
   const _a = new T.Vector3(), _b = new T.Vector3(), _up = new T.Vector3(), _fw = new T.Vector3();
   const _q = new T.Quaternion(), _m = new T.Matrix4(), _r = new T.Vector3(), _u2 = new T.Vector3();
+  /* Temporales reutilizados. Antes el paso de cada nave creaba dos Vector3 por cuadro: con 60 naves son
+     7.200 por segundo, y esa basura la tiene que limpiar el recolector justo mientras estás volando. */
+  const _nz = new T.Vector3(), _cenU = new T.Vector3();
 
   // un punto al azar dentro del sector, a la altura de vuelo
   function punto(out, r = radio) {
@@ -132,6 +135,7 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
   const salida = { muertes: [], impactosJugador: 0 };
   function paso(dt, jugador) {
     t += dt;
+    _cenU.copy(centro).normalize();   // una vez por cuadro, no una por nave
     salida.muertes.length = 0; salida.impactosJugador = 0;
 
     // el jugador participa como un combatiente más, para que lo busquen y le tiren
@@ -167,7 +171,7 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
       }
       // si se fue del sector o bajó demasiado, vuelve al centro
       const alturaSuelo = c.pos.length() - PLANET_R - Math.max(heightAt(_up.x, _up.y, _up.z, 64), 0);
-      const fuera = Math.acos(Math.min(1, _up.dot(_b.clone().copy(centro).normalize()))) * PLANET_R > radio * 1.15;
+      const fuera = Math.acos(Math.min(1, _up.dot(_cenU))) * PLANET_R > radio * 1.15;
       if (fuera || alturaSuelo < 140) {
         _b.copy(centro).normalize().multiplyScalar(PLANET_R + alturaVuelo + 200).sub(c.pos).normalize();
       }
@@ -182,7 +186,8 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
       }
       // mantener las alas más o menos niveladas con el horizonte local
       _r.crossVectors(_fw, _up).normalize(); _u2.crossVectors(_r, _fw).normalize();
-      _q.setFromRotationMatrix(_m.makeBasis(_r, _u2, _fw.clone().negate()));
+      _nz.copy(_fw).negate();
+      _q.setFromRotationMatrix(_m.makeBasis(_r, _u2, _nz));
       c.quat.slerp(_q, Math.min(1, dt * 1.6));
 
       c.vel += ((b && dB < 900 ? c.velBase * 1.25 : c.velBase) - c.vel) * Math.min(1, dt * .7);

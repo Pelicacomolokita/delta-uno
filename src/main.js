@@ -712,7 +712,7 @@ function ajustarLOD(){
   const alt=Math.max(ship.alt||0,0);
   let n=lodK;
   // sube de escalón antes de que el horizonte pase el alcance; baja más tarde, para no oscilar
-  while(n<8&&alt>LOD_SUBE[Math.log2(n)])n*=2;
+  while(n<lodTope&&alt>LOD_SUBE[Math.log2(n)])n*=2;
   while(n>1&&alt<LOD_BAJA[Math.log2(n)-1])n/=2;
   if(diagLod)n=diagLod;
   if(n===lodK)return false;
@@ -729,7 +729,7 @@ function ajustarLOD(){
 function ajustarCamara(){
   const alt=Math.max(ship.alt||0,0);
   const horizonte=Math.sqrt(2*PLANET_R*alt+alt*alt);
-  const lejos=diagCam?14000:Math.min(42000,Math.max(14000,horizonte*1.2+2000));
+  const lejos=diagCam?14000:Math.min(lejosTope,Math.max(14000,horizonte*1.2+2000));
   /* El plano cercano sube un poco con la altura, para no perder precisión del buffer de profundidad con un
      plano lejano de 30 km. Tope de 4 m, y no más: la cámara va a unos 12 m detrás de la nave, así que un
      plano cercano más grande que eso le recorta la nave al jugador. */
@@ -1307,9 +1307,17 @@ function batallaParar(){
 }
 const _bq=new Q(),_bf=new V3(),_bc=new T.Color(),_UZ=new V3(0,0,1),_bcen=new V3();
 let batAviso=0;
+const _bobj={pos:new V3(),label:''};
 /* Dónde está el revoleo, para que el jugador sepa volver. Medido: la batalla no se dispersa —cada nave tiene
    un rival a unos 80 m— pero el jugador que vuela derecho se va a 4 km en medio minuto y no tiene cómo saberlo. */
+let batObjT=-1,batObjV=null;
 function batallaObjetivo(){
+  // una vez por cuadro y se reparte: lo piden el HUD, el aviso y el paso de la batalla
+  if(batObjT===run.t)return batObjV;
+  batObjT=run.t;batObjV=batallaObjetivoCalc();
+  return batObjV;
+}
+function batallaObjetivoCalc(){
   if(!batalla)return null;
   const vivos=batalla.combatientes.filter(c=>!c.esJugador&&c.muerto<=0);
   if(!vivos.length)return null;
@@ -1318,7 +1326,7 @@ function batallaObjetivo(){
   _bcen.divideScalar(vivos.length);
   const d=ship.pos.distanceTo(_bcen);
   if(d<700)return null;                       // estás adentro: sin marca, que no moleste
-  return {pos:_bcen.clone(),label:'Combate '+Math.round(d)};
+  _bobj.pos.copy(_bcen);_bobj.label='Combate '+Math.round(d);return _bobj;
 }
 function stepBatalla(dt){
   if(!batalla||run.mode!=='batalla')return;
@@ -4699,6 +4707,19 @@ function applyQuality(){
   const note=$('#qualityNote');
   if(note)note.textContent=settings.quality==='auto'?'Automática: en este equipo usa '+QUALITY[autoQ].label+'.':'Elegida a mano: '+GQ.label+'.';
   aplicarTexturaTerreno();
+  aplicarCalidadMundo();
+}
+/* Lo que agregué estos días no respondía a la calidad: el juego baja resolución y después calidad cuando no
+   llega a 30 cuadros, pero el relieve del mar, la escala de detalle y el alcance de la cámara lo ignoraban.
+   En Baja el mar vuelve a ser plano —se ahorran tres cosenos por píxel de agua, y el mar ocupa media pantalla
+   volando bajo— y el detalle lejano y la cámara se recortan. */
+let lodTope=8,lejosTope=42000;
+function aplicarCalidadMundo(){
+  const q=GQ.name||'media';
+  GU.uOla.value.x=q==='baja'?0:q==='media'?1.25:1.7;
+  lodTope=q==='baja'?2:q==='media'?4:8;
+  lejosTope=q==='baja'?16000:q==='media'?26000:42000;
+  if(lodK>lodTope){lodK=lodTope;GU.uSinkA.value=Math.cos(3300*lodK/PLANET_R);GU.uSinkB.value=Math.cos(3100*lodK/PLANET_R);rings.forEach(r=>{r.cu=NaN;r.cv=NaN;});}
 }
 // Cuadros por segundo para los datos de uso: promedio y el peor segundo de cada minuto jugado
 const perf={f:0,t:0,secF:0,secT:0,min:999,runF:0,runT:0};
@@ -4710,7 +4731,7 @@ const perf={f:0,t:0,secF:0,secT:0,min:999,runF:0,runT:0};
 const DIAG=location.hash.includes('diag');
 const DIAG_PASOS=[
   ['todo como está',        ()=>{}],
-  ['sin relieve del mar',   ()=>{GU.uOla.value.x=0;}],
+  ['sin relieve del mar',   ()=>{GU.uOla.value.x=0;}],   // después de applyQuality, para que gane
   ['detalle sin agrandar',  ()=>{diagLod=1;}],
   ['cámara corta (14 km)',  ()=>{diagCam=true;}],
   ['sin construcciones',    ()=>{if(hitos)hitos.malla.visible=false;}],
@@ -4718,7 +4739,7 @@ const DIAG_PASOS=[
 ];
 let diagI=-1,diagT=0,diagF=0,diagDt=0,diagRes=[],diagLod=0,diagCam=false,diagCaja=null;
 function diagReset(){
-  GU.uOla.value.x=1.7;diagLod=0;diagCam=false;settings.quality='auto';applyQuality();
+  diagLod=0;diagCam=false;settings.quality='auto';applyQuality();
   if(hitos)hitos.malla.visible=true;
 }
 function diagStep(raw){
