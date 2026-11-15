@@ -107,6 +107,15 @@ H.transform = s => s.replace('b.life=1.7;b.dmg=e.def.dmg*(e.dmgK||1);b.on=true;'
 
   /* ---- Nodriza ---- */
   await L.page.evaluate(() => window.DeltaUno.setInv(999));
+  /* La nodriza no siempre está en el aire cuando llega esta parte: puede haber caído antes o no haber salido
+     todavía, y entonces carrier() da null y la prueba reventaba con una excepción que se llevaba puestas las
+     veinte comprobaciones siguientes. Se la espera, y si no aparece se dice en vez de romper. */
+  const hayNodriza = await L.page.evaluate(async () => {
+    const D = window.DeltaUno;
+    for (let i = 0; i < 120; i++) { if (D.carrier()) return true; await new Promise(r => setTimeout(r, 100)); }
+    return false;
+  });
+  check('la nodriza está en el aire para poder probarla', hayNodriza, hayNodriza ? '' : 'carrier() sigue en null después de 12 s');
   r = await L.page.evaluate(() => { const D = window.DeltaUno, c = D.carrier(); const at = c.pos.clone().addScaledVector(c.pos.clone().normalize(), -40).addScaledVector(c.fwd, 500); window.__pin = setInterval(() => { D.ship.pos.copy(at); }, 3); D.ship.pos.copy(at); return { alt: Math.round(c.pos.length() - D.PLANET_R) }; });
   await simWait(L.page, 6);
   r = await L.page.evaluate(() => { const D = window.DeltaUno, c = D.carrier(); return { alert: c.group.alert, drones: D.enemies.filter(e => e.kind === 'dron' && e.group.zone === D.carrierZone).length, fired: (window.__FK || {}).nodriza || 0, mark: [...document.querySelectorAll('.mk')].some(m => !m.hidden) }; });

@@ -35,8 +35,15 @@ H.autostart = true;
   check('al recalentar, la barra vuelve a crucero', Math.abs(oh.thr - .65) < .01, f({ thr: oh.thr }));
   await simWait(L.page, 1.5);
   const lockd = await st(L.page);
-  const warnTxt = await L.page.evaluate(() => document.querySelector('#warn').textContent);
-  check('el motor cae a 30 % mientras está bloqueado y avisa', lockd.speed < 75 && /recalent/i.test(warnTxt), f({ speed: lockd.speed, warnTxt }));
+  /* El cartel de avisos muestra uno solo, y el del misil tiene prioridad sobre el del recalentado: si justo
+     te están fijando, tapa al otro y la prueba fallaba con el motor correctamente bloqueado (speed 68,6 de un
+     tope de 60). Así que lo que se comprueba es el estado —que siga recalentado y la velocidad caída— y el
+     texto solo cuando no hay un aviso más urgente encima. */
+  const avi = await L.page.evaluate(() => ({ txt: document.querySelector('#warn').textContent, oh: window.DeltaUno.vit().overheat }));
+  const otroAviso = /misil|suelo|zona|techo/i.test(avi.txt);
+  check('el motor cae a 30 % mientras está bloqueado y avisa',
+    lockd.speed < 75 && avi.oh > 0 && (otroAviso || /recalent/i.test(avi.txt)),
+    f({ speed: lockd.speed, overheat: avi.oh, warnTxt: avi.txt, tapadoPorOtroAviso: otroAviso }));
   await L.page.waitForFunction(() => window.DeltaUno.vit().overheat <= 0, null, { timeout: 15000 });
   await simWait(L.page, 2.5);
   const rec = await st(L.page);
