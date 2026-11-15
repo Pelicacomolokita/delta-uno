@@ -71,6 +71,39 @@ const { check, sleep, launch, open, center, setRender, f, simWait } = H;
   check('los rivales tienen marca en pantalla', r.marcas > 0, 'marcas: ' + r.marcas);
   check('se los puede elegir como blanco', r.fija, '');
 
+  /* ---- Elegir un blanco de verdad y volar con él, disparando ---- */
+  /* Esta parte es la que faltaba, y es la que dejó pasar dos congelamientos. La versión anterior comprobaba
+     que un rival "se puede elegir" pero nunca tocaba el botón Blanco, así que la variable target jamás
+     contenía un combatiente de la batalla. Y el punto adelantado de la puntería —que lee target.fwd y
+     target.speed— solo se calcula cuando hay blanco ELEGIDO. Faltaban esos dos campos en el adaptador: el
+     cuadro moría antes de dibujar y la pantalla quedaba congelada mientras la partida seguía.
+     Con el dibujo PRENDIDO, porque es el HUD el que se cae. */
+  const tb = await center(P, '#tgtBtn');
+  await L.touch('touchStart', [[tb[0], tb[1], 0]]); await simWait(P, .08);
+  await L.touch('touchEnd', []); await simWait(P, .1);
+  const elegido2 = await P.evaluate(() => {
+    const D = window.DeltaUno, t = D.tgt();
+    return { hay: !!t, esDeLaBatalla: !!(t && t.bat), tieneRumbo: !!(t && t.fwd), tieneVel: !!(t && typeof t.speed === 'number'),
+             tieneVida: !!(t && typeof t.hp === 'number' && t.hpMax) };
+  });
+  check('se puede elegir un rival de la batalla con el botón Blanco', elegido2.hay && elegido2.esDeLaBatalla, JSON.stringify(elegido2));
+  check('el rival elegido trae todo lo que el juego le lee: vida, rumbo y velocidad',
+    elegido2.tieneVida && elegido2.tieneRumbo && elegido2.tieneVel, JSON.stringify(elegido2));
+
+  // volar 8 s con el blanco puesto y disparando, que es cuando se caía
+  const fb = await center(P, '#fire');
+  await L.touch('touchStart', [[fb[0], fb[1], 0]]);
+  await simWait(P, 8);
+  await L.touch('touchEnd', []);
+  const vivo = await P.evaluate(() => ({ errs: 0, modo: window.DeltaUno.run.mode, tgt: !!window.DeltaUno.tgt() }));
+  check('volar 8 s con un rival elegido y disparando no rompe nada', L.errs.length === 0 && vivo.modo === 'batalla',
+    L.errs.slice(0, 2).join(' | ') || JSON.stringify(vivo));
+
+  // y un misil al rival elegido
+  await P.evaluate(() => { const D = window.DeltaUno, t = D.tgt(); if (t) D.launchMissileForTest(t); });
+  await simWait(P, 5);
+  check('un misil contra un rival de la batalla no rompe nada', L.errs.length === 0, L.errs.slice(0, 2).join(' | '));
+
   await setRender(P, false);   // de acá en adelante no hace falta dibujar
 
   /* ---- Tus tiros les pegan y los derriban ---- */

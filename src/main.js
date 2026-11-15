@@ -2975,7 +2975,10 @@ function updateTarget(){
   }
   if(target){
     const t=target.pos.distanceTo(ship.pos)/(BOLT_SPEED+ship.speed);
-    leadPoint.copy(target.pos).addScaledVector(target.fwd,target.speed*t);
+    // si el blanco no trae rumbo o velocidad no se adelanta nada, pero no se cae el cuadro: un error acá
+    // congela la pantalla mientras la partida sigue
+    leadPoint.copy(target.pos);
+    if(target.fwd&&typeof target.speed==='number')leadPoint.addScaledVector(target.fwd,target.speed*t);
     _eA.copy(leadPoint).sub(ship.pos).normalize();
     targetAssist=sstep(.978,.995,_eA.dot(fwd));
   }

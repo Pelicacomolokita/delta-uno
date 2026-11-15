@@ -104,8 +104,14 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
            ellos tiraba "Cannot read properties of undefined" en CADA CUADRO. Ese error cortaba el cuadro
            antes de renderer.render(), así que la nave seguía volando y la pantalla quedaba congelada: es lo
            que Santiago reportó. La barra ahora además muestra el daño de verdad. */
+        /* El adaptador tiene que traer TODO lo que el juego le lee a un enemigo, porque un campo que falte
+           tira una excepción en el cuadro y la pantalla se congela mientras la partida sigue. Ya pasó dos
+           veces: primero con hp/hpMax/def (la barra de vida de la marca) y después con fwd/speed (el punto
+           adelantado de la puntería, que se calcula solo cuando el blanco está ELEGIDO, y por eso no saltó
+           hasta que el fijado empezó a funcionar). fwd y speed además hacen que la mira adelante bien. */
         c.ent = { pos: c.pos, on: true, bat: c, kind: 'caza', bando: B.id,
-                  hp: c.vidaMax, hpMax: c.vidaMax, def: { hp: c.vidaMax, name: B.nombre },
+                  hp: c.vidaMax, hpMax: c.vidaMax, def: { hp: c.vidaMax, name: B.nombre, scale: 1, hit: 9 },
+                  fwd: new T.Vector3(0, 0, -1), speed: c.velBase, practice: false,
                   group: { state: 'attack', zone: null, alert: true, members: [] } };
         nacer(c, true);
         combatientes.push(c);
@@ -156,7 +162,7 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
     for (const c of combatientes) {
       if (c.esJugador) continue;
       if (c.muerto > 0) { c.muerto -= dt; if (c.muerto <= 0) nacer(c, true); else { if (c.ent) c.ent.on = false; continue; } }
-      if (c.ent) { c.ent.on = true; c.ent.hp = c.vida; }
+      if (c.ent) { c.ent.on = true; c.ent.hp = c.vida; }   // fwd y speed se actualizan más abajo, con el vuelo
 
       c.buscaT -= dt;
       if (c.buscaT <= 0 || !c.blanco || c.blanco.muerto > 0) { c.buscaT = T_BUSCA; c.blanco = buscarBlanco(c); }
@@ -207,6 +213,7 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
         c.rafaga = 3; c.hueco = 0; c.frio = 1.5 + Math.random() * 1.2;
       }
 
+      if (c.ent) { c.ent.fwd.copy(_fw); c.ent.speed = c.vel; }   // la puntería del jugador adelanta con esto
       if (c.nave) { c.nave.pos.copy(c.pos); c.nave.quat.copy(c.quat); c.nave.dano = 1 - c.vida / c.vidaMax;
         const m = c.nave.mandos; m.empuje = .75; m.velocidad = c.vel; }
     }
