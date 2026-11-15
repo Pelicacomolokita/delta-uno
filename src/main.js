@@ -421,6 +421,15 @@ const OLA_VS=`
     return sin(dot(p.xz,vec2(.0121,.0074))+t*.55)*.62
           +sin(dot(p.yz,vec2(-.0093,.0135))+t*.42)*.48
           +sin(dot(p.xy,vec2(.0247,.0191))+t*.91)*.22;
+  }
+  /* La pendiente de la ola, derivada a mano. El fragmento necesita la normal, no la altura, y sacarla con
+     tres muestras de olaH costaba NUEVE senos por píxel de agua. La derivada da lo mismo exacto con TRES
+     cosenos, y en un GPU de teléfono eso se nota: el mar ocupa media pantalla cuando volás bajo. */
+  vec3 olaGrad(vec3 p,float t){
+    float c1=cos(dot(p.xz,vec2(.0121,.0074))+t*.55)*.62;
+    float c2=cos(dot(p.yz,vec2(-.0093,.0135))+t*.42)*.48;
+    float c3=cos(dot(p.xy,vec2(.0247,.0191))+t*.91)*.22;
+    return vec3(.0121*c1+.0247*c3, -.0093*c2+.0191*c3, .0074*c1+.0135*c2);
   }`;
 const GROUND_VS=OLA_VS+`
   attribute vec3 aCol;attribute vec4 aMat;
@@ -518,16 +527,15 @@ const GROUND_FS=OLA_VS+`
       foam+=uOla.y*exp(-dg*dg/520.)*.8;
       c=mix(c,vec3(.78,.86,.92),min(foam,1.)*.85*water);
     }
-    if(water>.01){
-      /* La normal de la ola. Antes el mar se sombreaba con la normal del planeta, que sobre el agua es
-         siempre "arriba": la luz le pegaba igual en todos lados y por eso se veía como una chapa.
-         Se toma la pendiente de la misma función de ola del vértice, con dos muestras cortas. */
-      vec3 t1=normalize(cross(up,vec3(0.,0.,1.)+up*.01)),t2=normalize(cross(up,t1));
-      float e=9.;
-      float h0=olaH(vP,uTime),hx=olaH(vP+t1*e,uTime),hy=olaH(vP+t2*e,uTime);
-      vec3 on=normalize(up*e-t1*(hx-h0)*uOla.x-t2*(hy-h0)*uOla.x);
-      // de lejos la ola no se resuelve: vuelve a ser plana y no hace ruido
-      n=normalize(mix(n,on,water*(1.-smoothstep(900.,3000.,dist))));
+    /* La normal de la ola. Antes el mar se sombreaba con la normal del planeta, que sobre el agua es siempre
+       "arriba": la luz le pegaba igual en todos lados y se veía como una chapa. De lejos la ola no se
+       resuelve, así que se vuelve plana; el peso de la ola se calcula ANTES de tocar el seno, para no pagar
+       nada donde no se va a ver. */
+    float olaPeso=water*(1.-smoothstep(900.,3000.,dist));
+    if(olaPeso>.01){
+      vec3 g=olaGrad(vP,uTime)*uOla.x;
+      g-=up*dot(g,up);                       // solo la parte tangente al planeta inclina la superficie
+      n=normalize(mix(n,normalize(up-g),olaPeso));
     }
     float sunUp=dot(up,uSun),dayH=smoothstep(-.22,.18,sunUp);
     float l=max(dot(n,uSun),0.)*smoothstep(-.12,.08,sunUp);
@@ -694,7 +702,11 @@ function updateRing(r,cu,cv){
    24 m, pero sí se nota que el mundo se termina. Se multiplica el tamaño de todas las celdas por lodK, que
    va en potencias de 2 para que los anillos no se rearmen todo el tiempo, y con histéresis para que volando
    justo en el límite no esté cambiando a cada rato. Los triángulos son los mismos: esto no cuesta nada. */
-const LOD_SUBE=[260,1050,4200],LOD_BAJA=[200,820,3400];  // a qué altura pasa a 2, 4 y 8 (y a qué altura vuelve)
+/* A qué altura pasa a 2, 4 y 8, y a qué altura vuelve. La histéresis es ancha a propósito: cada cambio pone
+   los seis anillos a rearmar, y el código original rearmaba dos por cuadro justamente porque rearmar es caro.
+   Medido volando normal con la banda angosta de antes (260/200): tres cambios en 60 s, o sea tres tirones.
+   Con esta banda, volar a media altura sobre terreno irregular no los dispara. */
+const LOD_SUBE=[330,1250,4600],LOD_BAJA=[150,700,3000];
 let lodK=1;
 function ajustarLOD(){
   const alt=Math.max(ship.alt||0,0);
@@ -702,6 +714,7 @@ function ajustarLOD(){
   // sube de escalón antes de que el horizonte pase el alcance; baja más tarde, para no oscilar
   while(n<8&&alt>LOD_SUBE[Math.log2(n)])n*=2;
   while(n>1&&alt<LOD_BAJA[Math.log2(n)-1])n/=2;
+  if(diagLod)n=diagLod;
   if(n===lodK)return false;
   lodK=n;
   // el alcance cambió: la esfera base se tiene que hundir más lejos, si no asoma por abajo de los anillos
@@ -716,7 +729,7 @@ function ajustarLOD(){
 function ajustarCamara(){
   const alt=Math.max(ship.alt||0,0);
   const horizonte=Math.sqrt(2*PLANET_R*alt+alt*alt);
-  const lejos=Math.min(42000,Math.max(14000,horizonte*1.2+2000));
+  const lejos=diagCam?14000:Math.min(42000,Math.max(14000,horizonte*1.2+2000));
   /* El plano cercano sube un poco con la altura, para no perder precisión del buffer de profundidad con un
      plano lejano de 30 km. Tope de 4 m, y no más: la cámara va a unos 12 m detrás de la nave, así que un
      plano cercano más grande que eso le recorta la nave al jugador. */
@@ -737,7 +750,7 @@ function stepTerrain(force){
     setAnchor(_v);anchored=true;u=0;w=0;budget=99;
     rings.forEach(r=>{r.cu=NaN;r.cv=NaN;});
   }
-  if(ajustarLOD())budget=99;
+  if(ajustarLOD())budget=3;   // reparte el rearme en dos cuadros en vez de clavar los seis en uno
   for(const r of rings){
     const st=r.s*lodK*2,cu=Math.round(u/st)*st,cv=Math.round(w/st)*st;
     if((cu!==r.cu||cv!==r.cv)&&budget>0){updateRing(r,cu,cv);budget--;}
@@ -4689,8 +4702,45 @@ function applyQuality(){
 }
 // Cuadros por segundo para los datos de uso: promedio y el peor segundo de cada minuto jugado
 const perf={f:0,t:0,secF:0,secT:0,min:999,runF:0,runT:0};
+/* ---------- Diagnóstico de rendimiento (con #diag en el enlace) ----------
+   No puedo medir el dibujo en el contenedor donde trabajo: ni con requestAnimationFrame (demasiado ruido) ni
+   midiendo render() (WebGL es asincrónico y da 0,2 ms para todo). Así que el que mide es el teléfono.
+   Esto prueba una configuración a la vez, 6 segundos cada una, y muestra los cuadros por segundo de cada
+   paso. La que suba mucho señala al culpable. Cuesta nada cuando no está prendido. */
+const DIAG=location.hash.includes('diag');
+const DIAG_PASOS=[
+  ['todo como está',        ()=>{}],
+  ['sin relieve del mar',   ()=>{GU.uOla.value.x=0;}],
+  ['detalle sin agrandar',  ()=>{diagLod=1;}],
+  ['cámara corta (14 km)',  ()=>{diagCam=true;}],
+  ['sin construcciones',    ()=>{if(hitos)hitos.malla.visible=false;}],
+  ['sin texturas (calidad baja)',()=>{settings.quality='baja';applyQuality();}]
+];
+let diagI=-1,diagT=0,diagF=0,diagDt=0,diagRes=[],diagLod=0,diagCam=false,diagCaja=null;
+function diagReset(){
+  GU.uOla.value.x=1.7;diagLod=0;diagCam=false;settings.quality='auto';applyQuality();
+  if(hitos)hitos.malla.visible=true;
+}
+function diagStep(raw){
+  if(!DIAG||!run.live)return;
+  if(!diagCaja){
+    diagCaja=document.createElement('div');
+    diagCaja.style.cssText='position:fixed;left:8px;top:8px;z-index:99;background:#000c;color:#fff;font:11px/1.45 monospace;padding:7px 9px;border:1px solid #fff4;white-space:pre;pointer-events:none;max-width:70vw';
+    (document.getElementById('game')||document.body).appendChild(diagCaja);
+  }
+  diagT+=raw;diagF++;
+  if(diagI<0||diagT>6){
+    if(diagI>=0)diagRes.push(DIAG_PASOS[diagI][0]+': '+Math.round(diagF/Math.max(diagT,.001))+' cps');
+    diagI++;diagT=0;diagF=0;
+    if(diagI<DIAG_PASOS.length){diagReset();DIAG_PASOS[diagI][1]();}
+    else{diagI=DIAG_PASOS.length-1;diagT=-1e6;}   // terminó: queda la tabla
+  }
+  diagCaja.textContent='DIAGNÓSTICO'+(diagI<DIAG_PASOS.length&&diagT>=0?'  (midiendo: '+DIAG_PASOS[diagI][0]+')':'  (listo)')+'\n'+
+    diagRes.join('\n')+(diagRes.length?'':'\nvolá normal, 6 s por paso');
+}
 function perfReset(){perf.f=perf.t=perf.secF=perf.secT=perf.runF=perf.runT=0;perf.min=999;}
 function perfStep(raw){
+  if(DIAG)diagStep(raw);
   perf.f++;perf.t+=raw;perf.runF++;perf.runT+=raw;perf.secF++;perf.secT+=raw;
   if(perf.secT>=1){perf.min=Math.min(perf.min,perf.secF/perf.secT);perf.secF=perf.secT=0;}
   if(perf.t>=60){
@@ -4810,7 +4860,7 @@ function boot(data){
   window.DeltaUno={renderer,ship,input,settings,TUNE,FIJADO,FICHAS,GRAVEDAD,vitrina:()=>vitrina,fijable:e=>fijable(e),tgtBestForTest:()=>tgtBest(),launchMissileForTest:t=>launchMissile(t),ENEMY_DEF,DIFF,rocks,activeRocks,rings,chart,chartDir,straighten,terrain,heightAt,S,BIOMES,PLANET_R,CEIL:{CEIL_WARN,CEIL_PUSH,CEIL_MAX},buildMs,flags:()=>({dead,inv,warning,thinWarn}),
     zones,groups,enemies,lost,drops,DROP_KIND,damage,spawnDrop,dodge,tryDodge,rockets,lockCancel,AIM,seenVel,ZONE_KIND,eBolts,boltHitsShip,
     tgt:()=>camTarget,camBlend:()=>camBlend,camera,
-    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,LUGARES,CONEXIONES,ITINERARIOS,hitos:()=>hitos,SUN,SUN_BASE,ponerHora,horaActual,horaParaLuz,DIA_S,horaCorre:()=>horaCorre,toasts:()=>toastLog.slice(),TERMICA,termica:()=>termSuave,calor:()=>heat,lod:()=>lodK,margenImpacto,batalla:()=>batalla,BANDOS_BATALLA,camaraFar:()=>camera.far,camaraNear:()=>camera.near,ola:()=>GU.uOla.value,naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
+    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,LUGARES,CONEXIONES,ITINERARIOS,hitos:()=>hitos,SUN,SUN_BASE,ponerHora,horaActual,horaParaLuz,DIA_S,horaCorre:()=>horaCorre,toasts:()=>toastLog.slice(),TERMICA,termica:()=>termSuave,calor:()=>heat,lod:()=>lodK,margenImpacto,batalla:()=>batalla,BANDOS_BATALLA,camaraFar:()=>camera.far,camaraNear:()=>camera.near,camaraObj:()=>camera,setCalidad:v=>{settings.quality=v;applyQuality();},ola:()=>GU.uOla.value,naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
     vit:()=>({hull,shield,heat,overheat,score,record,combo,curZone:curZone&&zones.indexOf(curZone),target:!!target,fov:camera.fov,missiles,missileT,lockOn,lockP,hasLock:!!lockTarget,repairT,repairCool})};
   last=performance.now();
   requestAnimationFrame(frame);
