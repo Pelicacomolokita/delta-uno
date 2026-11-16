@@ -3514,7 +3514,13 @@ function startRun(mode,diff,missionId){
     const _bs=batalla.salidaDe('guardia'),_bu=_bs.clone().normalize();
     _v.copy(origenU).multiplyScalar(PLANET_R).sub(_bs);
     _v.addScaledVector(_bu,-_v.dot(_bu)).normalize();
-    shipAt(_bu,_v,Math.max(140,_bs.length()-PLANET_R-heightAt(_bu.x,_bu.y,_bu.z,0)));
+    shipAt(_bu,_v,160);
+    /* shipAt sube la nave usando el despeje del terreno que tiene adelante, no la altura del punto que se le
+       pide, y eso la dejaba 356 m por encima de su formación: desde ahí los aliados quedaban a 400 m y no se
+       veían. Así que después de orientarla se la clava en el lugar exacto que le toca en la cuña. */
+    ship.pos.copy(_bs);
+    ship.alt=ship.pos.length()-PLANET_R-heightAt(_bu.x,_bu.y,_bu.z,0);
+    shipGroup.position.copy(ship.pos);
   }else shipAt(origenU,origenF,105);
   run.prev.copy(ship.pos);
   if(mode==='conquista')spawnCarrier();

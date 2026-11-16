@@ -57,6 +57,32 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
   /* Dónde nace cada bando. No repartidos por todo el sector —así el rival más cercano quedaba a 894 m y la
      mediana a 2,3 km, y no había combate— sino en tres frentes separados 120° que entran hacia el centro y se
      cruzan de frente. El jugador sale con los suyos. */
+  /* En formación, no desparramados. Medido con la versión anterior: el aliado más cercano quedaba a 504 m y
+     la mediana a 762 m, y a esa distancia una nave son unos pocos píxeles en un teléfono. Santiago decía que
+     no veía a los aliados cargar con él, y tenía razón: cada uno nacía en un punto al azar de su cuña.
+     Ahora cada bando sale en una cuña cerrada —filas de cinco, 70 m entre naves— y el jugador sale en el
+     medio de la suya. Al reaparecer se usa un lugar suelto, porque la formación ya se deshizo. */
+  const FILA = 5, SEP = 70, FONDO = 55;
+  function lugarEnFormacion(out, bando, fila, col) {
+    const B = BANDOS_BATALLA.findIndex(x => x.id === bando);
+    const base = B * Math.PI * 2 / 3;
+    _up.copy(centro).normalize();
+    _r.set(0, 1, 0).cross(_up); if (_r.lengthSq() < 1e-6) _r.set(1, 0, 0);
+    _r.normalize(); _u2.crossVectors(_up, _r).normalize();
+    // el centro de la formación, y los ejes "al costado" y "hacia atrás" vistos desde ahí
+    const d0 = radio * .62, a0 = d0 / PLANET_R;
+    const cx = Math.cos(base), cz = Math.sin(base);
+    const lado = col * SEP, atras = fila * FONDO;
+    // desplazamiento en metros sobre el plano tangente: "atrás" es alejarse del centro
+    const ex = cx * (d0 + atras) - cz * lado, ez = cz * (d0 + atras) + cx * lado;
+    const dd = Math.hypot(ex, ez), ang = dd / PLANET_R;
+    out.copy(_up).multiplyScalar(Math.cos(ang))
+       .addScaledVector(_r, Math.sin(ang) * ex / dd)
+       .addScaledVector(_u2, Math.sin(ang) * ez / dd).normalize();
+    const h = Math.max(heightAt(out.x, out.y, out.z, 0), 0);
+    out.multiplyScalar(PLANET_R + h + alturaVuelo + (fila % 2 ? 40 : 0) + col * 12);
+    return out;
+  }
   function puntoDeFrente(out, bando, apretado) {
     const B = BANDOS_BATALLA.findIndex(x => x.id === bando);
     const base = B * Math.PI * 2 / 3;
@@ -71,8 +97,10 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
     out.multiplyScalar(PLANET_R + h + alturaVuelo * (.75 + Math.random() * .5));
     return out;
   }
-  function nacer(c, borde) {
-    if (c.bando) puntoDeFrente(c.pos, c.bando, !borde); else punto(c.pos, borde ? radio : radio * .8);
+  function nacer(c, borde, formado) {
+    if (formado && c.bando) lugarEnFormacion(c.pos, c.bando, Math.floor(c.idx / FILA), c.idx % FILA - (FILA - 1) / 2);
+    else if (c.bando) puntoDeFrente(c.pos, c.bando, !borde);
+    else punto(c.pos, borde ? radio : radio * .8);
     c.vida = c.vidaMax; c.muerto = 0; c.blanco = null; c.buscaT = Math.random() * T_BUSCA;
     c.vel = c.velBase;
     // mirando al centro, que es donde está la pelea
@@ -96,6 +124,7 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
           velBase: 118 + Math.random() * 26, vel: 0, giro: 1.05 + Math.random() * .5,
           frio: Math.random() * 2, rafaga: 0, hueco: 0, nave: null
         };
+        c.idx = i;
         if (naves) c.nave = naves.agregar({ id: B.diseno, bando: B.id, pintura: B.pintura || undefined });
         /* Adaptador con forma de enemigo del juego. Sin esto los combatientes no existen para el HUD: no
            tienen marca, no se los puede elegir como blanco y el misil no los fija. Es lo que pasó en la
@@ -113,7 +142,7 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
                   hp: c.vidaMax, hpMax: c.vidaMax, def: { hp: c.vidaMax, name: B.nombre, scale: 1, hit: 9 },
                   fwd: new T.Vector3(0, 0, -1), speed: c.velBase, practice: false,
                   group: { state: 'attack', zone: null, alert: true, members: [] } };
-        nacer(c, true);
+        nacer(c, true, true);   // la primera salida es en formación
         combatientes.push(c);
       }
     }
@@ -176,20 +205,32 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
       // adónde quiere ir
       if (!b) { _b.copy(centro).normalize().multiplyScalar(PLANET_R + alturaVuelo).sub(c.pos).normalize(); }
       else if (c.quiebre > 0) { c.quiebre -= dt; _b.copy(_fw).addScaledVector(_up, .35).normalize(); }
-      else {
+      else if (dB > 900) {
+        /* Lejos del rival todos van al mismo punto —el centro— en vez de cada uno a su blanco. Así el bando
+           avanza junto y la carga se ve; si cada nave encara a su enemigo desde el principio, la formación se
+           deshace en los primeros segundos y el jugador vuela solo. */
+        _b.copy(centro).normalize().multiplyScalar(PLANET_R + alturaVuelo).sub(c.pos).normalize();
+      } else {
         if (dB < 70) c.quiebre = 1.4;                       // pasó encima: se abre y vuelve
         _b.copy(_a).divideScalar(Math.max(dB, 1));
       }
       // si se fue del sector o bajó demasiado, vuelve al centro
       const alturaSuelo = c.pos.length() - PLANET_R - Math.max(heightAt(_up.x, _up.y, _up.z, 64), 0);
-      const fuera = Math.acos(Math.min(1, _up.dot(_cenU))) * PLANET_R > radio * 1.15;
+      /* La correa del sector. Antes el límite estaba en radio*1.15 (2.530 m) y las naves giran despacio, así
+         que se escapaban bastante más lejos: Santiago las vio volando fuera de la zona. Ahora empiezan a
+         volver en radio*0.92, giran al doble mientras vuelven —una nave que se va del combate no está
+         maniobrando, está yendo a algún lado— y hay un tope duro: pasado radio*1.4 reaparece en el borde de
+         su frente, como si hubiera rodeado. Es un modo de prueba: la zona cerrada importa más que el detalle. */
+      const delCentro = Math.acos(Math.min(1, _up.dot(_cenU))) * PLANET_R;
+      const fuera = delCentro > radio * .92;
+      if (delCentro > radio * 1.4) { nacer(c, true); continue; }
       if (fuera || alturaSuelo < 140) {
         _b.copy(centro).normalize().multiplyScalar(PLANET_R + alturaVuelo + 200).sub(c.pos).normalize();
       }
 
-      // girar hacia ahí, con un límite de giro por segundo
+      // girar hacia ahí, con un límite de giro por segundo (al doble si está volviendo al sector)
       const cosA = Math.max(-1, Math.min(1, _fw.dot(_b)));
-      const ang = Math.acos(cosA), paso2 = Math.min(ang, c.giro * dt);
+      const ang = Math.acos(cosA), paso2 = Math.min(ang, c.giro * (fuera ? 2.2 : 1) * dt);
       if (paso2 > 1e-4) {
         _r.crossVectors(_fw, _b);
         if (_r.lengthSq() > 1e-9) { _q.setFromAxisAngle(_r.normalize(), paso2); c.quat.premultiply(_q).normalize(); }
@@ -282,7 +323,9 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
   }
 
   // dónde tiene que salir el jugador para estar con los suyos
-  function salidaDe(bando) { return puntoDeFrente(new T.Vector3(), bando, false).clone(); }
+  /* Dónde sale el jugador: en el medio de la formación de los suyos, una fila adelante, para que los vea
+     a los costados y atrás cuando mira al frente. */
+  function salidaDe(bando) { return lugarEnFormacion(new T.Vector3(), bando, -1, 0).clone(); }
   return { armar, limpiar, paso, vivos, golpeDelJugador, blancos, pegarEnt, salidaDe, combatientes, balas, BANDOS: BANDOS_BATALLA,
            info: () => ({ naves: combatientes.filter(c => !c.esJugador).length, balas: balas.length, vivos: vivos() }) };
 }
