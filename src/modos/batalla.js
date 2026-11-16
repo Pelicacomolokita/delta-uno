@@ -30,7 +30,10 @@ export const BANDOS_BATALLA = [
 /* radio 2.200 y no 3.200: con los frentes a 120° y el sector grande, el rival más cercano quedaba a 1,8 km,
    fuera del alcance de fijado (1.300 m), y no había combate. Con este radio los tres frentes arrancan a unos
    1,6 km entre sí y se cruzan en los primeros segundos. */
-export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, radio = 2200 }) {
+/* techo: el mismo que tiene el jugador (CEIL_WARN). Sin esto las naves de la batalla subían sin límite
+   persiguiendo blancos y se quedaban arriba del techo del jugador, disparándole desde donde él no puede
+   llegar ni ver. Santiago lo reportó: "los enemigos siguen superando la altura de 1200 que alcanza mi nave". */
+export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, radio = 2200, techo = 1200 }) {
   const combatientes = [];
   const balas = [];
   let centro = new T.Vector3(0, PLANET_R, 0), t = 0;
@@ -172,7 +175,7 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
 
   /* dt: el paso. jugador: { pos, quat, bando, vivo } o null. Devuelve lo que pasó en este cuadro para que
      main.js ponga los efectos y el daño: { muertes: [...], impactosJugador: n } */
-  const salida = { muertes: [], impactosJugador: 0 };
+  const salida = { muertes: [], impactosJugador: 0, impactoDir: new T.Vector3() };
   function paso(dt, jugador) {
     t += dt;
     _cenU.copy(centro).normalize();   // una vez por cuadro, no una por nave
@@ -221,11 +224,18 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
          volver en radio*0.92, giran al doble mientras vuelven —una nave que se va del combate no está
          maniobrando, está yendo a algún lado— y hay un tope duro: pasado radio*1.4 reaparece en el borde de
          su frente, como si hubiera rodeado. Es un modo de prueba: la zona cerrada importa más que el detalle. */
+      /* El techo. Arriba del techo del jugador no se vuela: por encima de techo-150 ya apunta hacia abajo, y
+         hay un tope duro, porque una nave que dispara desde donde no podés llegar no es un rival, es un
+         fastidio. */
+      const altMar = c.pos.length() - PLANET_R;
+      if (altMar > techo) c.pos.setLength(PLANET_R + techo);
       const delCentro = Math.acos(Math.min(1, _up.dot(_cenU))) * PLANET_R;
       const fuera = delCentro > radio * .92;
       if (delCentro > radio * 1.4) { nacer(c, true); continue; }
       if (fuera || alturaSuelo < 140) {
         _b.copy(centro).normalize().multiplyScalar(PLANET_R + alturaVuelo + 200).sub(c.pos).normalize();
+      } else if (altMar > techo - 150) {
+        _b.addScaledVector(_up, -(altMar - (techo - 150)) / 150).normalize();   // bajá
       }
 
       // girar hacia ahí, con un límite de giro por segundo (al doble si está volviendo al sector)
@@ -270,7 +280,8 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
         if (o.muerto > 0 || o.bando === z.bando) continue;
         if (z.p.distanceToSquared(o.pos) > BALA_R * BALA_R * 9) continue;
         pegó = true;
-        if (o.esJugador) salida.impactosJugador++;
+        // la dirección del tiro, para que el HUD dibuje el arco que dice de dónde te pegaron
+        if (o.esJugador) { salida.impactosJugador++; salida.impactoDir.copy(z.v); }
         else {
           o.vida--;
           if (o.vida <= 0) { o.muerto = T_REENTRA; salida.muertes.push({ pos: o.pos.clone(), bando: o.bando }); if (o.nave) o.nave.visible = false; }

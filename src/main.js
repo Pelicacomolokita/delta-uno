@@ -1355,7 +1355,8 @@ function stepBatalla(dt){
     if(o&&ship.pos.distanceTo(o.pos)>1800){toast('Te alejás del combate',1.6);batAviso=8;}
   }
   for(const m of r.muertes)explosionA(m.pos,9);
-  if(r.impactosJugador>0)damage(r.impactosJugador*4,null);
+  // con la dirección, no con null: así el arco del HUD te dice de dónde vino, como con cualquier otro tiro
+  if(r.impactosJugador>0)damage(r.impactosJugador*4,r.impactoDir);
   // dibujar las balas: una sola llamada para todas
   let n=0;
   for(const z of batalla.balas){
