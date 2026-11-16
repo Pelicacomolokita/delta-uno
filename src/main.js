@@ -70,7 +70,7 @@ const ZONE_ORDER=['dispersa','normal','densa','dispersa','normal','densa'];
 
 const STORE='delta-uno-ajustes-v3';
 // v3: "lateral" cambió de significado, así que de los ajustes viejos se conserva todo menos eso
-const settings=Object.assign({mode:'asistido',invert:true,invertX:false,lateral:'dobla',sens:'media',sound:true,intro:true,flip:false,tgtCam:'camara',diff:'medio',lastMode:'conquista',touchUI:'auto',vibrate:true,stats:true,statsSeen:false,quality:'auto',shipModel:'actual',shipPaint:'actual'},(()=>{
+const settings=Object.assign({mode:'asistido',invert:true,invertX:false,lateral:'dobla',sens:'media',sound:true,intro:true,flip:false,tgtCam:'camara',diff:'medio',lastMode:'conquista',touchUI:'auto',vibrate:true,stats:true,statsSeen:false,quality:'auto',shipModel:'actual',shipPaint:'actual',batSize:'campal'},(()=>{
   try{
     const cur=localStorage.getItem(STORE);if(cur)return JSON.parse(cur)||{};
     const old=JSON.parse(localStorage.getItem('delta-uno-ajustes-v2'))||{};delete old.lateral;return old;
@@ -1306,7 +1306,18 @@ function romperCaja(caja,punto,mio,dano){
    Tres bandos peleando entre sí, para ver cómo se ve y cuánto cuesta. La lógica vive en src/modos/batalla.js,
    aparte de la IA de enemigos del juego; acá solo se la arma, se la dibuja y se la conecta con el jugador. */
 let batalla=null,batallaBalas=null;
-const BATALLA_N={guardia:19,directorio:20,desligados:20};
+/* Tamaño de los bandos y meta de bajas. El jugador cuenta aparte, así que guardia:19 + él son 20 contra 20 y 20.
+   Santiago lo pidió así: "que el bando que llegue a cierta cantidad de bajas gane, ejemplo el que llegue
+   primero a 100". El tamaño se elige en la pantalla de preparación (BATALLA_TAMANOS). */
+const BATALLA_TAMANOS=[
+  {id:'chica',nombre:'Escaramuza',n:{guardia:5,directorio:6,desligados:6},meta:25},
+  {id:'media',nombre:'Batalla',n:{guardia:11,directorio:12,desligados:12},meta:50},
+  {id:'campal',nombre:'Batalla campal',n:{guardia:19,directorio:20,desligados:20},meta:100},
+  {id:'enorme',nombre:'Frente abierto',n:{guardia:29,directorio:30,desligados:30},meta:150}
+];
+function batallaTamano(){return BATALLA_TAMANOS.find(t=>t.id===settings.batSize)||BATALLA_TAMANOS[2];}
+const elBatScore=$('#batScore');
+let batBajasTot=-1;
 const BAT_BALA_MAX=320;
 function batallaIniciar(){
   if(!batalla)batalla=crearBatalla(T,{naves,PLANET_R,heightAt});
@@ -1325,6 +1336,7 @@ function batallaIniciar(){
 function batallaParar(){
   if(batalla)batalla.limpiar();
   if(batallaBalas){batallaBalas.count=0;batallaBalas.visible=false;}
+  if(elBatScore)elBatScore.hidden=true;
 }
 const _bq=new Q(),_bf=new V3(),_bc=new T.Color(),_UZ=new V3(0,0,1),_bcen=new V3(),_bsc=new V3();
 let batAviso=0;
@@ -1349,6 +1361,49 @@ function batallaObjetivoCalc(){
   if(d<700)return null;                       // estás adentro: sin marca, que no moleste
   _bobj.pos.copy(_bcen);_bobj.label='Combate '+Math.round(d);return _bobj;
 }
+/* Registro de los últimos golpes recibidos en la batalla: quién, desde qué distancia, y si en ese momento
+   estaba dibujado como nave o era una baliza. Sirve para medir el reclamo de Santiago sin adivinar. */
+const batGolpes=[];
+let avisoGolpe=-9;
+function anotarGolpe(g){
+  const d=g.de?g.de.pos.distanceTo(ship.pos):-1;
+  /* Marcar al que tiró, para que el HUD le pinte la marca y se pueda ver DE QUIÉN viene. Sin esto el escudo
+     bajaba y no había forma de saber cuál de las cuarenta marcas naranjas era la que te estaba pegando. */
+  if(g.de&&g.de.ent)g.de.ent.golpeoT=ship.t;
+  if(d>0&&ship.t-avisoGolpe>2.5&&dead<=0){
+    avisoGolpe=ship.t;
+    const b=BANDOS_BATALLA.find(x=>x.id===g.bando);
+    toast(((b&&b.nombre)||'Un rival')+' te tira desde '+Math.round(d)+' m',1.5);
+  }
+  batGolpes.push({t:+ship.t.toFixed(1),bando:g.bando,dist:Math.round(d),roce:g.roce,
+    comoNave:d>=0&&d<900,enPantalla:g.de?enCuadro(g.de.pos):false});
+  if(batGolpes.length>60)batGolpes.shift();
+}
+/* Marcador de bajas de los tres bandos. Se redibuja sólo cuando cae alguien, no cada cuadro: tocar el DOM
+   60 veces por segundo para escribir los mismos tres números es tirar cuadros a la basura. */
+function refrescarMarcadorBat(){
+  if(!batalla||run.mode!=='batalla'){if(!elBatScore.hidden)elBatScore.hidden=true;return;}
+  const b=batalla.bajas(),meta=batalla.meta();
+  elBatScore.textContent='';
+  for(const B of BANDOS_BATALLA){
+    const s=document.createElement('span');
+    if(B.id==='guardia')s.className='yo';
+    const pt=document.createElement('s');
+    pt.style.background='#'+B.color.toString(16).padStart(6,'0');
+    const bo=document.createElement('b');bo.textContent=b[B.id]||0;
+    s.append(pt,bo);
+    elBatScore.append(s);
+  }
+  const i=document.createElement('i');i.textContent='/ '+meta;
+  elBatScore.append(i);
+  elBatScore.hidden=false;
+}
+// ¿este punto del mundo cae dentro de la pantalla?
+const _ec=new V3();
+function enCuadro(p){
+  _ec.copy(p).project(camera);
+  return _ec.z>-1&&_ec.z<1&&Math.abs(_ec.x)<=1&&Math.abs(_ec.y)<=1;
+}
 function stepBatalla(dt){
   if(!batalla||run.mode!=='batalla')return;
   const r=batalla.paso(dt,{pos:ship.pos,quat:ship.q,bando:'guardia',vivo:dead<=0&&inv<=0});
@@ -1358,8 +1413,17 @@ function stepBatalla(dt){
     if(o&&ship.pos.distanceTo(o.pos)>1800){toast('Te alejás del combate',1.6);batAviso=8;}
   }
   for(const m of r.muertes)explosionA(m.pos,9);
+  /* El marcador se refresca cuando cambia el total, no cuando llega una muerte por el paso: las bajas que
+     hace el jugador se anotan desde hitEnemy, fuera del paso, y por ese camino no aparecen en r.muertes.
+     Mirar el total son tres sumas por cuadro y no se puede desincronizar. */
+  const bj=batalla.bajas(),tot=bj.guardia+bj.directorio+bj.desligados;
+  if(tot!==batBajasTot){batBajasTot=tot;refrescarMarcadorBat();}
+  // gana el primero que llega a la meta de bajas
+  const gana=batalla.ganador();
+  if(gana&&endEl.hidden){run.batGanador=gana;showEnd(gana==='guardia'?'victoria':'derrota');return;}
   // con la dirección, no con null: así el arco del HUD te dice de dónde vino, como con cualquier otro tiro
   if(r.impactosJugador>0)damage(r.impactosJugador*4,r.impactoDir);
+  for(const g of r.golpes)anotarGolpe(g);
   // dibujar las balas: una sola llamada para todas
   let n=0;
   for(const z of batalla.balas){
@@ -3510,7 +3574,7 @@ function startRun(mode,diff,missionId){
   setupZones(mode==='conquista');
   ringsGroup.visible=mode==='carrera';
   if(mode==='carrera')buildCourse();
-  if(mode==='batalla')batallaIniciar().armar(BATALLA_N,origenU);
+  if(mode==='batalla'){const tb=batallaTamano();batallaIniciar().armar(tb.n,origenU,tb.meta);run.batMeta=tb.meta;run.batTam=tb.nombre;run.batGanador=null;batBajasTot=-1;}
   score=0;combo=0;ship.kills=0;
   record=mode==='carrera'?0:(records[recKey()]||0);run.best0=record;
   resetVitals();
@@ -3529,6 +3593,7 @@ function startRun(mode,diff,missionId){
     ship.pos.copy(_bs);
     ship.alt=ship.pos.length()-PLANET_R-heightAt(_bu.x,_bu.y,_bu.z,0);
     shipGroup.position.copy(ship.pos);
+    refrescarMarcadorBat();
   }else shipAt(origenU,origenF,105);
   run.prev.copy(ship.pos);
   if(mode==='conquista')spawnCarrier();
@@ -4436,6 +4501,12 @@ function syncMenu(){
   const rt=recText(sel);
   $('#modeRec').textContent=rt?rt+(M.diff?' en '+D.name.toLowerCase():''):sel==='historia'?'Todavía sin jugar':'Todavía sin récord';
   $('#goBtn').textContent=sel==='historia'?'Ver la misión':'Despegar';$('#loadoutBtn').hidden=sel==='historia';
+  // Batalla campal: elegir con cuántas naves se pelea. El total manda en el rendimiento, así que se dice.
+  $('#batBox').hidden=sel!=='batalla';
+  if(sel==='batalla'){
+    const tb=batallaTamano(),tot=tb.n.guardia+tb.n.directorio+tb.n.desligados+1;
+    $('#batNote').textContent=tot+' naves en el aire ('+(tb.n.guardia+1)+' con vos, '+tb.n.directorio+' y '+tb.n.desligados+'). Gana el primer bando que llegue a '+tb.meta+' bajas.';
+  }
   syncSalida(sel);
   syncStatsNote();
   scrollHints();
@@ -4490,6 +4561,13 @@ function showEnd(kind){
     const best=records.carrera;
     if(!best||run.raceT<best){records.carrera=run.raceT;saveRecords();isNew=true;}
     rows.push(['Tiempo',fmtTime(run.raceT)],['Récord',fmtTime(records.carrera)]);
+  }else if(run.mode==='batalla'){
+    const b=batalla?batalla.bajas():{},g=run.batGanador;
+    const nom=id=>(BANDOS_BATALLA.find(x=>x.id===id)||{}).nombre||id;
+    title=g?(g==='guardia'?'Ganó la Guardia de Nácar':'Ganó '+nom(g)):'Caíste en la batalla';
+    text=run.batTam?run.batTam+' · primero a '+(run.batMeta||0)+' bajas':'';
+    for(const B of BANDOS_BATALLA)rows.push([B.nombre,fmtNum(b[B.id]||0)]);
+    rows.push(['Tus derribos',ship.kills],['Tiempo',fmtTime(run.t)]);
   }else{
     if(run.mode==='conquista')title=kind==='victoria'?'¡Planeta liberado!':'Sin vidas';
     else title='Caíste en la oleada '+run.wave;
@@ -4609,7 +4687,10 @@ function updateCombatHud(dt){
     screenSpot(e.pos,_spot);
     // Las flechas de borde son solo para quien te está atacando; los que patrullan lejos no molestan
     const sel=e===camTarget;
-    const show=sel||e.group.state==='attack'||(e.def&&e.def.carrier)||(!_spot.off&&e.pos.distanceTo(ship.pos)<1500);
+    // el que te acaba de pegar se muestra SIEMPRE, aunque esté fuera de cuadro: es el que necesitás ubicar
+    const tira=!!(e.golpeoT&&ship.t-e.golpeoT<2);
+    const show=sel||tira||e.group.state==='attack'||(e.def&&e.def.carrier)||(!_spot.off&&e.pos.distanceTo(ship.pos)<1500);
+    m.el.classList.toggle('tira',tira);
     m.el.classList.toggle('sel',sel);
     if(sel){
       m.dT-=dt;
@@ -4918,7 +4999,7 @@ function boot(data){
   window.DeltaUno={renderer,ship,input,settings,TUNE,FIJADO,FICHAS,GRAVEDAD,vitrina:()=>vitrina,fijable:e=>fijable(e),tgtBestForTest:()=>tgtBest(),launchMissileForTest:t=>launchMissile(t),ENEMY_DEF,DIFF,rocks,activeRocks,rings,chart,chartDir,straighten,terrain,heightAt,S,BIOMES,PLANET_R,CEIL:{CEIL_WARN,CEIL_PUSH,CEIL_MAX},buildMs,flags:()=>({dead,inv,warning,thinWarn}),
     zones,groups,enemies,lost,drops,DROP_KIND,damage,spawnDrop,dodge,tryDodge,rockets,lockCancel,AIM,seenVel,ZONE_KIND,eBolts,boltHitsShip,
     tgt:()=>camTarget,camBlend:()=>camBlend,camera,
-    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,LUGARES,CONEXIONES,ITINERARIOS,hitos:()=>hitos,SUN,SUN_BASE,ponerHora,horaActual,horaParaLuz,DIA_S,horaCorre:()=>horaCorre,toasts:()=>toastLog.slice(),TERMICA,termica:()=>termSuave,calor:()=>heat,lod:()=>lodK,margenImpacto,batalla:()=>batalla,BANDOS_BATALLA,explosionAForTest:(p)=>nivelExplosion(p),camaraFar:()=>camera.far,camaraNear:()=>camera.near,camaraObj:()=>camera,setCalidad:v=>{settings.quality=v;applyQuality();},ola:()=>GU.uOla.value,naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
+    binds,turbo,inputDev:()=>inputDev,stats,perf,endRunStats,quality:()=>GQ,autoQ:()=>autoQ,FX,explodeForTest:(p,r)=>explode(p,r),sfx,NAVES,REGIONES,regionAt,GU,viaLactea,LUGARES,CONEXIONES,ITINERARIOS,hitos:()=>hitos,SUN,SUN_BASE,ponerHora,horaActual,horaParaLuz,DIA_S,horaCorre:()=>horaCorre,toasts:()=>toastLog.slice(),TERMICA,termica:()=>termSuave,calor:()=>heat,lod:()=>lodK,margenImpacto,batalla:()=>batalla,BANDOS_BATALLA,golpesBat:()=>batGolpes.slice(),BATALLA_TAMANOS,batallaTamano,explosionAForTest:(p)=>nivelExplosion(p),camaraFar:()=>camera.far,camaraNear:()=>camera.near,camaraObj:()=>camera,setCalidad:v=>{settings.quality=v;applyQuality();},ola:()=>GU.uOla.value,naves:()=>naves,navePropia:()=>navePropia,applyQuality,buildPlayerShip,shieldFx,shipMesh:()=>shipMesh,muzzleL,flames,mis,allies,radio,MISIONES,REPARTO,misCourse,progress,openBrief,histObjective,crossedRing,SECTOR_OUT,RADIO_GAP,eMsl,EM,threat,lineOfSight,TOWER_H,camFwd,hitEnemyForTest:e=>hitEnemy(e,e.pos,99),setInv:v=>{inv=v;},setMissiles:n=>{missiles=n;},startRun,run,openMenu,showEnd,carrier:()=>carrier,course,RING_N,records,MODES,DIFF,ENEMY_DEF,GROUP_T,makeGroup,roamZone,waveZone,carrierZone,overlayOpen,lives:()=>run.lives,
     vit:()=>({hull,shield,heat,overheat,score,record,combo,curZone:curZone&&zones.indexOf(curZone),target:!!target,fov:camera.fov,missiles,missileT,lockOn,lockP,hasLock:!!lockTarget,repairT,repairCool})};
   last=performance.now();
   requestAnimationFrame(frame);

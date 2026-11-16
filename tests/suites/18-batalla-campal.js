@@ -50,6 +50,89 @@ const { check, sleep, launch, open, center, setRender, f, simWait } = H;
   check('al salir se ven los aliados adelante, dibujados como naves y no como balizas',
     enPantalla.aliados >= 5, JSON.stringify(enPantalla));
 
+  /* ---- Marcador por bajas, los cuatro tamaños, y el aviso de quién te está pegando ---- */
+  const marc = await P.evaluate(() => {
+    const e = document.querySelector('#batScore');
+    return { visible: !!(e && !e.hidden), puntos: e ? e.querySelectorAll('s').length : 0,
+             meta: window.DeltaUno.batalla().meta() };
+  });
+  check('el marcador de bajas está en pantalla con los tres bandos y la meta',
+    marc.visible && marc.puntos === 3 && marc.meta > 0, JSON.stringify(marc));
+
+  const tam = await P.evaluate(async () => {
+    const D = window.DeltaUno, r = [];
+    for (const t of D.BATALLA_TAMANOS) {
+      D.startRun('batalla');
+      D.batalla().armar(t.n, D.ship.pos.clone().normalize(), t.meta);
+      await new Promise(r => setTimeout(r, 250));
+      const i = D.batalla().info(), g = D.renderer.info.render;
+      r.push({ id: t.id, pedidas: t.n.guardia + t.n.directorio + t.n.desligados,
+               armadas: i.naves, meta: i.meta, calls: g.calls, tri: g.triangles });
+    }
+    return r;
+  });
+  check('los cuatro tamaños arman exactamente la cantidad de naves que declaran',
+    tam.every(x => x.armadas === x.pedidas && x.meta > 0), JSON.stringify(tam.map(x => x.id + ':' + x.armadas + '/' + x.pedidas)));
+  /* El tamaño grande no puede costar dibujo: la flota va instanciada y más allá de 900 m una nave es una
+     baliza, así que 89 naves tienen que dibujar casi lo mismo que 17. Si esto se rompe, el tamaño grande
+     deja de ser una opción honesta para un teléfono. */
+  check('el tamaño más grande no se sale del presupuesto de dibujo',
+    tam.every(x => x.calls <= 150 && x.tri <= 400000), JSON.stringify(tam.map(x => x.id + ': ' + x.calls + ' llamadas, ' + x.tri + ' tri')));
+
+  // Gana el primero que llega a la meta: con la meta en 3, tres derribos del jugador terminan la partida
+  const fin = await P.evaluate(async () => {
+    const D = window.DeltaUno;
+    D.startRun('batalla');
+    const B = D.batalla();
+    B.armar({ guardia: 3, directorio: 3, desligados: 3 }, D.ship.pos.clone().normalize(), 3);
+    for (const c of B.combatientes.filter(c => c.bando === 'directorio')) D.hitEnemyForTest(c.ent);
+    await new Promise(r => setTimeout(r, 400));
+    return { bajas: B.bajas(), ganador: B.ganador(), marcador: document.querySelector('#batScore').textContent,
+             final: !document.querySelector('#end').hidden, titulo: document.querySelector('#endTitle').textContent };
+  });
+  check('gana el primer bando que llega a la meta de bajas, y la pantalla final lo dice',
+    fin.ganador === 'guardia' && fin.bajas.guardia === 3 && fin.final && /Guardia/.test(fin.titulo), JSON.stringify(fin));
+
+  /* Que al recibir un tiro se pueda VER quién fue. Un tirador puesto a mano a 200 m: tiene que quedar una
+     marca roja y un aviso con la distancia. Sin esto el escudo baja y no hay forma de saber cuál de las
+     cuarenta marcas naranjas te está pegando, que es lo que Santiago reportó. */
+  const quien = await P.evaluate(async () => {
+    const D = window.DeltaUno, T = window.THREE, s = D.ship;
+    D.startRun('batalla'); D.run.lives = Infinity; D.setInv(0);
+    await new Promise(r => setTimeout(r, 1200));
+    const B = D.batalla();
+    for (const c of B.combatientes) if (!c.esJugador) c.muerto = 9999;
+    const tir = B.combatientes.find(c => !c.esJugador && c.bando !== 'guardia');
+    const iv = setInterval(() => {
+      const up = s.pos.clone().normalize(), fw = new T.Vector3(0, 0, -1).applyQuaternion(s.q);
+      tir.pos.copy(s.pos).addScaledVector(fw, -200); tir.muerto = 0; tir.frio = 0;
+      const m = s.pos.clone().sub(tir.pos).normalize();
+      const rg = new T.Vector3().crossVectors(m, up).normalize(), u2 = new T.Vector3().crossVectors(rg, m).normalize();
+      tir.quat.setFromRotationMatrix(new T.Matrix4().makeBasis(rg, u2, m.clone().negate()));
+    }, 10);
+    let roja = 0, aviso = false;
+    const iv2 = setInterval(() => {
+      roja = Math.max(roja, document.querySelectorAll('.mk.tira:not([hidden])').length);
+      if (D.toasts().some(t => /te tira desde/.test(String(t)))) aviso = true;
+    }, 30);
+    const t0 = s.t;
+    await new Promise(r => { const i = setInterval(() => { if (s.t - t0 >= 5) { clearInterval(i); r(); } }, 20); });
+    clearInterval(iv); clearInterval(iv2);
+    const g = D.golpesBat();
+    return { golpes: g.length, marcaRoja: roja, aviso, distUltimo: g.length ? g[g.length - 1].dist : -1 };
+  });
+  check('un tirador a 200 m le pega y se ve quién fue: marca roja y aviso con la distancia',
+    quien.golpes > 0 && quien.marcaRoja > 0 && quien.aviso, JSON.stringify(quien));
+  /* El impacto se mide contra el tramo que recorrió la bala, no contra el punto final. Si vuelve a medirse
+     contra el punto, acá adentro —con cuadros de 0,05 s, o sea 26 m de bala por cuadro— esto da cero golpes,
+     que es exactamente lo que daba antes. */
+  check('los golpes dependen de la puntería y no de los cuadros por segundo',
+    quien.golpes >= 3 && quien.distUltimo > 150 && quien.distUltimo < 260, JSON.stringify(quien));
+
+  // y se vuelve a una batalla normal para lo que sigue
+  await P.evaluate(() => { const D = window.DeltaUno; D.startRun('batalla'); D.run.lives = Infinity; });
+  await simWait(P, 4);
+
   /* El dibujo queda PRENDIDO para esta parte: las marcas se actualizan dentro del dibujo, y apagarlo daba
      cero marcas sin que nada estuviera mal. Y se mira durante unos segundos, no en un instante: en un revoleo
      hay momentos en que no tenés a nadie adelante, y eso no es una falla. */

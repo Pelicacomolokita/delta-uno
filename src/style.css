@@ -281,7 +281,19 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--bolt);outl
 .amk{position:absolute;left:0;top:0;display:grid;justify-items:center;gap:1px;margin:-30px 0 0 -40px;width:80px;color:#9cf5b0;will-change:transform}
 .amk span{font:700 10px/1 var(--font-data);letter-spacing:.08em;text-transform:uppercase;text-shadow:0 0 3px #0a1022,0 0 6px #0a1022}
 .amk i{width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid currentColor;filter:drop-shadow(0 0 2px #0a1022)}
+/* Marcador de la batalla campal: las bajas de los tres bandos y la meta */
+#batScore{position:absolute;top:calc(var(--sa-t) + 8px);left:50%;transform:translateX(-50%);display:flex;gap:10px;align-items:baseline;padding:3px 10px;background:var(--glass-strong);border-radius:3px;font:700 11px/1.2 var(--font-data);letter-spacing:.06em;font-variant-numeric:tabular-nums;pointer-events:none;white-space:nowrap}
+#batScore i{font-style:normal;opacity:.7;font-weight:400}
+#batScore s{text-decoration:none;display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;vertical-align:baseline}
+#batScore span.yo b{color:var(--bolt)}
+@media (max-width:520px){#batScore{font-size:10px;gap:7px;padding:2px 7px}}
 .mk.pr{color:#ffd23f}
+/* El que te acaba de pegar: la marca se agranda y late, para poder distinguirlo entre cuarenta marcas iguales */
+.mk.tira{color:#ff2f44}
+.mk.tira .box{transform:scale(1.65);animation:mkTira .4s linear infinite}
+.mk.tira .arrow{animation:mkTira .4s linear infinite}
+@keyframes mkTira{0%,100%{opacity:1}50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.mk.tira .box,.mk.tira .arrow{animation:none}}
 #endText{margin:0;max-width:36em;font-size:13px;line-height:1.45;color:var(--paper-dim)}
 #briefBody{max-width:640px;gap:8px}
 #briefKicker{font:700 11px/1.2 var(--font-data);letter-spacing:.1em;text-transform:uppercase;color:var(--paper-dim)}

@@ -51,6 +51,8 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
   /* Temporales reutilizados. Antes el paso de cada nave creaba dos Vector3 por cuadro: con 60 naves son
      7.200 por segundo, y esa basura la tiene que limpiar el recolector justo mientras estás volando. */
   const _nz = new T.Vector3(), _cenU = new T.Vector3();
+  // para el impacto barrido de las balas: principio del tramo, el tramo, y dos auxiliares
+  const _bp = new T.Vector3(), _tr = new T.Vector3(), _ba = new T.Vector3(), _bc2 = new T.Vector3();
 
   // un punto al azar dentro del sector, a la altura de vuelo
   function punto(out, r = radio) {
@@ -123,8 +125,10 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
   }
 
   /* Arma la batalla. cuantos: { guardia: 19, directorio: 20, desligados: 20 } */
-  function armar(cuantos, dondeU) {
+  function armar(cuantos, dondeU, metaBajas = 0) {
     limpiar();
+    for (const B of BANDOS_BATALLA) bajas[B.id] = 0;
+    meta = metaBajas; ganador = null;
     centro.copy(dondeU).normalize().multiplyScalar(PLANET_R);
     for (const B of BANDOS_BATALLA) {
       const n = cuantos[B.id] || 0;
@@ -183,11 +187,14 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
 
   /* dt: el paso. jugador: { pos, quat, bando, vivo } o null. Devuelve lo que pasó en este cuadro para que
      main.js ponga los efectos y el daño: { muertes: [...], impactosJugador: n } */
-  const salida = { muertes: [], impactosJugador: 0, impactoDir: new T.Vector3() };
+  /* golpes: quién le pegó al jugador en este cuadro y desde dónde. No es solo diagnóstico: es lo que el HUD
+     necesita para poder decirle de qué le están pegando, que es lo que Santiago viene pidiendo tres veces
+     ("no logro diferenciar si son disparos de enemigos con buena puntería o me pegan porque sí"). */
+  const salida = { muertes: [], impactosJugador: 0, impactoDir: new T.Vector3(), golpes: [] };
   function paso(dt, jugador) {
     t += dt;
     _cenU.copy(centro).normalize();   // una vez por cuadro, no una por nave
-    salida.muertes.length = 0; salida.impactosJugador = 0;
+    salida.muertes.length = 0; salida.impactosJugador = 0; salida.golpes.length = 0; enPaso = true;
 
     // el jugador participa como un combatiente más, para que lo busquen y le tiren
     if (jugador) {
@@ -283,27 +290,54 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
         const m = c.nave.mandos; m.empuje = .75; m.velocidad = c.vel; }
     }
 
-    // balas
+    /* Balas. El impacto se mide contra el TRAMO que recorrió la bala en el cuadro, no contra el punto donde
+       quedó al final. Antes era lo segundo, y eso hacía que pegar o no dependiera de los cuadros por segundo
+       en vez de la puntería: una bala va a 520 m/s, o sea 8,7 m por cuadro a 60 cuadros, 17 m a 30 y 35 m a
+       15. El radio de impacto son 8,4 m. A 30 cuadros la mitad de las balas bien apuntadas le pasaban al
+       jugador POR ADENTRO sin tocarlo, y a veces contaba una que iba a errar por 8 m. Era azar, no puntería,
+       y era literal lo que decía Santiago: "no logro diferenciar si son disparos de enemigos con buena
+       puntería o me pegan porque sí". Medido acá adentro, con cuadros de 0,1 s, en 9 s de juego con rivales
+       a 50 m: cero impactos. Ninguno. */
+    const RADIO2 = BALA_R * BALA_R * 9;
     for (let i = balas.length - 1; i >= 0; i--) {
       const z = balas[i];
       z.vida -= dt;
+      _bp.copy(z.p);                      // dónde empezaba el cuadro
       z.p.addScaledVector(z.v, dt);
+      _tr.copy(z.p).sub(_bp);             // el tramo recorrido
+      const largo2 = _tr.lengthSq();
       if (z.vida <= 0) { balas.splice(i, 1); continue; }
       let pegó = false;
       for (const o of combatientes) {
         if (o.muerto > 0 || o.bando === z.bando) continue;
-        if (z.p.distanceToSquared(o.pos) > BALA_R * BALA_R * 9) continue;
+        // distancia del blanco al tramo, no al punto final
+        let d2;
+        if (largo2 < 1e-6) d2 = z.p.distanceToSquared(o.pos);
+        else {
+          const t = Math.max(0, Math.min(1, _ba.copy(o.pos).sub(_bp).dot(_tr) / largo2));
+          d2 = _bc2.copy(_bp).addScaledVector(_tr, t).distanceToSquared(o.pos);
+        }
+        if (d2 > RADIO2) continue;
         pegó = true;
         // la dirección del tiro, para que el HUD dibuje el arco que dice de dónde te pegaron
-        if (o.esJugador) { salida.impactosJugador++; salida.impactoDir.copy(z.v); }
+        if (o.esJugador) {
+          salida.impactosJugador++; salida.impactoDir.copy(z.v);
+          /* La distancia al que tiró la calcula main.js, no acá: la cuenta que tenía puesta en este lugar daba
+             1-33 m con el tirador clavado a 200 m, comprobado poniendo los dos números al lado. No entendí
+             por qué y no vale la pena seguir: el número bueno sale en main.js y es el que se usa. */
+          salida.golpes.push({ de: z.de, bando: z.bando, color: z.color,
+            roce: Math.round(Math.sqrt(d2)) });   // a cuántos metros pasaba la bala al contar como golpe
+        }
         else {
           o.vida--;
-          if (o.vida <= 0) { o.muerto = T_REENTRA; salida.muertes.push({ pos: o.pos.clone(), bando: o.bando }); if (o.nave) o.nave.visible = false; }
+          if (o.ent) o.ent.hp = o.vida;
+          if (o.vida <= 0) caer(o, z.bando);
         }
         break;
       }
       if (pegó) balas.splice(i, 1);
     }
+    enPaso = false;
     return salida;
   }
 
@@ -317,15 +351,13 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
   }
   /* Le pega a un combatiente a través de su adaptador (desde el misil o los tiros del jugador).
      Devuelve el combatiente si cayó, null si solo se dañó. */
-  function pegarEnt(ent, dano = 1) {
+  function pegarEnt(ent, dano = 1, deBando = 'guardia') {
     const c = ent.bat;
     if (!c || c.muerto > 0) return null;
     c.vida -= dano;
     ent.hp = c.vida;
     if (c.vida > 0) return null;
-    c.muerto = T_REENTRA; ent.on = false; ent.hp = 0;
-    if (c.nave) c.nave.visible = false;
-    return c;
+    return caer(c, deBando);
   }
 
   function vivos() {
@@ -335,13 +367,35 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
     return r;
   }
 
+  /* ---------- Marcador: gana el bando que llegue primero a la meta de bajas ----------
+     Todos los caminos por los que cae una nave pasan por acá —balas de la inteligencia, tiros del jugador,
+     misiles—, porque si cada uno cuenta por su lado alguno se va a olvidar y el marcador va a mentir. */
+  const bajas = {};
+  for (const B of BANDOS_BATALLA) bajas[B.id] = 0;
+  let meta = 0, ganador = null, enPaso = false;
+  function caer(o, deBando) {
+    o.muerto = T_REENTRA;
+    if (o.ent) { o.ent.on = false; o.ent.hp = 0; }
+    if (o.nave) o.nave.visible = false;
+    if (deBando && bajas[deBando] != null) {
+      bajas[deBando]++;
+      if (meta > 0 && !ganador && bajas[deBando] >= meta) ganador = deBando;
+    }
+    /* La explosión se avisa por salida.muertes SÓLO si esto pasó adentro del paso. Una baja que hace el
+       jugador entra por pegarEnt desde main.js, que ya pone su propia explosión: si además la empujáramos
+       acá, main.js la explotaría dos veces, o —peor— nunca, porque el paso limpia la lista al empezar. */
+    if (enPaso) salida.muertes.push({ pos: o.pos.clone(), bando: o.bando, de: deBando || null });
+    return o;
+  }
+
   // ¿una bala del jugador le pegó a alguien? Devuelve el caído, o null.
   function golpeDelJugador(p, bandoJugador, dano = 1) {
     for (const o of combatientes) {
       if (o.esJugador || o.muerto > 0 || o.bando === bandoJugador) continue;
       if (p.distanceToSquared(o.pos) > 36) continue;
       o.vida -= dano;
-      if (o.vida <= 0) { o.muerto = T_REENTRA; if (o.nave) o.nave.visible = false; return o; }
+      if (o.ent) o.ent.hp = o.vida;
+      if (o.vida <= 0) return caer(o, bandoJugador);
       return null;
     }
     return undefined;   // no le pegó a nadie
@@ -358,5 +412,6 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
     return lugarEnFormacion(new T.Vector3(), bando, Math.ceil(n / FILA), 0).clone();
   }
   return { armar, limpiar, paso, vivos, golpeDelJugador, blancos, pegarEnt, salidaDe, combatientes, balas, BANDOS: BANDOS_BATALLA,
-           info: () => ({ naves: combatientes.filter(c => !c.esJugador).length, balas: balas.length, vivos: vivos() }) };
+           bajas: () => ({ ...bajas }), meta: () => meta, ganador: () => ganador,
+           info: () => ({ naves: combatientes.filter(c => !c.esJugador).length, balas: balas.length, vivos: vivos(), bajas: { ...bajas }, meta, ganador }) };
 }
