@@ -1311,7 +1311,10 @@ const BAT_BALA_MAX=320;
 function batallaIniciar(){
   if(!batalla)batalla=crearBatalla(T,{naves,PLANET_R,heightAt});
   if(!batallaBalas){
-    batallaBalas=new T.InstancedMesh(new T.BoxGeometry(.34,.34,9),
+    /* 0,55 de ancho y no 0,34, y además se engorda con la distancia (ver más abajo). La pelea ajena pasa a
+       200-900 m del jugador, y a 400 m una bala de 0,34 m mide 0,26 píxeles: no se ve. Santiago lo dijo así:
+       "no veo las balas que me están disparando". De cerca queda del grosor de los disparos propios. */
+    batallaBalas=new T.InstancedMesh(new T.BoxGeometry(.55,.55,14),
       new T.MeshBasicMaterial({vertexColors:true,blending:T.AdditiveBlending,transparent:true,depthWrite:false,fog:false}),BAT_BALA_MAX);
     batallaBalas.instanceMatrix.setUsage(T.DynamicDrawUsage);batallaBalas.frustumCulled=false;batallaBalas.count=0;
     scene.add(batallaBalas);
@@ -1323,7 +1326,7 @@ function batallaParar(){
   if(batalla)batalla.limpiar();
   if(batallaBalas){batallaBalas.count=0;batallaBalas.visible=false;}
 }
-const _bq=new Q(),_bf=new V3(),_bc=new T.Color(),_UZ=new V3(0,0,1),_bcen=new V3();
+const _bq=new Q(),_bf=new V3(),_bc=new T.Color(),_UZ=new V3(0,0,1),_bcen=new V3(),_bsc=new V3();
 let batAviso=0;
 const _bobj={pos:new V3(),label:''};
 /* Dónde está el revoleo, para que el jugador sepa volver. Medido: la batalla no se dispersa —cada nave tiene
@@ -1363,7 +1366,11 @@ function stepBatalla(dt){
     if(n>=BAT_BALA_MAX)break;
     _bf.copy(z.v).normalize();
     _bq.setFromUnitVectors(_UZ,_bf);
-    _m.compose(z.p,_bq,_one);
+    // engordar con la distancia: lo que a 60 m es un tiro fino, a 800 m tiene que seguir midiendo un píxel
+    const dz=z.p.distanceTo(camera.position);
+    _bsc.set(1,1,1).multiplyScalar(Math.min(6,Math.max(1,dz/120)));
+    _bsc.z=Math.min(2.2,Math.max(1,dz/300));
+    _m.compose(z.p,_bq,_bsc);
     batallaBalas.setMatrixAt(n,_m);
     batallaBalas.setColorAt(n,_bc.setHex(z.color));
     n++;

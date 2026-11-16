@@ -33,6 +33,23 @@ const { check, sleep, launch, open, center, setRender, f, simWait } = H;
   check('arrancan los tres bandos con sus naves', r.modo === 'batalla' && r.total >= 55 &&
     r.vivos.guardia > 0 && r.vivos.directorio > 0 && r.vivos.desligados > 0, JSON.stringify(r));
 
+  /* ---- ¿Se VEN los aliados al salir? ---- */
+  /* Esta es la comprobación que faltaba y por eso Santiago tuvo que reportarlo tres veces: "no veo a los
+     aliados cargar contigo". Todo lo demás daba bien —estaban vivos, en la flota, a 70 m, con nave y
+     visible: true— y aun así en la pantalla no había nadie. Contar naves no sirve: hay que proyectarlas por
+     la cámara de verdad y además pedir que estén adentro de la distancia a la que se dibujan como nave
+     (900 m, LOD_DIST en flota.js); más lejos son una baliza y el jugador ve manchas, no una batalla. */
+  const enPantalla = await P.evaluate(() => {
+    const D = window.DeltaUno, B = D.batalla(), T = window.THREE, cam = D.camera, v = new T.Vector3();
+    cam.updateMatrixWorld(); cam.updateProjectionMatrix();
+    const cuenta = al => B.combatientes.filter(c => !c.esJugador && c.muerto <= 0 && (c.bando === 'guardia') === al)
+      .filter(c => { v.copy(c.pos).project(cam); return v.z > -1 && v.z < 1 && Math.abs(v.x) <= 1 && Math.abs(v.y) <= 1
+                            && c.nave && c.nave.visible && c.pos.distanceTo(D.ship.pos) < 900; }).length;
+    return { aliados: cuenta(true), rivales: cuenta(false), fov: cam.fov };
+  });
+  check('al salir se ven los aliados adelante, dibujados como naves y no como balizas',
+    enPantalla.aliados >= 5, JSON.stringify(enPantalla));
+
   /* El dibujo queda PRENDIDO para esta parte: las marcas se actualizan dentro del dibujo, y apagarlo daba
      cero marcas sin que nada estuviera mal. Y se mira durante unos segundos, no en un instante: en un revoleo
      hay momentos en que no tenés a nadie adelante, y eso no es una falla. */
@@ -78,9 +95,17 @@ const { check, sleep, launch, open, center, setRender, f, simWait } = H;
      target.speed— solo se calcula cuando hay blanco ELEGIDO. Faltaban esos dos campos en el adaptador: el
      cuadro moría antes de dibujar y la pantalla quedaba congelada mientras la partida seguía.
      Con el dibujo PRENDIDO, porque es el HUD el que se cae. */
+  /* El hueco entre apretar y soltar va con sleep (tiempo REAL), no con simWait (tiempo simulado). Mantener
+     el botón 450 ms de reloj suelta el blanco —es a propósito, TGT_HOLD— y acá adentro 0,08 s de simulación
+     tardan más de medio segundo de reloj porque el dibujo va por software. O sea que el test mantenía el
+     botón apretado y después se quejaba de que no fijaba. No fallaba el juego: fallaba cómo lo tocaba.
+     Y se insiste, porque el cono son 37° y en la batalla un rival entra y sale de ahí en menos de un segundo. */
   const tb = await center(P, '#tgtBtn');
-  await L.touch('touchStart', [[tb[0], tb[1], 0]]); await simWait(P, .08);
-  await L.touch('touchEnd', []); await simWait(P, .1);
+  for (let i = 0; i < 12; i++) {
+    await L.touch('touchStart', [[tb[0], tb[1], 0]]); await sleep(60);
+    await L.touch('touchEnd', []); await sleep(120);
+    if (await P.evaluate(() => { const t = window.DeltaUno.tgt(); return !!(t && t.bat); })) break;
+  }
   const elegido2 = await P.evaluate(() => {
     const D = window.DeltaUno, t = D.tgt();
     return { hay: !!t, esDeLaBatalla: !!(t && t.bat), tieneRumbo: !!(t && t.fwd), tieneVel: !!(t && typeof t.speed === 'number'),

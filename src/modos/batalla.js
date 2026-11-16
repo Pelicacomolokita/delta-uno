@@ -20,7 +20,11 @@
 const T_BUSCA = .45;      // s entre búsquedas de blanco: buscar en cada cuadro es lo caro y no hace falta
 const T_REENTRA = 4;      // s hasta que una nave caída vuelve a entrar
 const BALA_V = 520, BALA_VIDA = 1.6, BALA_R = 2.8;
-const BANDA_BAJA = 260, BANDA_ALTA = 820;   // entre estas alturas pelean; ver la franja en paso()
+const ALTURA_PELEA = 470;   // la altura a la que tiende la pelea; ver el tirón en paso()
+/* 380 m y no 560: a 560 m la nave que te dispara ya se dibuja con el detalle más bajo y es un punto, así que
+   recibías tiros de algo que no se podía distinguir. A 380 m está bien dentro del alcance en que se ve como
+   una nave. Santiago pidió revisar esto. */
+const ALCANCE_TIRO = 380;
 
 export const BANDOS_BATALLA = [
   { id: 'guardia', nombre: 'Guardia de Nácar', diseno: 'A', pintura: 'guardia', color: 0x8fe8ff },
@@ -34,7 +38,10 @@ export const BANDOS_BATALLA = [
 /* techo: el mismo que tiene el jugador (CEIL_WARN). Sin esto las naves de la batalla subían sin límite
    persiguiendo blancos y se quedaban arriba del techo del jugador, disparándole desde donde él no puede
    llegar ni ver. Santiago lo reportó: "los enemigos siguen superando la altura de 1200 que alcanza mi nave". */
-export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, radio = 2200, techo = 1200 }) {
+/* radio 1.200 y no 2.200: las naves dejan de dibujarse como naves a los 900 m (LOD_DIST en flota.js) y más
+   lejos son solo una baliza. Con el sector grande, casi todo el combate ajeno quedaba fuera de ese alcance y
+   el jugador veía manchas de balizas en vez de una batalla. Con 1.200 m, todo el revoleo entra. */
+export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, radio = 1200, techo = 1200 }) {
   const combatientes = [];
   const balas = [];
   let centro = new T.Vector3(0, PLANET_R, 0), t = 0;
@@ -235,13 +242,14 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
       if (delCentro > radio * 1.4) { nacer(c, true); continue; }
       if (fuera || alturaSuelo < 140) {
         _b.copy(centro).normalize().multiplyScalar(PLANET_R + alturaVuelo + 200).sub(c.pos).normalize();
-      } else if (altMar > BANDA_ALTA || altMar < BANDA_BAJA) {
-        /* La franja de pelea. Con solo el techo duro medí que la mediana se iba a 1.071 m: un combate aéreo
-           trepa solo, porque cada uno busca quedar arriba del otro, y sin nada que lo empuje para abajo toda
-           la batalla termina apoyada contra el techo y el jugador abajo recibiendo desde arriba. Con la
-           franja la pelea se queda donde el jugador vuela. */
-        const fuera2 = altMar > BANDA_ALTA ? -(altMar - BANDA_ALTA) : (BANDA_BAJA - altMar);
-        _b.addScaledVector(_up, Math.max(-.85, Math.min(.85, fuera2 / 260))).normalize();
+      } else {
+        /* Altura preferida, con tirón proporcional. Un combate aéreo trepa solo —cada uno busca quedar arriba
+           del otro— así que no alcanza con poner un límite: medido, con el techo duro la mediana se iba a
+           1.071 m y con una franja de 260 a 820 se quedaba en 874, pegada al borde de arriba, con el jugador
+           abajo recibiendo desde arriba igual. El tirón empieza apenas se desvían y crece con la diferencia,
+           así que la pelea se queda donde el jugador vuela en vez de apoyarse en el tope. */
+        const dif = ALTURA_PELEA - altMar;
+        if (Math.abs(dif) > 60) _b.addScaledVector(_up, Math.max(-.9, Math.min(.9, dif / 420))).normalize();
       }
 
       // girar hacia ahí, con un límite de giro por segundo (al doble si está volviendo al sector)
@@ -266,7 +274,7 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
       if (c.rafaga > 0) {
         c.hueco -= dt;
         if (c.hueco <= 0) { disparar(c); c.rafaga--; c.hueco = .11; }
-      } else if (c.frio <= 0 && b && dB < 560 && _fw.dot(_a.divideScalar(Math.max(dB, 1))) > .985) {
+      } else if (c.frio <= 0 && b && dB < ALCANCE_TIRO && _fw.dot(_a.divideScalar(Math.max(dB, 1))) > .985) {
         c.rafaga = 3; c.hueco = 0; c.frio = 1.5 + Math.random() * 1.2;
       }
 
@@ -340,9 +348,15 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
   }
 
   // dónde tiene que salir el jugador para estar con los suyos
-  /* Dónde sale el jugador: en el medio de la formación de los suyos, una fila adelante, para que los vea
-     a los costados y atrás cuando mira al frente. */
-  function salidaDe(bando) { return lugarEnFormacion(new T.Vector3(), bando, -1, 0).clone(); }
+  /* Dónde sale el jugador: al medio y UNA FILA ATRÁS DE TODOS LOS SUYOS, no adentro de la cuña.
+     Medido con la cámara de verdad (no a ojo): la cámara tiene 65° de campo vertical, y desde adentro de una
+     línea de a cinco separadas 70 m los aliados caen a 52° y 68° del eje. En la salida entraban 2 de 19 en
+     pantalla, y a los 3 s, cero. Era literal lo que decía Santiago: "no veo a los aliados cargar contigo".
+     Desde atrás de la última fila los 19 quedan adelante, dentro de un cono de 32°, y la carga se ve. */
+  function salidaDe(bando) {
+    const n = combatientes.filter(c => c.bando === bando && !c.esJugador).length;
+    return lugarEnFormacion(new T.Vector3(), bando, Math.ceil(n / FILA), 0).clone();
+  }
   return { armar, limpiar, paso, vivos, golpeDelJugador, blancos, pegarEnt, salidaDe, combatientes, balas, BANDOS: BANDOS_BATALLA,
            info: () => ({ naves: combatientes.filter(c => !c.esJugador).length, balas: balas.length, vivos: vivos() }) };
 }
