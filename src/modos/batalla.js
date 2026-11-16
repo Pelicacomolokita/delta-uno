@@ -20,6 +20,7 @@
 const T_BUSCA = .45;      // s entre búsquedas de blanco: buscar en cada cuadro es lo caro y no hace falta
 const T_REENTRA = 4;      // s hasta que una nave caída vuelve a entrar
 const BALA_V = 520, BALA_VIDA = 1.6, BALA_R = 2.8;
+const BANDA_BAJA = 260, BANDA_ALTA = 820;   // entre estas alturas pelean; ver la franja en paso()
 
 export const BANDOS_BATALLA = [
   { id: 'guardia', nombre: 'Guardia de Nácar', diseno: 'A', pintura: 'guardia', color: 0x8fe8ff },
@@ -234,8 +235,13 @@ export function crearBatalla(T, { naves, PLANET_R, heightAt, alturaVuelo = 420, 
       if (delCentro > radio * 1.4) { nacer(c, true); continue; }
       if (fuera || alturaSuelo < 140) {
         _b.copy(centro).normalize().multiplyScalar(PLANET_R + alturaVuelo + 200).sub(c.pos).normalize();
-      } else if (altMar > techo - 150) {
-        _b.addScaledVector(_up, -(altMar - (techo - 150)) / 150).normalize();   // bajá
+      } else if (altMar > BANDA_ALTA || altMar < BANDA_BAJA) {
+        /* La franja de pelea. Con solo el techo duro medí que la mediana se iba a 1.071 m: un combate aéreo
+           trepa solo, porque cada uno busca quedar arriba del otro, y sin nada que lo empuje para abajo toda
+           la batalla termina apoyada contra el techo y el jugador abajo recibiendo desde arriba. Con la
+           franja la pelea se queda donde el jugador vuela. */
+        const fuera2 = altMar > BANDA_ALTA ? -(altMar - BANDA_ALTA) : (BANDA_BAJA - altMar);
+        _b.addScaledVector(_up, Math.max(-.85, Math.min(.85, fuera2 / 260))).normalize();
       }
 
       // girar hacia ahí, con un límite de giro por segundo (al doble si está volviendo al sector)
