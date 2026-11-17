@@ -237,12 +237,21 @@ H.transform = s => s.replace('b.life=1.7;b.dmg=e.def.dmg*(e.dmgK||1);b.on=true;'
   await waitGrace(L.page);
   const t0 = await L.page.evaluate(() => window.DeltaUno.run.raceT);
   await L.page.evaluate(() => { const D = window.DeltaUno, s = D.ship; for (let i = 0; i < 12; i++) D.damage(60, s.pos.clone().normalize()); });
-  await sleep(3400);
+  /* Se espera a que REAPAREZCA, no un rato de reloj. El castigo de 5 s se aplica al reaparecer, así que
+     "raceT >= t0+5 y ya no está muerta" es exactamente ese momento. Con sleep(3400) esto medía el reloj y no
+     el juego: la nave reaparecía en el anillo y después seguía volando a 130 m/s mientras el reloj corría,
+     así que daba 252 m contra un tope de 130 y fallaba casi siempre. Comprobado: falla igual en el commit
+     anterior, o sea que no es una regresión, es una prueba que medía mal. */
+  await L.page.waitForFunction(t0 => {
+    const D = window.DeltaUno;
+    return D.run.raceT >= t0 + 5 && D.flags().dead <= 0;
+  }, t0, { timeout: 20000 }).catch(() => {});
   r = await L.page.evaluate(() => { const D = window.DeltaUno, c = D.course[0]; return { t: D.run.raceT, d: Math.round(D.ship.pos.clone().normalize().angleTo(c.u) * D.PLANET_R) }; });
-  check('al estrellarte volvés al último anillo con 5 s de castigo', r.t >= t0 + 5 && r.d < 130, // a 130 m/s de crucero ya se alejó un poco del anillo
+  check('al estrellarte volvés al último anillo con 5 s de castigo', r.t >= t0 + 5 && r.d < 130, // recién reaparecida, tiene que estar sobre el anillo
     JSON.stringify({ ...r, t0 }));
   for (let i = 1; i < 12; i++) { await through(i); await simWait(L.page, .45); }
-  await sleep(2000);
+  // y acá también se espera el final en sí, no dos segundos de reloj
+  await L.page.waitForFunction(() => !document.querySelector('#end').hidden, null, { timeout: 20000 }).catch(() => {});
   r = await L.page.evaluate(() => ({ end: !document.querySelector('#end').hidden, title: document.querySelector('#endTitle').textContent, rec: window.DeltaUno.records.carrera, stats: document.querySelector('#endStats').textContent }));
   check('al pasar el último anillo termina la carrera y guarda el récord', r.end && /Carrera terminada/.test(r.title) && r.rec > 0, JSON.stringify(r));
   await setRender(L.page, true);

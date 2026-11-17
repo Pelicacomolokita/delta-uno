@@ -79,14 +79,23 @@ const { check, sleep, launch, open, center, setRender, f, simWait } = H;
   check('el tamaño más grande no se sale del presupuesto de dibujo',
     tam.every(x => x.calls <= 150 && x.tri <= 400000), JSON.stringify(tam.map(x => x.id + ': ' + x.calls + ' llamadas, ' + x.tri + ' tri')));
 
-  // Gana el primero que llega a la meta: con la meta en 3, tres derribos del jugador terminan la partida
-  const fin = await P.evaluate(async () => {
+  /* Gana el primero que llega a la meta: con la meta en 3, tres derribos del jugador terminan la partida.
+     La espera va con simWait (tiempo simulado) y NO con un setTimeout de reloj. El marcador y la pantalla
+     final los pone stepBatalla, o sea que hacen falta cuadros: con 400 ms de reloj esto pasaba corriendo la
+     suite sola y fallaba en la tanda completa, donde bajo carga en 400 ms no corre ningún cuadro. Es el mismo
+     error que tenía el test del botón Blanco, al revés. */
+  await P.evaluate(() => {
     const D = window.DeltaUno;
     D.startRun('batalla');
     const B = D.batalla();
     B.armar({ guardia: 3, directorio: 3, desligados: 3 }, D.ship.pos.clone().normalize(), 3);
     for (const c of B.combatientes.filter(c => c.bando === 'directorio')) D.hitEnemyForTest(c.ent);
-    await new Promise(r => setTimeout(r, 400));
+  });
+  /* Y se espera el resultado en sí, no un rato: simWait tampoco sirve acá, porque mira el reloj del juego y
+     al terminar la partida ese reloj puede dejar de avanzar y la prueba se cuelga. */
+  await P.waitForFunction(() => !document.querySelector('#end').hidden, null, { timeout: 20000 }).catch(() => {});
+  const fin = await P.evaluate(() => {
+    const B = window.DeltaUno.batalla();
     return { bajas: B.bajas(), ganador: B.ganador(), marcador: document.querySelector('#batScore').textContent,
              final: !document.querySelector('#end').hidden, titulo: document.querySelector('#endTitle').textContent };
   });
