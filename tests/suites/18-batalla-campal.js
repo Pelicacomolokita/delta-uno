@@ -138,6 +138,29 @@ const { check, sleep, launch, open, center, setRender, f, simWait } = H;
   check('los golpes dependen de la puntería y no de los cuadros por segundo',
     quien.golpes >= 3 && quien.distUltimo > 150 && quien.distUltimo < 260, JSON.stringify(quien));
 
+  /* ---- Las marcas no tapan la pantalla ---- */
+  /* Desde el medio del revoleo, 39 de los 40 rivales están dentro de los 900 m, así que acá no limita la
+     distancia: limita cuántas flechas de borde se dibujan. Antes quedaban las 20 ranuras ocupadas con 16
+     flechas apretadas contra el borde, que es la mancha naranja. Los recuadros de los que tenés adelante se
+     dejan todos, porque son los que sirven. */
+  const marcasBat = await P.evaluate(async () => {
+    const D = window.DeltaUno, T = window.THREE;
+    D.startRun('batalla'); D.run.lives = Infinity; D.setInv(999);
+    await new Promise(r => setTimeout(r, 1500));
+    const B = D.batalla(), s = D.ship;
+    const v = B.combatientes.filter(c => !c.esJugador && c.muerto <= 0);
+    const cen = new T.Vector3(); for (const c of v) cen.add(c.pos); cen.divideScalar(v.length);
+    s.pos.copy(cen);   // al medio de la pelea, que es donde se juega
+    await new Promise(r => setTimeout(r, 1200));
+    const vis = [...document.querySelectorAll('.mk')].filter(m => !m.hidden);
+    const d = B.combatientes.filter(c => !c.esJugador && c.muerto <= 0 && c.bando !== 'guardia')
+      .map(c => c.pos.distanceTo(s.pos)).sort((a, b) => a - b);
+    return { visibles: vis.length, flechas: vis.filter(m => m.classList.contains('off')).length,
+             rivales: d.length, dentroDe900: d.filter(x => x <= 900).length };
+  });
+  check('en el medio de la batalla las marcas no tapan la pantalla',
+    marcasBat.rivales >= 20 && marcasBat.visibles <= 10 && marcasBat.flechas <= 3, JSON.stringify(marcasBat));
+
   // y se vuelve a una batalla normal para lo que sigue
   await P.evaluate(() => { const D = window.DeltaUno; D.startRun('batalla'); D.run.lives = Infinity; });
   await simWait(P, 4);

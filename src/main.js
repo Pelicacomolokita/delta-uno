@@ -4679,8 +4679,54 @@ function screenSpot(world,out){
   return out;
 }
 const _spot={x:0,y:0,off:false,a:0};
-function updateCombatHud(dt){
+/* Tope de distancia para las marcas de la batalla campal. En la batalla los 59 combatientes están en estado
+   'attack', así que se mostraban las 59 marcas a la vez, flechas de borde incluidas, y en pantalla quedaba
+   una mancha naranja en vez de información. Se muestran las que están dentro de los 900 m —la distancia a la
+   que la nave se dibuja como nave y no como baliza, LOD_DIST en flota.js— más las MARCAS_LEJOS más cercanas
+   de afuera, para no perder de vista al que viene. El blanco elegido y el que te acaba de pegar se muestran
+   siempre, estén donde estén.
+   Se elige el enésimo más cercano con un buffer de 6 en una sola pasada, en vez de ordenar 59 distancias por
+   cuadro: son unas 360 comparaciones y no asigna nada. */
+/* MARCAS_FLECHAS: cuántas flechas de borde (las de los que quedaron fuera de cuadro) se muestran a la vez.
+   Medido desde el medio del revoleo: 39 de los 40 rivales están dentro de los 900 m, así que la regla de la
+   distancia no limita nada ahí; se usaban las 20 ranuras y 16 eran flechas apretadas contra el borde. Eso es
+   la mancha. Los recuadros de los que tenés adelante no molestan y son los que sirven, así que se dejan
+   todos; de los que quedan fuera de cuadro se marcan sólo los más cercanos. Como la lista viene ordenada por
+   distancia, alcanza con mirar el índice. */
+const MARCAS_CERCA=900,MARCAS_LEJOS=6,MARCAS_FLECHAS=3;
+const _listaBat=[];
+/* En la batalla hay 40 rivales y sólo ENEMY_MAX (20) ranuras de marca, y las marcas se reparten por el orden
+   de la lista: o sea que hoy se marcan veinte cualesquiera, no los veinte más cercanos. Acá se ordena por
+   distancia y se cortan las que sobran, así la ranura se la queda el que importa. Se reusa el arreglo para no
+   asignar por cuadro. */
+function listaDeMarcas(){
   const lista=blancosActivos();
+  if(run.mode!=='batalla')return lista;
+  _listaBat.length=0;
+  for(const e of lista)_listaBat.push(e);
+  // ordenado siempre, no sólo cuando sobran: el tope de abajo cuenta sobre una lista ordenada
+  _listaBat.sort((a,b)=>a.pos.distanceToSquared(ship.pos)-b.pos.distanceToSquared(ship.pos));
+  if(_listaBat.length>ENEMY_MAX)_listaBat.length=ENEMY_MAX;
+  return _listaBat;
+}
+/* Y de ésas, se muestran las que están dentro de los 900 m —la distancia a la que la nave se dibuja como nave
+   y no como baliza, LOD_DIST en flota.js— más las MARCAS_LEJOS más cercanas de afuera, para no perder de
+   vista al que viene. Sin esto quedaban las veinte a la vez, flechas de borde incluidas, y en pantalla había
+   una mancha naranja en vez de información. El blanco elegido y el que te acaba de pegar van siempre. */
+function topeMarcas(lista){
+  if(run.mode!=='batalla')return Infinity;
+  let n=0,tope=Infinity;
+  // la lista ya viene ordenada por distancia, así que alcanza con contar
+  for(const e of lista){
+    const d=e.pos.distanceTo(ship.pos);
+    if(d<=MARCAS_CERCA)continue;
+    if(++n>=MARCAS_LEJOS){tope=d;break;}
+  }
+  return tope;
+}
+function updateCombatHud(dt){
+  const lista=listaDeMarcas();
+  const tope=topeMarcas(lista);
   marks.forEach((m,i)=>{
     const e=lista[i];
     if(!e||dead>0){if(!m.el.hidden){m.el.hidden=true;m.el.classList.remove('sel');}return;}
@@ -4689,12 +4735,17 @@ function updateCombatHud(dt){
     const sel=e===camTarget;
     // el que te acaba de pegar se muestra SIEMPRE, aunque esté fuera de cuadro: es el que necesitás ubicar
     const tira=!!(e.golpeoT&&ship.t-e.golpeoT<2);
-    const show=sel||tira||e.group.state==='attack'||(e.def&&e.def.carrier)||(!_spot.off&&e.pos.distanceTo(ship.pos)<1500);
+    const dJug=e.pos.distanceTo(ship.pos);
+    // en la batalla, sólo los de cerca y los pocos más cercanos de lejos; en los otros modos, como siempre
+    const enBatalla=run.mode==='batalla';
+    // de lejos, sólo unos pocos; y fuera de cuadro, sólo los más cercanos (i es el puesto por distancia)
+    const cabe=!enBatalla||((dJug<=MARCAS_CERCA||dJug<=tope)&&(!_spot.off||i<MARCAS_FLECHAS));
+    const show=sel||tira||(cabe&&(e.group.state==='attack'||(e.def&&e.def.carrier)||(!_spot.off&&dJug<1500)));
     m.el.classList.toggle('tira',tira);
     m.el.classList.toggle('sel',sel);
     if(sel){
       m.dT-=dt;
-      if(m.dT<=0){m.dT=.2;m.dist.textContent='Blanco '+Math.round(e.pos.distanceTo(ship.pos));}
+      if(m.dT<=0){m.dT=.2;m.dist.textContent='Blanco '+Math.round(dJug);}
     }
     if(!show){if(!m.el.hidden)m.el.hidden=true;return;}
     if(m.el.hidden)m.el.hidden=false;
